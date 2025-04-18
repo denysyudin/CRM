@@ -1,0 +1,119 @@
+.events-container {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.075);
+  padding: 25px;
+  margin-bottom: 20px;
+  height: auto;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.events-container h2 {
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 12px;
+  margin: 0 0 20px 0;
+  color: #212529;
+  font-size: 1.15em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.events-container .icon {
+  color: #007bff;
+  font-size: 1.2em;
+}
+
+.events-list {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.event-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-details {
+  flex: 1;
+  margin-right: 15px;
+}
+
+.event-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.event-time {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.event-tag {
+  font-size: 0.85em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.event-tag.meeting {
+  color: #0d6efd;
+  background-color: #cfe2ff;
+  border: 1px solid #b6d4fe;
+}
+
+.event-tag.deadline {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c2c7;
+}
+
+.events-footer {
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+  padding-top: 15px;
+  border-top: 1px dashed #e9ecef;
+}
+
+@media screen and (max-width: 768px) {
+  .events-container {
+    height: auto;
+    min-height: 350px;
+    padding: 15px;
+  }
+  
+  .events-container h2 {
+    font-size: 1rem;
+  }
+  
+  .event-item {
+    padding: 10px 0;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .event-title {
+    font-size: 0.9rem;
+  }
+  
+  .event-time {
+    font-size: 0.75rem;
+  }
+  
+  .event-tag {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+} 

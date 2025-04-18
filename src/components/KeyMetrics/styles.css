@@ -1,0 +1,105 @@
+.metrics-container {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+  height: 450px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metrics-container h2 {
+  font-size: 1.2rem;
+  margin-top: 0;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.metrics-container h2::before {
+  content: "📊";
+  margin-right: 10px;
+}
+
+.metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-grow: 1;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #eee;
+}
+
+.metric-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.metric-icon {
+  font-size: 2rem;
+  margin-right: 15px;
+  width: 40px;
+  text-align: center;
+}
+
+.metric-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.metric-label {
+  font-size: 1rem;
+  color: #666;
+}
+
+@media screen and (max-width: 768px) {
+  .metrics-container {
+    height: auto;
+    min-height: 350px;
+    padding: 15px;
+  }
+  
+  .metrics-container h2 {
+    font-size: 1rem;
+  }
+  
+  .metric-icon {
+    font-size: 1.5rem;
+    width: 30px;
+  }
+  
+  .metric-value {
+    font-size: 1.5rem;
+  }
+  
+  .metric-label {
+    font-size: 0.85rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .metric-icon {
+    font-size: 1.3rem;
+    width: 25px;
+  }
+  
+  .metric-value {
+    font-size: 1.3rem;
+  }
+  
+  .metric-label {
+    font-size: 0.8rem;
+  }
+} 

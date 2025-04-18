@@ -1,0 +1,261 @@
+/* --- Reset & Base Styles --- */
+:root {
+  --bg-color: #f8f9fa;
+  --widget-bg: #ffffff;
+  --border-color: #e9ecef;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --accent-color: #007bff;
+  --accent-color-darker: #0056b3;
+  --shadow-color: rgba(0, 0, 0, 0.075);
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+/* --- Main Layout (Sidebar + Content) --- */
+.dashboard-layout { 
+  display: flex; 
+  min-height: 100vh; 
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+}
+
+.sidebar-toggle {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+/* --- Dashboard Content Area --- */
+.dashboard-main-content { 
+  flex-grow: 1; 
+  padding: 25px 30px; 
+  overflow-y: auto; 
+}
+
+.dashboard-header-bar { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  margin-bottom: 30px; 
+  padding-bottom: 15px; 
+  border-bottom: 1px solid var(--border-color); 
+  flex-wrap: wrap; 
+  gap: 15px;
+} 
+
+.dashboard-title { 
+  color: var(--text-primary); 
+  font-size: 1.8em; 
+  font-weight: 600; 
+  margin: 0; 
+}
+
+/* Clock Display */
+#clock-display {
+  font-size: 0.95em;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-left: auto; 
+  padding: 5px 10px;
+  background-color: #e9ecef;
+  border-radius: 6px;
+}
+
+/* Search Bar */
+.search-bar { 
+  position: relative; 
+  width: 100%; 
+  max-width: 350px;
+}
+
+.search-bar input[type="search"] { 
+  width: 100%; 
+  padding: 10px 15px 10px 40px; 
+  border: 1px solid var(--border-color); 
+  border-radius: 20px; 
+  font-size: 0.95em; 
+  transition: border-color 0.2s ease, box-shadow 0.2s ease; 
+}
+
+.search-bar input[type="search"]:focus { 
+  outline: none; 
+  border-color: var(--accent-color); 
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); 
+}
+
+.search-bar .search-icon { 
+  position: absolute; 
+  left: 15px; 
+  top: 50%; 
+  transform: translateY(-50%); 
+  color: var(--text-secondary); 
+  font-size: 1.1em; 
+}
+
+/* Grid and Widgets */
+.dashboard-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+  gap: 30px; 
+}
+
+.widget { 
+  background-color: var(--widget-bg); 
+  border-radius: 10px; 
+  padding: 25px; 
+  box-shadow: 0 4px 12px var(--shadow-color); 
+  display: flex; 
+  flex-direction: column; 
+  min-height: 280px; 
+}
+
+/* Quick Add FAB & Menu */
+.quick-add-fab { 
+  position: fixed; 
+  bottom: 30px; 
+  right: 30px; 
+  width: 56px; 
+  height: 56px; 
+  background-color: var(--accent-color); 
+  color: white; 
+  border: none; 
+  border-radius: 50%; 
+  font-size: 28px; 
+  line-height: 56px; 
+  text-align: center; 
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); 
+  cursor: pointer; 
+  transition: background-color 0.2s ease, transform 0.2s ease; 
+  z-index: 100; 
+}
+
+.quick-add-fab:hover { 
+  background-color: var(--accent-color-darker); 
+  transform: scale(1.05); 
+}
+
+.quick-add-menu { 
+  position: fixed; 
+  bottom: 95px; 
+  right: 30px; 
+  background-color: var(--widget-bg); 
+  border-radius: 8px; 
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15); 
+  padding: 10px; 
+  z-index: 99; 
+  display: none; 
+  flex-direction: column; 
+  gap: 5px; 
+  width: 160px; 
+}
+
+.quick-add-menu button { 
+  background: none; 
+  border: none; 
+  padding: 10px 15px; 
+  text-align: left; 
+  font-size: 0.95em; 
+  font-weight: 500; 
+  color: var(--text-primary); 
+  cursor: pointer; 
+  border-radius: 4px; 
+  transition: background-color 0.15s ease; 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+}
+
+.quick-add-menu button:hover { 
+  background-color: #eef2f7; 
+}
+
+.quick-add-menu button .menu-icon { 
+  width: 18px; 
+  text-align: center; 
+  color: var(--text-secondary); 
+}
+
+/* Responsive Styles */
+@media screen and (max-width: 1200px) {
+  .dashboard-main-content {
+    padding: 20px 25px;
+  }
+  
+  .dashboard-grid {
+    gap: 20px;
+  }
+}
+
+@media screen and (max-width: 992px) {
+  .dashboard-header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  #clock-display {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  
+  .search-bar {
+    width: 100%;
+    max-width: none;
+    margin-top: 10px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .dashboard-main-content {
+    padding: 15px 20px;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .dashboard-title {
+    font-size: 1.5em;
+  }
+  
+  .widget {
+    padding: 15px;
+    min-height: 250px;
+  }
+  
+  .quick-add-fab {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+    line-height: 48px;
+    bottom: 20px;
+    right: 20px;
+  }
+  
+  .quick-add-menu {
+    bottom: 75px;
+    right: 20px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .dashboard-main-content {
+    padding: 10px 15px;
+  }
+  
+  .dashboard-title {
+    font-size: 1.3em;
+  }
+  
+  #clock-display {
+    font-size: 0.85em;
+  }
+  
+  .widget {
+    padding: 12px;
+    min-height: 220px;
+  }
+} 

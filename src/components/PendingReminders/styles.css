@@ -1,0 +1,127 @@
+.reminders-container {
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.075);
+  padding: 25px;
+  margin-bottom: 20px;
+  height: auto;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.reminders-container h2 {
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 12px;
+  margin: 0 0 20px 0;
+  color: #212529;
+  font-size: 1.15em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reminders-container .icon {
+  color: #ff9800;
+  font-size: 1.2em;
+}
+
+.reminders-list {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.reminder-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.reminder-item:last-child {
+  border-bottom: none;
+}
+
+.reminder-details {
+  flex: 1;
+  margin-right: 15px;
+}
+
+.reminder-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.reminder-time {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.priority-label {
+  font-size: 0.85em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.priority-label.high {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c2c7;
+}
+
+.priority-label.medium {
+  color: #ffc107;
+  background-color: #fff3cd;
+  border: 1px solid #ffe69c;
+}
+
+.priority-label.low {
+  color: #6c757d;
+  background-color: #e9ecef;
+  border: 1px solid #dee2e6;
+}
+
+.reminders-footer {
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: #888;
+  text-align: center;
+  padding-top: 15px;
+  border-top: 1px dashed #e9ecef;
+}
+
+@media screen and (max-width: 768px) {
+  .reminders-container {
+    height: auto;
+    min-height: 350px;
+    padding: 15px;
+  }
+  
+  .reminders-container h2 {
+    font-size: 1rem;
+  }
+  
+  .reminder-item {
+    padding: 10px 0;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .reminder-title {
+    font-size: 0.9rem;
+  }
+  
+  .reminder-time {
+    font-size: 0.75rem;
+  }
+  
+  .priority-label {
+    padding: 3px 6px;
+    font-size: 0.7rem;
+  }
+} 
