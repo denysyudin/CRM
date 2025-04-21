@@ -17,78 +17,7 @@ interface Task {
 }
 
 const TaskDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 'task-1',
-      title: 'Buy milk',
-      status: 'not-started',
-      priority: 'medium',
-      date: 'Apr 16',
-      project: 'Groceries',
-      category: 'To Buy',
-      hasAttachment: true,
-      description: 'Get 2% milk from the usual store. Check expiry date!'
-    },
-    {
-      id: 'task-2',
-      title: 'New keyboard',
-      status: 'not-started',
-      priority: 'low',
-      date: 'Apr 25',
-      project: 'Work Setup',
-      category: 'To Buy',
-      assignedTo: 'Bob',
-      hasAttachment: false,
-      description: 'Looking for a mechanical keyboard, tenkeyless, brown switches. Budget $100.'
-    },
-    {
-      id: 'task-3',
-      title: 'Pay electricity bill',
-      status: 'completed',
-      priority: 'high',
-      date: 'Apr 18',
-      project: 'Household',
-      category: 'To Pay',
-      hasAttachment: true,
-      description: 'Pay the monthly electricity bill online. Account #12345. Check usage report.'
-    },
-    {
-      id: 'task-4',
-      title: 'Pay Rent',
-      status: 'not-started',
-      priority: 'high',
-      date: 'May 01',
-      project: 'Household',
-      category: 'To Pay',
-      hasAttachment: false,
-      description: 'Monthly rent payment due. Transfer via usual method.'
-    },
-    {
-      id: 'task-5',
-      title: 'Call plumber about leak',
-      status: 'in-progress',
-      priority: 'high',
-      date: 'Apr 15',
-      project: 'Household',
-      category: 'To Fix',
-      assignedTo: 'Alice',
-      hasAttachment: false,
-      description: 'Call plumber about the dripping tap in the kitchen sink. Get quote first.'
-    },
-    {
-      id: 'task-6',
-      title: 'Finalize presentation slides',
-      status: 'in-progress',
-      priority: 'medium',
-      date: 'Apr 15',
-      project: 'Project Phoenix',
-      category: 'To Review',
-      hasAttachment: true,
-      description: 'Review the final draft of the Q2 presentation slides. Check for typos and consistency. Add speaker notes.'
-    }
-  ]);
-
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
@@ -103,6 +32,61 @@ const TaskDashboard: React.FC = () => {
       setSidebarOpen(true);
     }
   }, [isMobile]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch(process.env.REACT_APP_API_URL + '/tasks');
+        const data = await response.json();
+        
+        // Transform the API data to match our Task interface
+        const transformedTasks: Task[] = data.slice(0, 20).map((item: any) => ({
+          id: String(item.id),
+          title: item.title,
+          status: item.completed ? 'completed' : 'not-started',
+          priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
+          date: 'Apr 15',
+          project: 'Project ' + (Math.floor(Math.random() * 3) + 1),
+          category: ['To Buy', 'To Pay', 'To Fix', 'To Review'][Math.floor(Math.random() * 4)],
+          assignedTo: Math.random() > 0.5 ? 'John Doe' : undefined,
+          hasAttachment: Math.random() > 0.7,
+          description: `This is a sample task description for task #${item.id}.`
+        }));
+        
+        setTasks(transformedTasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        // Set some default tasks as fallback
+        setTasks([
+          {
+            id: '1',
+            title: 'Complete project documentation',
+            status: 'in-progress',
+            priority: 'high',
+            date: 'Apr 15',
+            project: 'Documentation',
+            category: 'To Review',
+            assignedTo: 'Jane Smith',
+            hasAttachment: true,
+            description: 'Finish all documentation for the current sprint.'
+          },
+          {
+            id: '2',
+            title: 'Fix navigation bug',
+            status: 'not-started',
+            priority: 'medium',
+            date: 'Apr 15',
+            project: 'Bugfixes',
+            category: 'To Fix',
+            hasAttachment: false,
+            description: 'Address the navigation issue reported in the mobile view.'
+          }
+        ]);
+      }
+    };
+    
+    fetchTasks();
+  }, []);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

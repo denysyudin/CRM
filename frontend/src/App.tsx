@@ -6,6 +6,7 @@ import Reminders from './screens/Reminders';
 import './App.css';
 import Notes from './screens/Notes';
 import Employee from './screens/Employee';
+import Projects from './screens/Projects';
 
 function App() {
   return (
@@ -15,8 +16,8 @@ function App() {
         <Route path="/tasks" element={<TaskDashboard />} />
         <Route path="/reminders" element={<Reminders />} />
         <Route path='/notes' element={<Notes />} />
-        {/* <Route path='/calendar' element={<Calendar />} />
-        <Route path='/projects' element={<Projects />} /> */}
+        {/* <Route path='/calendar' element={<Calendar />} /> */}
+        <Route path='/projects' element={<Projects />} /> 
         <Route path='/employee' element={<Employee />} />
         {/* <Route path='/files' element={<Files />} />
         <Route path='/settings' element={<Settings />} /> */}

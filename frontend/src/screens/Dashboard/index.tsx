@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, useMediaQuery } from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../redux/store';
-import { setSelectedPair } from '../../redux/features/currencyPairSlice ';
-import { resetOrderBook } from '../../redux/features/orderBookSlice';
-import { resetBestBids } from '../../redux/features/chartSlice';
+import { useMediaQuery } from '@mui/material';
 import useWebSocket from '../../hooks/useWebSocket';
 import Sidebar from '../../components/Sidebar/Sidebar.tsx';
 import TodaysTasks from '../../components/TodaysTasks';
@@ -105,7 +100,6 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <button className="quick-add-fab" title="Quick Add">+</button>
                 <div className="quick-add-menu">
                     <button data-action="task"><span className="menu-icon">✅</span> New Task</button>
                     <button data-action="note"><span className="menu-icon">📝</span> New Note</button>

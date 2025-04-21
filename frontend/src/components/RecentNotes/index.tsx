@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import './styles.css';
 
 interface Note {
@@ -9,38 +9,21 @@ interface Note {
 }
 
 const RecentNotes: React.FC = () => {
-  const notes: Note[] = [
-    {
-      id: 1,
-      title: 'Design inspiration for new pendants',
-      category: 'Product Design',
-      categoryColor: '#e3f2fd'
-    },
-    {
-      id: 2,
-      title: 'Marketing slogans for Spring Sale',
-      category: 'Marketing Ideas',
-      categoryColor: '#e8f5e9'
-    },
-    {
-      id: 3,
-      title: 'Competitor analysis - Smart Jeweler',
-      category: 'Business Strategy',
-      categoryColor: '#fff3e0'
-    },
-    {
-      id: 4,
-      title: 'Website feedback points',
-      category: 'Website',
-      categoryColor: '#e8eaf6'
-    },
-    {
-      id: 5,
-      title: 'Ideas for Bravo Creations blog',
-      category: 'Content Ideas',
-      categoryColor: '#f3e5f5'
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        const response = await fetch('https://jsonplaceholder.typicode.com/posts');
+        const data = await response.json();
+        setNotes(data);
+      } catch (error) {
+        console.error('Error fetching notes:', error);
+      }
     }
-  ];
+    fetchNotes();
+  }, []);
+
 
   return (
     <div className="notes-container">
@@ -50,7 +33,7 @@ const RecentNotes: React.FC = () => {
       </h2>
       
       <div className="notes-list">
-        {notes.map(note => (
+        {notes.slice(0, 5).map((note: Note) => (
           <div key={note.id} className="note-item">
             <div className="note-title">{note.title}</div>
             <div 

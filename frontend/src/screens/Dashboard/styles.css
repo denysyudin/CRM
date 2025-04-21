@@ -33,6 +33,7 @@
   flex-grow: 1; 
   padding: 25px 30px; 
   overflow-y: auto; 
+  background-color: white;
 }
 
 .dashboard-header-bar { 
