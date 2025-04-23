@@ -1,6 +1,3 @@
-/* Import the dashboard layout styles */
-@import '../../screens/Dashboard/styles.css';
-
 /* --- Base Styles --- */
 :root {
   --bg-color: #f8f9fa;
@@ -13,7 +10,6 @@
   --hover-bg: #eef2f7;
   --completed-text: #adb5bd;
   --shadow-color: rgba(0, 0, 0, 0.05);
-  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   /* Priority Colors */
   --priority-high-text: #dc3545;
   --priority-high-bg: #f8d7da;
@@ -26,40 +22,75 @@
   --priority-low-border: #dee2e6;
 }
 
-/* --- Sidebar Navigation --- */
-.sidebar-nav {
+/* App Layout */
+.app-container {
+  display: flex;
   height: 100vh;
+  overflow: hidden;
+}
+
+/* Sidebar */
+aside, .sidebar {
+  width: 250px;
+  height: 100%;
+  background-color: #30374e;
+  color: white;
+  flex-shrink: 0;
+  overflow-y: auto;
   position: sticky;
   top: 0;
+  transition: transform 0.3s ease;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
   overflow-y: auto;
-  z-index: 10;
+  background-color: var(--bg-color);
+  padding: 20px;
+  transition: margin-left 0.3s ease;
 }
 
-.sidebar-nav.mobile-visible {
-  position: fixed;
-  left: 0;
-  top: 0;
-  height: 100%;
-  background: white;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
+/* Toggle Button */
 .sidebar-toggle {
   background: none;
   border: none;
-  font-size: 1.5rem;
-  margin-right: 10px;
+  color: var(--text-primary);
+  font-size: 1.3rem;
   cursor: pointer;
+  padding: 5px;
+  margin-right: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .app-container {
+    display: block;
+  }
+  
+  aside, .sidebar {
+    position: fixed;
+    z-index: 1000;
+    transform: translateX(-100%);
+  }
+  
+  aside.open, .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 /* --- Reminders Page Layout --- */
 .reminders-container {
   max-width: 900px;
-  margin: 0 auto 20px;
+  margin: 0 auto;
   background-color: var(--content-bg);
   border-radius: 10px;
   box-shadow: 0 4px 12px var(--shadow-color);
@@ -104,6 +135,8 @@
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
 }
 
 .new-reminder-button:hover {
@@ -126,30 +159,13 @@
   color: var(--text-secondary);
 }
 
-.reminders-controls select,
-.reminders-controls button {
+.filter-select {
   padding: 6px 10px;
   border: 1px solid var(--border-color);
   border-radius: 5px;
   background-color: white;
   font-size: 1em;
   color: var(--text-primary);
-}
-
-.reminders-controls button {
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.reminders-controls button:hover {
-  background-color: var(--hover-bg);
-}
-
-.reminders-controls button.active {
-  background-color: var(--hover-bg);
-  color: var(--accent-color);
-  font-weight: 600;
-  border-color: var(--accent-color);
 }
 
 /* Reminders List */
@@ -231,6 +247,7 @@
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
 }
 
 .reminder-name {
@@ -249,12 +266,15 @@
   transition: color 0.2s ease;
 }
 
-.reminder-meta .related-info {
-  font-style: italic;
+.reminder-meta .icon {
+  margin-right: 3px;
 }
 
-.reminder-meta .related-info .icon {
-  margin-right: 3px;
+.related-info {
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 /* Priority Tag */
@@ -298,47 +318,21 @@
   filter: grayscale(80%) opacity(60%);
 }
 
-/* Reminder Action Buttons */
-.reminder-actions {
+/* No Reminders State */
+.no-reminders {
   display: flex;
-  align-items: center;
-  margin-left: 10px;
-}
-
-.action-button {
-  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  cursor: pointer;
+  padding: 60px 20px;
+  text-align: center;
   color: var(--text-secondary);
-  margin-left: 5px;
-  transition: all 0.2s ease;
 }
 
-.action-button:hover {
-  background-color: var(--hover-bg);
-}
-
-.action-button.edit:hover {
-  color: var(--accent-color);
-}
-
-.action-button.delete:hover {
-  color: #dc3545;
-}
-
-.action-button.delete.confirm {
-  background-color: #dc3545;
-  color: white;
-}
-
-.action-button.cancel:hover {
-  background-color: var(--hover-bg);
+.no-data-icon {
+  font-size: 3rem;
+  margin-bottom: 20px;
+  opacity: 0.4;
 }
 
 /* Modal Styles */
@@ -355,51 +349,42 @@
   z-index: 1000;
 }
 
-.modal-container {
+.modal-content {
   background-color: white;
   border-radius: 8px;
-  width: 90%;
+  width: 100%;
   max-width: 500px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .modal-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 15px 20px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
-  font-size: 18px;
   margin: 0;
-  color: var(--text-primary);
+  font-size: 1.4em;
 }
 
-.close-button {
+.modal-close {
   background: none;
   border: none;
-  color: var(--text-secondary);
-  font-size: 20px;
+  font-size: 1.5em;
   cursor: pointer;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  padding: 5px;
 }
 
-.close-button:hover {
-  background-color: var(--hover-bg);
-  color: var(--text-primary);
-}
-
-/* Form Styles */
-form {
+.modal-content form {
   padding: 20px;
 }
 
@@ -409,168 +394,53 @@ form {
 
 .form-group label {
   display: block;
-  font-size: 14px;
+  margin-bottom: 5px;
   font-weight: 500;
-  margin-bottom: 8px;
-  color: var(--text-primary);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 10px;
   border: 1px solid var(--border-color);
-  background-color: #f8f9fa;
-  color: var(--text-primary);
-  font-size: 14px;
-  transition: border-color 0.2s ease;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-.form-group input::placeholder,
-.form-group textarea::placeholder {
-  color: var(--text-secondary);
+  border-radius: 5px;
+  font-size: 1em;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  padding-top: 10px;
-}
-
-.form-actions button {
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 10px;
+  margin-top: 30px;
 }
 
 .cancel-button {
-  background: none;
-  border: 1px solid var(--border-color);
+  background-color: #f8f9fa;
   color: var(--text-primary);
-  margin-right: 10px;
-}
-
-.cancel-button:hover {
-  background-color: var(--hover-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 10px 15px;
+  cursor: pointer;
 }
 
 .save-button {
   background-color: var(--accent-color);
-  border: 1px solid var(--accent-color);
   color: white;
-}
-
-.save-button:hover {
-  background-color: var(--accent-color-darker);
-}
-
-/* No reminders message */
-.no-reminders {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 15px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  margin: 20px;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 15px;
+  cursor: pointer;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .reminders-container {
-    margin: 0;
-    border-radius: 0;
-  }
-
-  .reminders-header {
-    padding: 15px 20px;
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .new-reminder-button {
-    white-space: nowrap;
-  }
-
   .reminders-controls {
-    padding: 12px 20px;
     flex-wrap: wrap;
   }
-
-  .reminder-item {
-    padding: 15px 20px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
   
-  .reminder-content {
-    width: calc(100% - 30px);
-    padding-left: 10px;
-  }
-  
-  .reminder-priority {
-    margin-left: 30px;
-    margin-top: 5px;
-  }
-  
-  .reminder-actions {
-    margin-left: auto;
-    margin-top: 5px;
-  }
-}
-
-@media (max-width: 576px) {
-  .reminders-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .new-reminder-button {
-    width: 100%;
-  }
-  
-  .reminders-controls {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .reminders-controls select {
-    width: 100%;
-  }
-
   .reminder-meta {
     flex-direction: column;
     gap: 5px;
   }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .cancel-button {
-    margin-right: 0;
-    margin-bottom: 10px;
-    width: 100%;
-  }
-  
-  .save-button {
-    width: 100%;
-  }
-} 
+}

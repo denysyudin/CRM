@@ -1,177 +1,78 @@
 # Project Management Application
 
-A full-stack application for managing projects, tasks, notes, events, reminders, and files.
+A comprehensive web-based project management and productivity tool built with React, TypeScript, and Vite.
+
+![Project Management Dashboard](public/dashboard-preview.png)
 
 ## Features
 
-- Project management with status tracking
-- Task management with priority and assignment
-- Notes organization by project and category
-- Event scheduling
-- Reminder system
-- File uploads and management
-- Responsive design for desktop and mobile
+- **Project Management**: Create and track projects with customizable statuses
+- **Task Tracking**: Manage tasks with due dates, priorities, and assignees
+- **Notes & Documentation**: Keep project-related notes organized
+- **Calendar & Events**: Schedule and track project-related events
+- **Reminders**: Set up notifications and reminders for important deadlines
+- **File Attachments**: Upload and manage project files
 
-## Technology Stack
+## Getting Started
 
-- **Frontend**: React with TypeScript
-- **Backend**: FastAPI (Python)
-- **Styling**: CSS with responsive design
+### Prerequisites
 
-## Setup Instructions
+- Node.js (v14.0.0 or later)
+- npm (v6.0.0 or later) or yarn
 
-### Frontend Setup
+### Installation
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+1. Clone the repository
+2. Install dependencies:
 
-2. Create `.env` file in the root directory with:
-   ```
-   REACT_APP_API_URL=http://localhost:8000/api
-   ```
+```bash
+cd frontend
+npm install
+```
 
-3. Start the development server:
-   ```bash
-   npm start
-   ```
+### Running the Application
 
-### Backend Setup
+```bash
+# Start development server
+npm run dev
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+# Build for production
+npm run build
 
-2. Create a virtual environment (optional but recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+# Preview production build
+npm run preview
+```
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Detailed Documentation
 
-4. Start the backend server:
-   ```bash
-   python main.py
-   ```
-   
-   The API will be available at http://localhost:8000/api
-   
-   API documentation will be available at http://localhost:8000/docs
+For more detailed documentation, see the [DOCUMENTATION.md](./DOCUMENTATION.md) file.
+
+## Tech Stack
+
+- **Frontend Framework**: React with TypeScript
+- **Build Tool**: Vite
+- **State Management**: React Hooks, Context API, Redux
+- **Styling**: CSS with variables
+- **API Integration**: Custom hooks for data fetching
 
 ## Project Structure
 
-```
-project-root/
-├── public/            # Static files
-├── src/
-│   ├── components/    # Reusable UI components
-│   ├── screens/       # Main application screens
-│   ├── services/      # API services
-│   ├── hooks/         # Custom React hooks
-│   └── App.tsx        # Main application component
-├── backend/
-│   ├── main.py        # FastAPI application
-│   ├── requirements.txt # Python dependencies
-│   └── data/          # Data storage (created at runtime)
-└── package.json       # Frontend dependencies
-```
+The project follows a feature-based structure with reusable components:
 
-## API Endpoints
+- `components/`: Reusable UI components (modals, sidebar, etc.)
+- `screens/`: Main application screens/pages
+- `services/`: API integration and services
+- `hooks/`: Custom React hooks
+- `redux/`: Redux state management
 
-### Projects
-- `GET /api/projects` - Get all projects
-- `GET /api/projects/{project_id}` - Get project by ID
-- `POST /api/projects` - Create new project
-- `PUT /api/projects/{project_id}` - Update project
-- `DELETE /api/projects/{project_id}` - Delete project
+## Contributing
 
-### Tasks
-- `GET /api/tasks` - Get all tasks
-- `GET /api/projects/{project_id}/tasks` - Get tasks for a project
-- `GET /api/tasks/{task_id}` - Get task by ID
-- `POST /api/tasks` - Create new task
-- `PUT /api/tasks/{task_id}` - Update task
-- `DELETE /api/tasks/{task_id}` - Delete task
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Notes
-- `GET /api/notes` - Get all notes
-- `GET /api/projects/{project_id}/notes` - Get notes for a project
-- `GET /api/notes/{note_id}` - Get note by ID
-- `POST /api/notes` - Create new note
-- `PUT /api/notes/{note_id}` - Update note
-- `DELETE /api/notes/{note_id}` - Delete note
+## License
 
-### Events
-- `GET /api/events` - Get all events
-- `GET /api/projects/{project_id}/events` - Get events for a project
-- `GET /api/events/{event_id}` - Get event by ID
-- `POST /api/events` - Create new event
-- `PUT /api/events/{event_id}` - Update event
-- `DELETE /api/events/{event_id}` - Delete event
-
-### Reminders
-- `GET /api/reminders` - Get all reminders
-- `GET /api/projects/{project_id}/reminders` - Get reminders for a project
-- `GET /api/reminders/{reminder_id}` - Get reminder by ID
-- `POST /api/reminders` - Create new reminder
-- `PUT /api/reminders/{reminder_id}` - Update reminder
-- `DELETE /api/reminders/{reminder_id}` - Delete reminder
-
-### Files
-- `GET /api/files` - Get all files
-- `GET /api/projects/{project_id}/files` - Get files for a project
-- `GET /api/files/{file_id}` - Get file by ID
-- `POST /api/files` - Create new file (multipart/form-data)
-- `DELETE /api/files/{file_id}` - Delete file
-
-# Environment Variables in Vite
-
-This project uses Vite as the build tool, which handles environment variables differently than Create React App.
-
-## Available Environment Files
-
-- `.env`: Default environment variables loaded in all environments
-- `.env.development`: Variables loaded during development (when running `npm run dev`)
-- `.env.production`: Variables loaded during production build (when running `npm run build`)
-
-## Using Environment Variables
-
-In Vite, you must prefix environment variables with `VITE_` for them to be exposed to your application.
-
-Examples:
-```
-VITE_API_URL=http://localhost:8000
-VITE_AUTH_DOMAIN=example.auth.com
-```
-
-## Accessing Environment Variables in Code
-
-To access environment variables in your code, use `import.meta.env` instead of `process.env`:
-
-```typescript
-// ✅ Correct way in Vite
-const apiUrl = import.meta.env.VITE_API_URL;
-
-// ❌ Incorrect (this will cause "process is not defined" errors)
-const apiUrl = process.env.REACT_APP_API_URL;
-```
-
-## Local Development
-
-For local development:
-1. Create a `.env.development.local` file in the root of the project (this file will be ignored by Git)
-2. Add your local environment variables there
-
-Example `.env.development.local`:
-```
-VITE_API_URL=http://localhost:8000
-VITE_DEBUG=true
-```
-
-For more information, see the [Vite documentation on environment variables](https://vitejs.dev/guide/env-and-mode.html).
+This project is licensed under the MIT License - see the LICENSE file for details.

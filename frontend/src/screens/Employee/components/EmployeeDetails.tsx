@@ -29,10 +29,21 @@ interface Note {
   body: string;
 }
 
+interface Reminder {
+  id: string;
+  name: string;
+  dueDate: string;
+  priority: string;
+  completed?: boolean;
+  projectId?: string;
+  assigneeId?: string;
+}
+
 interface EmployeeDetailsProps {
   employee: Employee | null;
   tasks: Task[];
   notes: Note[];
+  reminders: Reminder[];
   taskFilterStatus: string;
   taskSortBy: string;
   onTaskFilterChange: (filter: string) => void;
@@ -46,6 +57,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
   employee,
   tasks,
   notes,
+  reminders,
   taskFilterStatus,
   taskSortBy,
   onTaskFilterChange,
@@ -109,9 +121,9 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
     const completedTasks = tasks.filter(task => task.status === 'completed');
     const totalCompleted = completedTasks.length;
     
-    // Use a fixed date for the mockup, in real app would use current date
-    const today = new Date('2025-04-16');
-    today.setHours(0,0,0,0);
+    // Use current date instead of fixed date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     const overdueTasks = tasks.filter(task => {
       const dueDate = task.dueDate ? new Date(task.dueDate) : null;
@@ -136,35 +148,57 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
     };
   }, [tasks]);
   
-  // Calculate follow-ups needed
+  // Calculate follow-ups needed from tasks and reminders
   const followUps = useMemo(() => {
-    if (!tasks || !tasks.length) return [];
-    
-    const today = new Date('2025-04-16');
-    today.setHours(0,0,0,0);
+    // Get current date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
     // Tasks with check-in dates that are due or past due
-    const checkInFollowUps = tasks.filter(task => 
-      task.status !== 'completed' && 
-      task.checkInDate && 
-      new Date(task.checkInDate) <= today
-    );
+    const checkInFollowUps = tasks && tasks.length 
+      ? tasks.filter(task => 
+          task.status !== 'completed' && 
+          task.checkInDate && 
+          new Date(task.checkInDate) <= today
+        )
+      : [];
     
     // Overdue tasks not already in the check-in list
-    const overdueTasks = tasks.filter(task => {
-      const dueDate = task.dueDate ? new Date(task.dueDate) : null;
-      return (
-        task.status !== 'completed' && 
-        dueDate && 
-        dueDate < today && 
-        !checkInFollowUps.some(f => f.id === task.id)
-      );
-    });
+    const overdueTasks = tasks && tasks.length
+      ? tasks.filter(task => {
+          const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+          return (
+            task.status !== 'completed' && 
+            dueDate && 
+            dueDate < today && 
+            !checkInFollowUps.some(f => f.id === task.id)
+          );
+        })
+      : [];
     
-    // Combine both types of follow-ups
-    const allFollowUps = [...checkInFollowUps, ...overdueTasks];
+    // Format reminders as follow-ups
+    const reminderFollowUps = reminders && reminders.length
+      ? reminders
+          .filter(reminder => !reminder.completed)
+          .map(reminder => ({
+            id: reminder.id,
+            name: reminder.name,
+            dueDate: reminder.dueDate,
+            priority: reminder.priority,
+            projectId: reminder.projectId || '',
+            status: 'not-started',
+            assigneeId: reminder.assigneeId || '',
+            checkInDate: null,
+            completionDate: null,
+            notes: 'From reminder',
+            isReminder: true
+          }))
+      : [];
     
-    // Sort by check-in date first, then due date
+    // Combine all types of follow-ups
+    const allFollowUps = [...checkInFollowUps, ...overdueTasks, ...reminderFollowUps];
+    
+    // Sort by due date
     allFollowUps.sort((a, b) => {
       const dateA = a.checkInDate 
         ? new Date(a.checkInDate) 
@@ -178,7 +212,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
     });
     
     return allFollowUps;
-  }, [tasks]);
+  }, [tasks, reminders]);
   
   // Function to handle task status toggle
   const handleTaskStatusToggle = (taskId: string, currentStatus: string) => {
@@ -248,9 +282,10 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
             <option value="inprogress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
-          <label htmlFor="task-sort-by">Sort:</label>
+          
+          <label htmlFor="task-sort-by" style={{ marginLeft: '15px' }}>Sort by:</label>
           <select 
-            id="task-sort-by"
+            id="task-sort-by" 
             value={taskSortBy}
             onChange={(e) => onTaskSortChange(e.target.value)}
           >
@@ -259,71 +294,46 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
           </select>
         </div>
         
-        <ul className="assigned-tasks-list">
-          {filteredTasks.length > 0 ? (
-            filteredTasks.map(task => (
+        {filteredTasks.length === 0 ? (
+          <p className="no-items-message">No tasks match the current filter.</p>
+        ) : (
+          <ul className="assigned-tasks-list">
+            {filteredTasks.map(task => (
               <li 
                 key={task.id} 
                 className={`task-item ${task.status === 'completed' ? 'completed' : ''}`}
               >
-                <span 
-                  className={`task-status-toggle ${task.status === 'not-started' ? '' : task.status === 'in-progress' ? 'inprogress' : 'completed'}`}
+                <div 
+                  className={`task-status-toggle ${task.status}`}
                   onClick={() => handleTaskStatusToggle(task.id, task.status)}
                   title={`Status: ${task.status.replace('-', ' ')}`}
-                ></span>
+                />
                 <div className="task-content">
-                  <span className="task-name">{task.name}</span>
+                  <div className="task-name">
+                    {task.name}
+                  </div>
                   <div className="task-meta">
-                    {task.dueDate && (
-                      <span className="due-date">Due: {formatDate(task.dueDate)}</span>
-                    )}
-                    {task.checkInDate && (
-                      <span className="check-in"> | Next Check-in: {formatDate(task.checkInDate)}</span>
+                    <span className="due-date">Due: {formatDate(task.dueDate)}</span>
+                    {task.checkInDate && task.status !== 'completed' && (
+                      <span className="check-in">
+                        Check-in: {formatDate(task.checkInDate)}
+                      </span>
                     )}
                   </div>
                 </div>
-                <span className={`task-priority priority-${task.priority.toLowerCase()}`}>
+                <div className={`task-priority priority-${task.priority.toLowerCase()}`}>
                   {task.priority}
-                </span>
+                </div>
               </li>
-            ))
-          ) : (
-            <li className="no-items-message">
-              No tasks match the current filter.
-            </li>
-          )}
-        </ul>
+            ))}
+          </ul>
+        )}
       </section>
       
       <section className="details-section">
         <h2 className="details-section-title">
           <span className="title-text">
-            <span className="icon">📝</span> Shared Notes
-          </span>
-          <button className="add-button" onClick={onAddNote}>
-            + Add Note
-          </button>
-        </h2>
-        <ul className="shared-notes-list">
-          {notes.length > 0 ? (
-            notes.map(note => (
-              <li key={note.id} className="note-item-summary">
-                <span className="note-summary-title">{note.title}</span>
-                <span className="note-summary-date">{note.date}</span>
-              </li>
-            ))
-          ) : (
-            <li className="no-items-message">
-              No notes shared with this employee yet.
-            </li>
-          )}
-        </ul>
-      </section>
-      
-      <section className="details-section">
-        <h2 className="details-section-title">
-          <span className="title-text">
-            <span className="icon">📊</span> Performance Overview
+            <span className="icon">📊</span> Performance
           </span>
         </h2>
         <div className="stats-grid">
@@ -333,18 +343,22 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
           </div>
           <div className="stat-card">
             <span className="stat-value">{stats.pending}</span>
-            <span className="stat-label">Pending</span>
+            <span className="stat-label">Tasks Pending</span>
           </div>
           <div className="stat-card">
-            <span className="stat-value positive">{stats.completed}</span>
-            <span className="stat-label">Completed</span>
+            <span className="stat-value">{stats.completed}</span>
+            <span className="stat-label">Tasks Completed</span>
           </div>
           <div className="stat-card">
-            <span className="stat-value negative">{stats.overdue}</span>
-            <span className="stat-label">Overdue</span>
+            <span className={`stat-value ${stats.overdue > 0 ? 'negative' : ''}`}>
+              {stats.overdue}
+            </span>
+            <span className="stat-label">Tasks Overdue</span>
           </div>
           <div className="stat-card">
-            <span className="stat-value positive">{stats.completionRate}%</span>
+            <span className={`stat-value ${stats.completionRate >= 70 ? 'positive' : (stats.completionRate < 50 ? 'negative' : '')}`}>
+              {stats.completionRate}%
+            </span>
             <span className="stat-label">Completion Rate</span>
           </div>
         </div>
@@ -353,34 +367,49 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
       <section className="details-section">
         <h2 className="details-section-title">
           <span className="title-text">
-            <span className="icon">🔔</span> Requires Follow-up
+            <span className="icon">⏰</span> Requires Follow-up
           </span>
         </h2>
-        <ul className="follow-up-list">
-          {followUps.length > 0 ? (
-            followUps.map(task => (
-              <li key={task.id} className="follow-up-item">
-                <span className="follow-up-task">{task.name}</span>
-                <span 
-                  className="follow-up-date"
-                  style={task.dueDate && new Date(task.dueDate) < new Date('2025-04-16') 
-                    ? {color: 'var(--priority-high-text)', fontWeight: 'bold'} 
-                    : undefined
-                  }
-                >
-                  {task.checkInDate 
-                    ? `Check-in Due: ${formatDate(task.checkInDate)}` 
-                    : `Task Overdue: ${formatDate(task.dueDate)}`
-                  }
-                </span>
+        {followUps.length === 0 ? (
+          <p className="no-items-message">No follow-ups required at this time.</p>
+        ) : (
+          <ul className="follow-up-list">
+            {followUps.map(item => (
+              <li key={item.id} className="follow-up-item">
+                <div className="follow-up-task">
+                  {item.name}
+                  {(item as any).isReminder && <span className="reminder-badge" title="From reminder">🔔</span>}
+                </div>
+                <div className="follow-up-date">
+                  {item.checkInDate ? formatDate(item.checkInDate) : formatDate(item.dueDate)}
+                </div>
               </li>
-            ))
-          ) : (
-            <li className="no-items-message">
-              No immediate follow-ups required.
-            </li>
-          )}
-        </ul>
+            ))}
+          </ul>
+        )}
+      </section>
+      
+      <section className="details-section">
+        <h2 className="details-section-title">
+          <span className="title-text">
+            <span className="icon">📝</span> Notes
+          </span>
+          <button className="add-button" onClick={onAddNote}>
+            + Add Note
+          </button>
+        </h2>
+        {notes.length === 0 ? (
+          <p className="no-items-message">No notes available.</p>
+        ) : (
+          <ul className="shared-notes-list">
+            {notes.map(note => (
+              <li key={note.id} className="note-item-summary">
+                <div className="note-summary-title">{note.title}</div>
+                <div className="note-summary-date">{note.date}</div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );

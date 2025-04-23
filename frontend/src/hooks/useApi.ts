@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface ApiState<T> {
   data: T | null;
@@ -25,17 +25,23 @@ export function useApi<T>(
     error: null,
   });
 
+  // Store apiCall in a ref to prevent it from causing re-renders
+  const apiCallRef = useRef(apiCall);
+  // Update the ref if apiCall changes
+  apiCallRef.current = apiCall;
+
   const fetchData = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const data = await apiCall();
+      // Use the ref to call the latest apiCall function
+      const data = await apiCallRef.current();
       setState({ data, isLoading: false, error: null });
     } catch (error) {
       setState({ data: null, isLoading: false, error: error as Error });
       console.error('API Error:', error);
     }
-  }, [apiCall, ...dependencies]);
+  }, dependencies); // Only depend on external dependencies, not apiCall itself
 
   useEffect(() => {
     fetchData();

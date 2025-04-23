@@ -13,6 +13,7 @@ import './styles.css';
 
 const Dashboard: React.FC = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [currentTime, setCurrentTime] = useState(new Date());
     const isSmall = useMediaQuery('(max-width:600px)');
     const isMobile = useMediaQuery('(max-width:768px)');
     const isMedium = useMediaQuery('(max-width:960px)');
@@ -25,6 +26,28 @@ const Dashboard: React.FC = () => {
             setSidebarOpen(true);
         }
     }, [isMobile]);
+
+    // Update the clock every minute
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 60000); // Update every minute (60000 ms)
+        
+        // Clean up the interval on component unmount
+        return () => clearInterval(timer);
+    }, []);
+
+    const formatDateTime = (date: Date) => {
+        return date.toLocaleString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        });
+    };
 
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
@@ -50,61 +73,44 @@ const Dashboard: React.FC = () => {
     const tasksColumnSize = getTasksColumnSize();
 
     return (
-        <div className="dashboard-layout">
-            {(sidebarOpen || !isMobile) && (
-                <nav className={`sidebar-nav ${isMobile && sidebarOpen ? 'mobile-visible' : ''}`}>
-                    <Sidebar />
-                </nav>
-            )}
-            <main className="dashboard-main-content">
+        <div className="app-container">
+            <Sidebar />
+            <main className="main-content">
                 <div className="dashboard-header-bar">
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                        {isMobile && (
-                            <button 
-                                onClick={toggleSidebar} 
-                                className="sidebar-toggle"
-                            >
-                                ☰
-                            </button>
-                        )}
+                        <button 
+                            onClick={toggleSidebar} 
+                            className="sidebar-toggle"
+                        >
+                            ☰
+                        </button>
                         <h1 className="dashboard-title">Main Dashboard</h1>
                     </div>
-                    <div id="clock-display">Thu, Apr 17, 2025, 2:31 PM</div>
-                    <div className="search-bar">
-                        <span className="search-icon">🔍</span>
-                        <input type="search" placeholder="Search tasks, notes, projects..." />
-                    </div>
+                    <div id="clock-display">{formatDateTime(currentTime)}</div>
                 </div>
                 
                 <div className="dashboard-grid">
-                    <div className="widget" style={{ gridColumn: 'span 2' }}>
+                    <div className="widget" style={{ gridColumn: 'span 2', height: '500px' }}>
                         <TodaysTasks />
                     </div>
-                    <div className="widget">
+                    <div className="widget" style={{ height: '500px' }}>
                         <Calendar />
                     </div>
-                    <div className="widget">
+                    <div className="widget" style={{ height: '500px' }}>
                         <KeyMetrics />
                     </div>
-                    <div className="widget">
+                    <div className="widget" style={{ height: '500px' }}>
                         <UpcomingEvents />
                     </div>
-                    <div className="widget">
+                    <div className="widget" style={{ height: '500px' }}>
                         <RecentNotes />
                     </div>
-                    <div className="widget">
+                    <div className="widget" style={{ height: '500px' }}>
                         <PendingReminders />
                     </div>
-                    <div className="widget">
+                    <div className="widget" style={{ height: '500px' }}>
                         <ActiveProjects />
                     </div>
-                </div>
-
-                <div className="quick-add-menu">
-                    <button data-action="task"><span className="menu-icon">✅</span> New Task</button>
-                    <button data-action="note"><span className="menu-icon">📝</span> New Note</button>
-                    <button data-action="event"><span className="menu-icon">🗓️</span> New Event</button>
-                    <button data-action="reminder"><span className="menu-icon">🔔</span> New Reminder</button>
                 </div>
             </main>
         </div>

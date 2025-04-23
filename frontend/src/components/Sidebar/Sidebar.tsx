@@ -1,5 +1,8 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { fetchReminders } from '../../redux/features/remindersSlice';
+import { AppDispatch } from '../../redux/store';
 import './styles.css';
 
 interface Props {
@@ -9,12 +12,25 @@ interface Props {
 
 const Sidebar: React.FC<Props> = ({ isOpen = true, toggleSidebar }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   const path = location.pathname;
+
+  const handleReminderClick = (e: React.MouseEvent) => {
+    // Prevent the default Link behavior
+    e.preventDefault();
+    
+    // Dispatch the action to fetch reminders
+    dispatch(fetchReminders());
+    
+    // Navigate to the reminders page
+    navigate('/reminders');
+  };
 
   return (
     <div className={`sidebar-nav ${isOpen ? 'mobile-visible' : ''}`}>
       <div className="sidebar-header">
-        <span className="logo-icon">🚀</span> My CRM
+        <span className="logo-icon">🚀</span>My CRM
         {toggleSidebar && (
           <button className="close-sidebar-button" onClick={toggleSidebar}>
             &times;
@@ -43,7 +59,11 @@ const Sidebar: React.FC<Props> = ({ isOpen = true, toggleSidebar }) => {
           </Link>
         </li>
         <li>
-          <Link to="/reminders" className={path === '/reminders' ? 'active' : ''}>
+          <Link 
+            to="/reminders" 
+            className={path === '/reminders' ? 'active' : ''} 
+            onClick={handleReminderClick}
+          >
             <span className="nav-icon">🔔</span> Reminders
           </Link>
         </li>

@@ -1025,11 +1025,6 @@
   }
 }
 
-/* All text elements in notes page should be black */
-.notes-content-wrapper * {
-  color: black;
-}
-
 /* Override specific element colors that might have different colors */
 .note-item-title,
 .note-item p,

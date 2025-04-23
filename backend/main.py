@@ -34,19 +34,21 @@ class ProjectBase(BaseModel):
 class TaskBase(BaseModel):
     id: Optional[str] = None
     title: str
-    description: Optional[str] = None
-    project_id: Optional[str] = None
     status: str
     priority: str
-    due_date: Optional[str] = None
+    due_date: str
+    project_id: str
+    description: Optional[str] = None
+    employee: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-    assignee: Optional[str] = None
+    file: Optional[str] = None
 
 class NoteBase(BaseModel):
     id: Optional[str] = None
     title: str
     content: str
+    employee_id: str
     project_id: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -58,7 +60,7 @@ class EventBase(BaseModel):
     description: Optional[str] = None
     start_time: str
     end_time: str
-    location: Optional[str] = None
+    type: str
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     project_id: Optional[str] = None
@@ -66,7 +68,6 @@ class EventBase(BaseModel):
 class ReminderBase(BaseModel):
     id: Optional[str] = None
     title: str
-    description: Optional[str] = None
     due_date: str
     priority: str
     status: str

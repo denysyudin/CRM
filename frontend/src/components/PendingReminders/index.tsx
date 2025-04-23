@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './styles.css';
 
 interface Reminder {
@@ -10,61 +10,50 @@ interface Reminder {
 }
 
 const PendingReminders: React.FC = () => {
-  const reminders: Reminder[] = [
-    {
-      id: 1,
-      title: 'Follow up with Alex re: Vendor Call',
-      date: 'Today',
-      time: '4:00 PM',
-      priority: 'High'
-    },
-    {
-      id: 2,
-      title: 'Call the box supplier',
-      date: 'Tomorrow',
-      time: '9:00 AM',
-      priority: 'Medium'
-    },
-    {
-      id: 3,
-      title: 'Check inventory levels',
-      date: 'Apr 17 (Thu)',
-      time: '',
-      priority: 'Medium'
-    },
-    {
-      id: 4,
-      title: 'Renew software subscription',
-      date: 'Apr 18 (Fri)',
-      time: '',
-      priority: 'Low'
-    }
-  ];
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+
+  useEffect(() => {
+    const fetchReminders = async () => {
+      try {
+        const response = await fetch('https://jsonplaceholder.typicode.com/reminders');
+        const data: Reminder[] = await response.json();
+        const upcomingReminders = data.slice(0, 5).map((reminder: Reminder) => ({
+          ...reminder,
+          date: reminder.date.split('T')[0],
+          time: reminder.date.split('T')[1].slice(0, 5)
+        }));
+        setReminders(upcomingReminders);
+      } catch (error) {
+        console.error('Error fetching reminders:', error);
+      }
+    };
+    fetchReminders();
+  }, []);
 
   return (
-    <div className="reminders-container">
+    <div className="pending-reminders-container">
       <h2>
         <span className="icon">🔔</span>
         Pending Reminders
       </h2>
       
-      <div className="reminders-list">
+      <div className="pending-reminders-list">
         {reminders.map(reminder => (
-          <div key={reminder.id} className="reminder-item">
-            <div className="reminder-details">
-              <div className="reminder-title">{reminder.title}</div>
-              <div className="reminder-time">
+          <div key={reminder.id} className="pending-reminder-item">
+            <div className="pending-reminder-details">
+              <div className="pending-reminder-title">{reminder.title}</div>
+              <div className="pending-reminder-time">
                 {reminder.date}{reminder.time ? `, ${reminder.time}` : ''}
               </div>
             </div>
-            <div className={`priority-label ${reminder.priority.toLowerCase()}`}>
+            <div className={`pending-priority-label ${reminder.priority.toLowerCase()}`}>
               {reminder.priority}
             </div>
           </div>
         ))}
       </div>
       
-      <div className="reminders-footer">
+      <div className="pending-reminders-footer">
         (Showing upcoming)
       </div>
     </div>

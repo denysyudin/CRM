@@ -81,8 +81,18 @@
   transition: background-color 0.2s;
 }
 
+.calendar-day.empty {
+  background-color: transparent;
+  border: none;
+  cursor: default;
+}
+
 .calendar-day:hover {
   background-color: #f1f3f5;
+}
+
+.calendar-day.empty:hover {
+  background-color: transparent;
 }
 
 .calendar-day.today {

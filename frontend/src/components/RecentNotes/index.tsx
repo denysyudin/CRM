@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import WidgetWrapper from '../WidgetWrapper';
 import './styles.css';
 
 interface Note {
@@ -16,7 +17,22 @@ const RecentNotes: React.FC = () => {
       try {
         const response = await fetch('https://jsonplaceholder.typicode.com/posts');
         const data = await response.json();
-        setNotes(data);
+        
+        // Add category and color data to each note
+        const notesWithCategories = data.map((note: any) => {
+          const categories = ['Work', 'Personal', 'Ideas', 'Meeting', 'Project'];
+          const colors = ['#4caf50', '#2196f3', '#ff9800', '#9c27b0', '#f44336'];
+          
+          const randomCategoryIndex = Math.floor(Math.random() * categories.length);
+          
+          return {
+            ...note,
+            category: categories[randomCategoryIndex],
+            categoryColor: colors[randomCategoryIndex]
+          };
+        });
+        
+        setNotes(notesWithCategories);
       } catch (error) {
         console.error('Error fetching notes:', error);
       }
@@ -26,19 +42,14 @@ const RecentNotes: React.FC = () => {
 
 
   return (
-    <div className="notes-container">
-      <h2>
-        <span className="icon">📝</span>
-        Recent Notes
-      </h2>
-      
+    <WidgetWrapper title="Recent Notes" icon="📝">
       <div className="notes-list">
         {notes.slice(0, 5).map((note: Note) => (
           <div key={note.id} className="note-item">
             <div className="note-title">{note.title}</div>
             <div 
               className="note-category"
-              style={{ backgroundColor: note.categoryColor }}
+              style={{ backgroundColor: note.categoryColor, color: '#fff' }}
             >
               {note.category}
             </div>
@@ -47,9 +58,9 @@ const RecentNotes: React.FC = () => {
       </div>
       
       <div className="notes-footer">
-        (Last 5 notes)
+        (Showing recent notes)
       </div>
-    </div>
+    </WidgetWrapper>
   );
 };
 

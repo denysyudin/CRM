@@ -15,12 +15,26 @@ const Day: React.FC<DayProps> = ({ day, isToday }) => {
 };
 
 const Calendar: React.FC = () => {
-  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+  // Use current date instead of hardcoded values
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const currentDay = now.getDate();
+  
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                       'July', 'August', 'September', 'October', 'November', 'December'];
-  const currentMonth = 3; // April (0-indexed)
-  const currentYear = 2025;
-  const currentDay = 15; // Today is the 15th
+  
+  // Get days in current month
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  
+  // Get the day of week of the first day of the month (0 = Sunday)
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  // Adjust to make Monday the first day of the week (0 = Monday)
+  const firstDayIndex = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+  
+  // Create empty placeholders for days before the first day of the month
+  const placeholders = Array(firstDayIndex).fill(null);
 
   return (
     <div className="calendar-container">
@@ -44,36 +58,15 @@ const Calendar: React.FC = () => {
         </div>
         
         <div className="calendar-days">
-          <Day day={1} />
-          <Day day={2} />
-          <Day day={3} />
-          <Day day={4} />
-          <Day day={5} />
-          <Day day={6} />
-          <Day day={7} />
-          <Day day={8} />
-          <Day day={9} />
-          <Day day={10} />
-          <Day day={11} />
-          <Day day={12} />
-          <Day day={13} />
-          <Day day={14} />
-          <Day day={15} isToday={true} />
-          <Day day={16} />
-          <Day day={17} />
-          <Day day={18} />
-          <Day day={19} />
-          <Day day={20} />
-          <Day day={21} />
-          <Day day={22} />
-          <Day day={23} />
-          <Day day={24} />
-          <Day day={25} />
-          <Day day={26} />
-          <Day day={27} />
-          <Day day={28} />
-          <Day day={29} />
-          <Day day={30} />
+          {/* Add placeholder empty cells for days before the 1st of the month */}
+          {placeholders.map((_, index) => (
+            <div key={`placeholder-${index}`} className="calendar-day empty"></div>
+          ))}
+          
+          {/* Render actual days of the month */}
+          {days.map(day => (
+            <Day key={day} day={day} isToday={day === currentDay} />
+          ))}
         </div>
       </div>
     </div>

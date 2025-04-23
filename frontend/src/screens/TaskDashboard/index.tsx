@@ -202,32 +202,26 @@ const TaskDashboard: React.FC = () => {
   );
 
   return (
-    <div className="dashboard-layout">
-      {(sidebarOpen || !isMobile) && (
-        <nav className={`sidebar-nav ${isMobile && sidebarOpen ? 'mobile-visible' : ''}`}>
-          <Sidebar />
-        </nav>
-      )}
+    <div className="app-container">
+      <Sidebar />
       
-      <main className="dashboard-main-content">
+      <main className="main-content">
         <div className="dashboard-header-bar">
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            {isMobile && (
-              <button 
-                onClick={toggleSidebar} 
-                className="sidebar-toggle"
-              >
-                ☰
-              </button>
-            )}
-            <h1 className="dashboard-title">🚀 My Tasks Dashboard</h1>
+            <button 
+              onClick={toggleSidebar} 
+              className="sidebar-toggle"
+            >
+              ☰
+            </button>
+            <h1 className="dashboard-title">🚀 My Tasks</h1>
           </div>
         </div>
         
         <div className="task-dashboard-content">
           {/* Category View */}
           <div className="view-section">
-            <h2 className="view-title">View: Tasks by Category</h2>
+            <h2 className="view-title">Tasks by Category</h2>
             <div className="board-view">
               {Object.entries(getTasksByCategory()).map(([category, categoryTasks]) => (
                 <div className="board-column" key={category}>
@@ -265,7 +259,7 @@ const TaskDashboard: React.FC = () => {
 
           {/* Status (Kanban) View */}
           <div className="view-section" data-view-type="status-board">
-            <h2 className="view-title">View: Tasks by Status (Kanban)</h2>
+            <h2 className="view-title">Tasks by Status (Kanban)</h2>
             <div className="board-view">
               {Object.entries(getTasksByStatus()).map(([status, statusTasks]) => (
                 <div 
@@ -316,7 +310,7 @@ const TaskDashboard: React.FC = () => {
 
           {/* Today's Tasks (Grid Table View) */}
           <div className="view-section">
-            <h2 className="view-title">View: Today's Tasks (Apr 15, 2025) - Grid Table</h2>
+            <h2 className="view-title">Today's Tasks (Apr 15, 2025) - Grid Table</h2>
             <table className="today-grid-table">
               <thead>
                 <tr>

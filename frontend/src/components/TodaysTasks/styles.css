@@ -13,7 +13,7 @@
 .tasks-container h2 {
   border-bottom: 1px solid #e9ecef;
   padding-bottom: 12px;
-  margin: 0 0 20px 0;
+  margin: 0 0 10px 0;
   color: #212529;
   font-size: 1.15em;
   font-weight: 600;
@@ -48,7 +48,6 @@
 }
 
 .tasks-table td {
-  padding: 12px 12px;
   text-align: left;
   vertical-align: middle;
   font-size: 0.95em;

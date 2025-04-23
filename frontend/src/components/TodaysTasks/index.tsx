@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './styles.css';
 
 interface Task {
@@ -10,18 +10,44 @@ interface Task {
   completed: boolean;
 }
 
+interface ApiTodo {
+  id: number;
+  title: string;
+  completed: boolean;
+  userId: number;
+}
+
 const TodaysTasks: React.FC = () => {
-  const tasks: Task[] = [
-    { id: 1, title: 'Call plumber about leak', priority: 'High', project: 'Household', assignee: 'Alice', completed: false },
-    { id: 2, title: 'Finalize presentation slides', priority: 'Medium', project: 'Project Phoenix', assignee: 'Self', completed: false },
-    { id: 3, title: 'Review Ad Copy', priority: 'Medium', project: 'Bravo Creations', assignee: 'Self', completed: true },
-    { id: 4, title: 'Order new display boxes', priority: 'High', project: 'Bravo Jewellers', assignee: 'Self', completed: false },
-    { id: 5, title: 'Draft blog post outline', priority: 'Low', project: 'Smart Jeweller', assignee: 'Self', completed: false }
-  ];
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch('https://jsonplaceholder.typicode.com/todos');
+        const data: ApiTodo[] = await response.json();
+        
+        // Transform API data to match our Task interface with meaningful defaults
+        const tasksWithRequiredProps = data.slice(0, 5).map((todo: ApiTodo) => ({
+          id: todo.id,
+          title: todo.title,
+          completed: todo.completed, // Keep the original completed status
+          priority: ['High', 'Medium', 'Low'][Math.floor(Math.random() * 3)],
+          project: `Project ${todo.userId}`,
+          assignee: todo.userId === 1 ? 'Self' : `User ${todo.userId}`
+        }));
+        
+        setTasks(tasksWithRequiredProps);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
+    fetchTasks();
+  }, []);
+
 
   return (
     <div className="tasks-container">
-      <h2>Today's Tasks (Apr 15, 2025)</h2>
+      <h2>Today's Tasks ({new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})</h2>
       
       <table className="tasks-table">
         <thead>
@@ -61,10 +87,6 @@ const TodaysTasks: React.FC = () => {
           ))}
         </tbody>
       </table>
-      
-      <div className="tasks-footer">
-        <span>(Showing tasks due today)</span>
-      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './styles.css';
 
 interface Event {
@@ -10,43 +10,27 @@ interface Event {
 }
 
 const UpcomingEvents: React.FC = () => {
-  const events: Event[] = [
-    { 
-      id: 1, 
-      title: 'Meeting with Designer', 
-      date: 'Today', 
-      time: '2:00 PM', 
-      type: 'Meeting' 
-    },
-    { 
-      id: 2, 
-      title: 'Supplier Call - Boxes', 
-      date: 'Tomorrow', 
-      time: '10:00 AM', 
-      type: 'Meeting' 
-    },
-    { 
-      id: 3, 
-      title: 'Project Phoenix Deadline', 
-      date: 'Apr 18 (Fri)', 
-      time: '', 
-      type: 'Deadline' 
-    },
-    { 
-      id: 4, 
-      title: 'Marketing Sync', 
-      date: 'Apr 21 (Mon)', 
-      time: '11:30 AM', 
-      type: 'Meeting' 
-    },
-    { 
-      id: 5, 
-      title: 'Pay Quarterly Taxes', 
-      date: 'Apr 22 (Tue)', 
-      time: '', 
-      type: 'Deadline' 
-    }
-  ];
+  const [events, setEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch('https://jsonplaceholder.typicode.com/events');
+        const data: Event[] = await response.json();
+        const upcomingEvents = data.slice(0, 5).map((todo: Event) => ({
+          id: todo.id,
+          title: todo.title,
+          date: todo.date,
+          time: todo.time,
+          type: todo.type,
+        }));
+        setEvents(upcomingEvents);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      }
+    };
+    fetchEvents();
+  }, []);
 
   return (
     <div className="events-container">

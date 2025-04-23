@@ -90,55 +90,11 @@ interface Employee {
 }
 
 // Mock data for development until Redux is fully implemented
-const mockNotes: Note[] = [
-  {
-    id: 'note-1',
-    title: 'Client Meeting Notes',
-    content: 'Discussed timeline for the new collection. They want to launch by October for the holiday season. Need to prepare preliminary sketches by next week.',
-    date: '2023-04-15',
-    project: 'project-2',
-    category: 'cat-5',
-    createdBy: 'user-1',
-    hasAttachment: false
-  },
-  {
-    id: 'note-2',
-    title: 'Diamond Supplier Research',
-    content: 'Contacted three potential suppliers for ethically sourced diamonds. Waiting on quotes from two. The third one (GemEthics) has the best reputation but higher prices.',
-    date: '2023-04-12',
-    project: 'project-1',
-    category: 'cat-2',
-    createdBy: 'user-1',
-    hasAttachment: true,
-    attachments: ['supplier-contact-list.pdf']
-  }
-];
+const mockNotes: Note[] = [];
 
-const mockProjects: Project[] = [
-  {
-    id: 'project-1',
-    name: 'Bravo Jewellers',
-    categories: [
-      { id: 'cat-1', name: 'Store Operations' },
-      { id: 'cat-2', name: 'Research' },
-      { id: 'cat-3', name: 'Inventory' }
-    ]
-  },
-  {
-    id: 'project-2',
-    name: 'Bravo Creations',
-    categories: [
-      { id: 'cat-4', name: 'Designs' },
-      { id: 'cat-5', name: 'Client Meetings' },
-      { id: 'cat-6', name: 'Production' }
-    ]
-  }
-];
+const mockProjects: Project[] = [];
 
-const mockEmployees: Employee[] = [
-  { id: 'user-1', name: 'Edward Bravo', avatar: '/assets/avatars/edward.jpg' },
-  { id: 'user-2', name: 'Sarah Johnson', avatar: '/assets/avatars/sarah.jpg' }
-];
+const mockEmployees: Employee[] = [];
 
 const Notes: React.FC = () => {
   // Create mock data
@@ -598,7 +554,7 @@ const Notes: React.FC = () => {
                     className="action-button cancel"
                     onClick={() => setSelectedNote(null)}
                   >
-                    <CloseIcon /> Cancel
+                    <CloseIcon /> Close
                   </button>
                 </div>
               </div>

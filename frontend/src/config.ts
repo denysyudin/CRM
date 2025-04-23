@@ -1,7 +1,7 @@
 // Application configuration
 
 // API URL based on environment
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Default pagination settings
 const DEFAULT_PAGE_SIZE = 10;

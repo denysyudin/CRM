@@ -4,10 +4,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.075);
   padding: 25px;
   margin-bottom: 20px;
-  height: auto;
-  min-height: 280px;
+  height: 500px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .notes-container h2 {
@@ -29,7 +29,24 @@
 
 .notes-list {
   flex-grow: 1;
-  overflow-y: auto;
+}
+
+.notes-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notes-list::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 10px;
+}
+
+.notes-list::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 10px;
+}
+
+.notes-list::-webkit-scrollbar-thumb:hover {
+  background-color: #aaa;
 }
 
 .note-item {
