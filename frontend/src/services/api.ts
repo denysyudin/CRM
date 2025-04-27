@@ -32,9 +32,9 @@ export interface Task {
   status: string;
   priority: string;
   dueDate: string;
-  assignee: string | null;
+  employee_id: string | null;
   description?: string;
-  projectId?: string;
+  project_id?: string;
 }
 
 export interface Note {

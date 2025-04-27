@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize the Supabase client with realtime enabled
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://5.78.114.152:8000';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'supabase_url';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'supabase_key';
 
 // Fix URL format - ensure it doesn't end with a trailing slash
 const formattedUrl = supabaseUrl.endsWith('/') 
