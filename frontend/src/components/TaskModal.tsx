@@ -24,8 +24,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       status,
       dueDate,
       priority,
-      projectId: task?.projectId || '',
-      assignee: task?.assignee || ''
+      project_id: task?.projectId || '',
+      employee_id: task?.assignee || ''
     });
   };
 

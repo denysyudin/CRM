@@ -1,59 +1,38 @@
-/* --- Base Styles --- */
-:root {
-    --bg-color: #f8f9fa;
-    --widget-bg: #ffffff;
-    --border-color: #dee2e6;
-    --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --accent-color: #007bff;
-    --accent-color-darker: #0056b3;
-    --today-bg: #e7f3ff;
-    --today-text: var(--accent-color);
-    --event-meeting-bg: #cfe2ff;
-    --event-meeting-text: #0a84ff;
-    --event-deadline-bg: #f8d7da;
-    --event-deadline-text: #dc3545;
-    --shadow-color: rgba(0, 0, 0, 0.075);
-}
-
 /* --- Dashboard Layout --- */
-.dashboard-layout {
+.calendar-layout {
     display: flex;
     min-height: 100vh;
     background-color: var(--bg-color);
-}
-
-.sidebar-nav {
-    width: 260px;
-    background-color: var(--widget-bg);
-    border-right: 1px solid var(--border-color);
-    z-index: 100;
-    height: 100vh;
-    position: sticky;
-    top: 0;
-    overflow-y: auto;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .calendar-main-content {
     flex: 1;
-    padding: 20px;
+    padding: 15px;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
+    min-width: 0; /* Important for flex items */
 }
 
-.dashboard-header-bar {
+.calendar-header-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding-bottom: 15px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
     border-bottom: 1px solid var(--border-color);
     width: 100%;
 }
 
-.dashboard-title {
-    font-size: 1.8rem;
+.calendar-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.calendar-title {
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--text-primary);
     margin: 0;
@@ -69,14 +48,32 @@
     display: none;
 }
 
-/* --- Calendar Widget --- */
-.calendar-widget {
+/* --- Calendar Container --- */
+.calendar-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
     background-color: var(--widget-bg);
     border-radius: 10px;
     box-shadow: 0 4px 12px var(--shadow-color);
+    margin-bottom: 30px;
+}
+
+/* --- Calendar Sticky Header --- */
+.calendar-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background-color: var(--bg-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    border-radius: 8px 8px 0 0;
+}
+
+/* --- Calendar Widget --- */
+.calendar-widget {
+    background-color: var(--widget-bg);
     width: 100%;
-    margin-bottom: 20px;
-    overflow: hidden;
+    padding: 10px;
 }
 
 /* Calendar header */
@@ -135,18 +132,21 @@
 }
 
 .calendar-table th {
-    padding: 12px 5px;
+    padding: 8px 3px;
     text-align: center;
     font-weight: 500;
+    font-size: 0.85em;
     color: var(--text-secondary);
     background-color: #f8f9fa;
     border-bottom: 1px solid var(--border-color);
+    width: 14.28%; /* 100% ÷ 7 days */
 }
 
 .calendar-table td {
     border: 1px solid var(--border-color);
-    height: 120px;
-    padding: 0;
+    height: 0;
+    padding-bottom: 14.28%; /* Same as width to make square */
+    position: relative;
     vertical-align: top;
 }
 
@@ -159,18 +159,23 @@
 }
 
 .day-cell {
-    height: 100%;
-    padding: 5px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 3px;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .day-number {
     text-align: right;
-    font-size: 0.9em;
+    font-size: 0.8em;
     font-weight: 500;
     color: var(--text-primary);
-    margin-bottom: 5px;
+    margin-bottom: 3px;
 }
 
 .today .day-number {
@@ -184,10 +189,10 @@
 }
 
 .event {
-    font-size: 0.85em;
-    padding: 3px 6px;
-    margin-bottom: 4px;
-    border-radius: 4px;
+    font-size: 0.75em;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    border-radius: 3px;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
@@ -211,6 +216,11 @@
     border: 1px solid #f5c2c7;
 }
 
+.empty-day {
+    height: 100%;
+    background-color: #f9f9f9;
+}
+
 /* Modal styling */
 .modal-overlay {
     position: fixed;
@@ -227,9 +237,9 @@
 
 .modal-content {
     background-color: #fff;
-    padding: 25px 30px;
+    padding: 20px 25px;
     border-radius: 8px;
-    max-width: 550px;
+    max-width: 500px;
     width: 90%;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     position: relative;
@@ -237,9 +247,9 @@
 
 .modal-close {
     position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 1.8em;
+    top: 8px;
+    right: 12px;
+    font-size: 1.5em;
     font-weight: bold;
     color: #aaa;
     cursor: pointer;
@@ -254,16 +264,17 @@
 
 .modal-details h3 {
     margin-top: 0;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     color: var(--text-primary);
-    font-size: 1.4em;
+    font-size: 1.2em;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
+    padding-bottom: 8px;
 }
 
 .modal-details p {
-    margin: 10px 0;
-    line-height: 1.6;
+    margin: 8px 0;
+    line-height: 1.4;
+    font-size: 0.9em;
 }
 
 .modal-details strong {
@@ -274,9 +285,9 @@
 .modal-details .detail-tag,
 .modal-details .list-item-tag {
     display: inline-block;
-    font-size: 0.9em;
-    padding: 3px 8px;
-    border-radius: 4px;
+    font-size: 0.8em;
+    padding: 2px 6px;
+    border-radius: 3px;
     background-color: #e9ecef;
     border: 1px solid #dee2e6;
     color: #495057;
@@ -297,60 +308,41 @@
 
 /* Responsive styles */
 @media (max-width: 768px) {
-    .dashboard-layout {
+    .calendar-layout {
         flex-direction: column;
-    }
-    
-    .sidebar-nav {
-        width: 100%;
-        height: auto;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1000;
-        display: none;
-    }
-    
-    .sidebar-nav.mobile-visible {
-        display: block;
     }
     
     .calendar-main-content {
         margin-top: 0;
-        padding: 15px;
+        padding: 10px;
+        width: 100%;
     }
     
     .sidebar-toggle {
         display: block;
     }
     
-    .calendar-header {
-        flex-direction: column;
-        gap: 10px;
-    }
-    
     .calendar-table td {
-        height: 100px;
+        height: 70px;
     }
     
     .event {
-        font-size: 0.8em;
-        padding: 2px 4px;
+        font-size: 0.7em;
+        padding: 1px 3px;
     }
 }
 
 @media (max-width: 480px) {
     .calendar-table td {
-        height: 80px;
+        height: 60px;
     }
     
     .day-number {
-        font-size: 0.8em;
+        font-size: 0.7em;
     }
     
     .event {
-        font-size: 0.75em;
-        padding: 1px 3px;
+        font-size: 0.65em;
+        padding: 1px 2px;
     }
 }

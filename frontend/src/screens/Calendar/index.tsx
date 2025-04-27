@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { Reminder } from '../../redux/features/remindersSlice';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import DayBox, { Event as DayBoxEvent } from '../../components/Calendar/DayBox';
 import { useMediaQuery } from '@mui/material';
 import './styles.css';
 
@@ -41,6 +42,19 @@ const Calendar: React.FC = () => {
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
+  };
+
+  // Convert CalendarEvent to DayBoxEvent
+  const convertToBoxEvent = (event: CalendarEvent): DayBoxEvent => {
+    const eventDate = new Date(event.dueDate);
+    return {
+      id: event.id,
+      title: event.name,
+      start: eventDate,
+      end: eventDate,
+      color: event.priority.toLowerCase() === 'high' ? '#f44336' : 
+             event.priority.toLowerCase() === 'medium' ? '#ffc107' : '#4caf50'
+    };
   };
 
   // Format reminders as calendar events
@@ -84,9 +98,13 @@ const Calendar: React.FC = () => {
   };
   
   // Event handlers
-  const handleEventClick = (event: CalendarEvent) => {
-    setSelectedEvent(event);
-    setShowModal(true);
+  const handleEventClick = (event: DayBoxEvent) => {
+    // Find the original calendar event that matches this day box event
+    const calendarEvent = reminders.find(reminder => reminder.id === event.id);
+    if (calendarEvent) {
+      setSelectedEvent(calendarEvent as CalendarEvent);
+      setShowModal(true);
+    }
   };
   
   const closeModal = () => {
@@ -95,10 +113,7 @@ const Calendar: React.FC = () => {
   };
   
   // Create calendar grid
-  const generateCalendar = () => {
-    const monthNames = ["January", "February", "March", "April", "May", "June",
-                       "July", "August", "September", "October", "November", "December"];
-    
+  const renderCalendar = () => {
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const startingDay = (firstDayOfMonth.getDay() === 0) ? 6 : firstDayOfMonth.getDay() - 1; // 0=Mon, 6=Sun
@@ -119,13 +134,20 @@ const Calendar: React.FC = () => {
       let cells = [];
       
       for (let j = 0; j < 7; j++) {
-        let cellContent;
-        let cellClass = '';
-        
         if ((i === 0 && j < startingDay) || day > daysInMonth) {
           // Empty cell
-          cellContent = <div className="empty-day"></div>;
-          cellClass = 'empty';
+          cells.push(
+            <td key={`cell-${i}-${j}`} className="empty">
+              <DayBox
+                day={0}
+                month={currentMonth}
+                year={currentYear}
+                isCurrentMonth={false}
+                events={[]}
+                onEventClick={handleEventClick}
+              />
+            </td>
+          );
         } else {
           // Valid day cell
           const currentDay = day;
@@ -134,87 +156,126 @@ const Calendar: React.FC = () => {
           // Format date for event lookup
           const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
           const dayEvents = getEventsForDate(dateString);
+          const boxEvents = dayEvents.map(convertToBoxEvent);
           
-          cellClass = isToday ? 'today' : '';
-          
-          cellContent = (
-            <div className="day-cell">
-              <div className="day-number">{currentDay}</div>
-              <div className="events-container">
-                {dayEvents.map((event, idx) => (
-                  <div 
-                    key={`${event.id}-${idx}`}
-                    className={`event event-${event.type}`}
-                    onClick={() => handleEventClick(event)}
-                  >
-                    {event.name}
-                  </div>
-                ))}
-              </div>
-            </div>
+          cells.push(
+            <td key={`cell-${i}-${j}`} className={isToday ? 'today' : ''}>
+              <DayBox
+                day={currentDay}
+                month={currentMonth}
+                year={currentYear}
+                isCurrentMonth={true}
+                events={boxEvents}
+                onEventClick={handleEventClick}
+              />
+            </td>
           );
           
           day++;
         }
-        
-        cells.push(
-          <td key={`cell-${i}-${j}`} className={cellClass}>
-            {cellContent}
-          </td>
-        );
       }
       
       rows.push(<tr key={`row-${i}`}>{cells}</tr>);
     }
     
     return (
-      <div className="calendar-widget">
-        <div className="calendar-header">
-          <h2 className="calendar-title">{monthNames[currentMonth]} {currentYear}</h2>
-          <div className="calendar-controls">
-            <button onClick={handlePrevMonth}>&lt; Prev</button>
-            <button onClick={handleToday}>Today</button>
-            <button onClick={handleNextMonth}>Next &gt;</button>
-          </div>
-        </div>
-        
-        <table className="calendar-table">
-          <thead>
-            <tr>
-              <th>Mon</th>
-              <th>Tue</th>
-              <th>Wed</th>
-              <th>Thu</th>
-              <th>Fri</th>
-              <th>Sat</th>
-              <th>Sun</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows}
-          </tbody>
-        </table>
-      </div>
+      <table className="calendar-table">
+        <thead>
+          <tr>
+            <th>Mon</th>
+            <th>Tue</th>
+            <th>Wed</th>
+            <th>Thu</th>
+            <th>Fri</th>
+            <th>Sat</th>
+            <th>Sun</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows}
+        </tbody>
+      </table>
     );
   };
   
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+                     "July", "August", "September", "October", "November", "December"];
+  
+  // Styles for calendar
+  const tempContainerStyle = {
+    display: 'flex',
+    flexDirection: 'column' as 'column',
+    width: '100%',
+    maxWidth: '900px', 
+    margin: '0 auto'
+  };
+  
+  const tempCalendarStyle = {
+    backgroundColor: 'white', 
+    padding: '10px',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    width: '100%'
+  };
+  
+  const headerStyle = {
+    padding: '10px 15px', 
+    backgroundColor: '#f8f9fa', 
+    borderBottom: '1px solid #dee2e6',
+    borderRadius: '8px 8px 0 0'
+  };
+  
+  const headerContentStyle = {
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center'
+  };
+  
+  const titleStyle = {
+    margin: 0, 
+    fontSize: '1.2em'
+  };
+  
+  const buttonGroupStyle = {
+    display: 'flex', 
+    gap: '5px'
+  };
+  
   return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="main-content">
-        <div className="dashboard-header-bar">
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div className="calendar-layout">
+      <div className="sidebar">
+        <Sidebar />
+      </div>
+      
+      <div className="calendar-main-content" style={sidebarOpen && !isMobile ? {width: 'calc(100% - 240px)'} : {width: '100%'}}>
+        <div className="calendar-header-bar">
+          <div className="calendar-header-left">
             <button 
               onClick={toggleSidebar} 
               className="sidebar-toggle"
             >
               ☰
             </button>
-            <h1 className="dashboard-title">Calendar</h1>
+            <h1 className="calendar-title">🗓️ Calendar</h1>
           </div>
         </div>
 
-        {generateCalendar()}
+        <div style={tempContainerStyle}>
+          <div style={headerStyle}>
+            <div style={headerContentStyle}>
+              <h2 style={titleStyle}>{monthNames[currentMonth]} {currentYear}</h2>
+              <div style={buttonGroupStyle}>
+                <button onClick={handlePrevMonth}>&lt; Prev</button>
+                <button onClick={handleToday}>Today</button>
+                <button onClick={handleNextMonth}>Next &gt;</button>
+              </div>
+            </div>
+          </div>
+
+          <div style={tempCalendarStyle}>
+            {renderCalendar()}
+          </div>
+        </div>
         
         {/* Event details modal */}
         {showModal && selectedEvent && (
@@ -243,7 +304,7 @@ const Calendar: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };

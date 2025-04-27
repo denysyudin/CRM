@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMediaQuery } from '@mui/material';
 import useWebSocket from '../../hooks/useWebSocket';
 import Sidebar from '../../components/Sidebar/Sidebar.tsx';
@@ -14,11 +14,15 @@ import './styles.css';
 const Dashboard: React.FC = () => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const mainContentRef = useRef<HTMLDivElement>(null);
+    
+    // Use a more specific approach with theme.breakpoints.down for consistency
     const isSmall = useMediaQuery('(max-width:600px)');
     const isMobile = useMediaQuery('(max-width:768px)');
     const isMedium = useMediaQuery('(max-width:960px)');
     const isLarge = useMediaQuery('(max-width:1280px)');
     
+    // Update sidebar state when screen size changes
     useEffect(() => {
         if (isMobile) {
             setSidebarOpen(false);
@@ -52,6 +56,23 @@ const Dashboard: React.FC = () => {
     const toggleSidebar = () => {
         setSidebarOpen(!sidebarOpen);
     };
+    
+    // Close sidebar when clicking overlay (mobile only)
+    const closeSidebar = () => {
+        if (isMobile) {
+            setSidebarOpen(false);
+        }
+    };
+
+    // Scroll to top function
+    const scrollToTop = () => {
+        if (mainContentRef.current) {
+            mainContentRef.current.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+    };
 
     // Function to determine column size based on screen width
     const getColumnSize = () => {
@@ -72,15 +93,36 @@ const Dashboard: React.FC = () => {
     const columnSize = getColumnSize();
     const tasksColumnSize = getTasksColumnSize();
 
+    // Calculate dynamic classes for different screen sizes, memoized for performance
+    const responsiveClass = useMemo(() => {
+        if (isSmall) return "dashboard-small";
+        if (isMobile) return "dashboard-mobile";
+        if (isMedium) return "dashboard-medium";
+        if (isLarge) return "dashboard-large";
+        return "dashboard-xlarge";
+    }, [isSmall, isMobile, isMedium, isLarge]);
+
+    // Determine if sidebar should be shown
+    const sidebarClass = sidebarOpen ? "sidebar-open" : "sidebar-closed";
+
     return (
-        <div className="app-container">
-            <Sidebar />
-            <main className="main-content">
+        <div className={`app-container ${responsiveClass} ${sidebarClass}`}>
+            {/* Fixed position sidebar */}
+            <div className="sidebar">
+                <Sidebar />
+            </div>
+            
+            {/* Overlay for mobile sidebar */}
+            <div className="sidebar-overlay" onClick={closeSidebar}></div>
+            
+            {/* Main content area that adjusts based on sidebar state */}
+            <main className="main-content" ref={mainContentRef}>
                 <div className="dashboard-header-bar">
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div className="header-left">
                         <button 
                             onClick={toggleSidebar} 
                             className="sidebar-toggle"
+                            aria-label="Toggle sidebar"
                         >
                             ☰
                         </button>
@@ -90,28 +132,37 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 <div className="dashboard-grid">
-                    <div className="widget" style={{ gridColumn: 'span 2', height: '500px' }}>
+                    <div className={`widget widget-large ${isMobile ? 'full-width' : ''}`}>
                         <TodaysTasks />
                     </div>
-                    <div className="widget" style={{ height: '500px' }}>
+                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
                         <Calendar />
                     </div>
-                    <div className="widget" style={{ height: '500px' }}>
+                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
                         <KeyMetrics />
                     </div>
-                    <div className="widget" style={{ height: '500px' }}>
+                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
                         <UpcomingEvents />
                     </div>
-                    <div className="widget" style={{ height: '500px' }}>
+                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
                         <RecentNotes />
                     </div>
-                    <div className="widget" style={{ height: '500px' }}>
+                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
                         <PendingReminders />
                     </div>
-                    <div className="widget" style={{ height: '500px' }}>
+                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
                         <ActiveProjects />
                     </div>
                 </div>
+                
+                {/* Scroll to top button */}
+                <button 
+                    className="scroll-to-top"
+                    onClick={scrollToTop}
+                    aria-label="Scroll to top"
+                >
+                    ↑
+                </button>
             </main>
         </div>
     );

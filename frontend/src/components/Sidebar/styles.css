@@ -1,6 +1,6 @@
 .sidebar-nav {
   width: 240px;
-  background-color: var(--widget-bg, white);
+  background-color: var(--bg-color, #f8f9fa);
   padding: 25px 15px;
   border-right: 1px solid var(--border-color, #e9ecef);
   display: flex;
@@ -10,13 +10,13 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .sidebar-header {
   font-size: 1.5em;
   font-weight: 600;
-  color: var(--text-primary, #212529);
+  color: var(--text-primary, #e4e5e6);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -108,6 +108,7 @@
   }
   
   .sidebar-nav.mobile-visible {
+    background-color: var(--bg-color, #f8f9fa);
     left: 0;
   }
   

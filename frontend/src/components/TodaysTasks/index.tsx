@@ -10,40 +10,36 @@ interface Task {
   completed: boolean;
 }
 
-interface ApiTodo {
+// Define task from database
+interface SupabaseTask {
   id: number;
   title: string;
   completed: boolean;
-  userId: number;
+  priority?: string;
+  project?: string;
+  assignee?: string;
 }
 
 const TodaysTasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const DEFAULT_ROWS = 5;
 
   useEffect(() => {
+    // Initial fetch from backend
     const fetchTasks = async () => {
       try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/todos');
-        const data: ApiTodo[] = await response.json();
-        
-        // Transform API data to match our Task interface with meaningful defaults
-        const tasksWithRequiredProps = data.slice(0, 5).map((todo: ApiTodo) => ({
-          id: todo.id,
-          title: todo.title,
-          completed: todo.completed, // Keep the original completed status
-          priority: ['High', 'Medium', 'Low'][Math.floor(Math.random() * 3)],
-          project: `Project ${todo.userId}`,
-          assignee: todo.userId === 1 ? 'Self' : `User ${todo.userId}`
-        }));
-        
-        setTasks(tasksWithRequiredProps);
+        const response = await fetch('http://localhost:8000/tasks');
+        console.log('Received tasks:', response);
+        const data: Task[] = await response.json();
+        setTasks(data);
       } catch (error) {
         console.error('Error fetching tasks:', error);
       }
     };
     fetchTasks();
   }, []);
-
+  // Create array of row indexes to always render 5 rows
+  const rowIndexes = Array.from({ length: DEFAULT_ROWS }, (_, i) => i);
 
   return (
     <div className="tasks-container">
@@ -59,32 +55,41 @@ const TodaysTasks: React.FC = () => {
           </tr>
         </thead>
         <tbody>
-          {tasks.map(task => (
-            <tr key={task.id}>
-              <td>
-                <div className="task-item">
-                  <div className={`status-circle ${task.completed ? 'completed' : ''}`}></div>
-                  {task.title}
-                </div>
-              </td>
-              <td>
-                <span className={`priority-tag ${task.priority.toLowerCase()}`}>
-                  {task.priority}
-                </span>
-              </td>
-              <td>{task.project}</td>
-              <td>
-                <div className="assignee">
-                  {task.assignee === 'Self' ? (
-                    <span className="self-tag">Self</span>
-                  ) : (
-                    <span className="user-avatar">{task.assignee.charAt(0)}</span>
-                  )}
-                  {task.assignee}
-                </div>
-              </td>
-            </tr>
-          ))}
+          {rowIndexes.map(index => {
+            const task = tasks[index];
+            return (
+              <tr key={index} className={!task ? 'empty-row' : ''}>
+                <td>
+                  {task ? (
+                    <div className="task-item">
+                      <div className={`status-circle ${task.completed ? 'completed' : ''}`}></div>
+                      {task.title}
+                    </div>
+                  ) : null}
+                </td>
+                <td>
+                  {task ? (
+                    <span className={`priority-tag ${task.priority.toLowerCase()}`}>
+                      {task.priority}
+                    </span>
+                  ) : null}
+                </td>
+                <td>{task?.project || ''}</td>
+                <td>
+                  {task ? (
+                    <div className="assignee">
+                      {task.assignee === 'Self' ? (
+                        <span className="self-tag">Self</span>
+                      ) : (
+                        <span className="user-avatar">{}</span>
+                      )}
+                      {task.assignee}
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

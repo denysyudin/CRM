@@ -501,7 +501,9 @@ const Projects: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Sidebar />
+      <div className='sidebar'>
+        <Sidebar />
+      </div>
       <main className="main-content">
         <div className="dashboard-header-bar">
           <div style={{ display: 'flex', alignItems: 'center' }}>

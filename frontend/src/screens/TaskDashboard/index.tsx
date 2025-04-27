@@ -36,7 +36,7 @@ const TaskDashboard: React.FC = () => {
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        const response = await fetch(process.env.REACT_APP_API_URL + '/tasks');
+        const response = await fetch('http://localhost:8000/tasks');
         const data = await response.json();
         
         // Transform the API data to match our Task interface
@@ -203,7 +203,9 @@ const TaskDashboard: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Sidebar />
+      <div className="sidebar">
+        <Sidebar /> 
+      </div>
       
       <main className="main-content">
         <div className="dashboard-header-bar">

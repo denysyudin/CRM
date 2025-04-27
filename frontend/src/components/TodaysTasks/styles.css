@@ -53,6 +53,12 @@
   font-size: 0.95em;
   background-color: #fff;
   border-bottom: 1px solid #e9ecef;
+  padding: 12px;
+  height: 20px;
+}
+
+.empty-row td {
+  height: 52px; /* Ensure consistent row height */
 }
 
 .task-column {
@@ -155,6 +161,94 @@
   text-align: center;
   padding-top: 15px;
   border-top: 1px dashed #e9ecef;
+}
+
+.connection-status {
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.connection-status.success {
+  background-color: #d1e7dd;
+  color: #0f5132;
+  border: 1px solid #badbcc;
+}
+
+.connection-status.pending {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
+.connection-status.error {
+  background-color: #f8d7da;
+  color: #842029;
+  border: 1px solid #f5c2c7;
+}
+
+.connection-status.diagnostic {
+  background-color: #cfe2ff;
+  color: #084298;
+  border: 1px solid #b6d4fe;
+  font-family: monospace;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 10px 15px;
+}
+
+.diagnostic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.diagnostic-title {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.diagnostic-available {
+  color: #0f5132;
+}
+
+.diagnostic-unavailable {
+  color: #842029;
+}
+
+.diagnostic-error {
+  background-color: #f8d7da;
+  color: #842029;
+  border-radius: 3px;
+  padding: 5px 8px;
+  margin: 5px 0;
+  font-size: 0.78rem;
+}
+
+.diagnostic-details {
+  margin-top: 5px;
+  font-size: 0.78rem;
+}
+
+.diagnostic-suggestion {
+  background-color: #fff3cd;
+  color: #856404;
+  border-radius: 3px;
+  padding: 5px 8px;
+  margin-top: 5px;
+}
+
+.connection-indicator {
+  font-size: 1rem;
+  margin-left: 5px;
 }
 
 @media screen and (max-width: 992px) {
