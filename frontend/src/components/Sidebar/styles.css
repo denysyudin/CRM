@@ -30,19 +30,6 @@
   color: var(--accent-color, #007bff);
 }
 
-.close-sidebar-button {
-  display: none;
-  background: none;
-  border: none;
-  color: var(--text-secondary, #6c757d);
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  line-height: 1;
-}
-
 .nav-list {
   list-style: none;
   padding: 0;
@@ -110,10 +97,6 @@
   .sidebar-nav.mobile-visible {
     background-color: var(--bg-color, #f8f9fa);
     left: 0;
-  }
-  
-  .close-sidebar-button {
-    display: block;
   }
 }
 

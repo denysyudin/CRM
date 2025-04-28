@@ -9,7 +9,7 @@ interface CustomPaletteOptions extends PaletteOptions {
 const theme = createTheme({
     palette: {
         background: {
-            default: '#0A0B0D' // Set the background color of the whole body
+            default: '#ffffff' // Set the background color of the whole body
         },
         text: {
             primary: '#ffffff' // Set the overall text color to white

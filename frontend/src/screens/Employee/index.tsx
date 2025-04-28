@@ -187,7 +187,9 @@ const Employee: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Sidebar />
+      <div className='sidebar'>
+        <Sidebar />
+      </div>
       
       <div className="main-content">
         <div className="employee-container">

@@ -113,7 +113,9 @@ const Dashboard: React.FC = () => {
             </div>
             
             {/* Overlay for mobile sidebar */}
-            <div className="sidebar-overlay" onClick={closeSidebar}></div>
+            {isMobile && sidebarOpen && (
+                <div className="sidebar-overlay" onClick={closeSidebar}></div>
+            )}
             
             {/* Main content area that adjusts based on sidebar state */}
             <main className="main-content" ref={mainContentRef}>

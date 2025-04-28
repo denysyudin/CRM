@@ -54,11 +54,6 @@ const Sidebar: React.FC<Props> = ({ isOpen = true, onToggle }) => {
     <div className={`sidebar-nav ${isOpen ? 'mobile-visible' : ''}`}>
       <div className="sidebar-header">
         <span className="logo-icon">🚀</span>My CRM
-        {isMobile && (
-          <button className="close-sidebar-button" onClick={onToggle}>
-            &times;
-          </button>
-        )}
       </div>
       <ul className="nav-list">
         <li>

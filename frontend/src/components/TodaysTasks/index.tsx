@@ -9,26 +9,18 @@ interface Task {
   assignee: string;
   completed: boolean;
 }
-
-// Define task from database
-interface SupabaseTask {
-  id: number;
-  title: string;
-  completed: boolean;
-  priority?: string;
-  project?: string;
-  assignee?: string;
-}
-
 const TodaysTasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const DEFAULT_ROWS = 5;
+
+  // Get API URL from environment variables with fallback
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
     // Initial fetch from backend
     const fetchTasks = async () => {
       try {
-        const response = await fetch('http://localhost:8000/tasks');
+        const response = await fetch(`${apiUrl}/tasks`);
         console.log('Received tasks:', response);
         const data: Task[] = await response.json();
         setTasks(data);
@@ -80,9 +72,7 @@ const TodaysTasks: React.FC = () => {
                     <div className="assignee">
                       {task.assignee === 'Self' ? (
                         <span className="self-tag">Self</span>
-                      ) : (
-                        <span className="user-avatar">{}</span>
-                      )}
+                      ) : ''}
                       {task.assignee}
                     </div>
                   ) : null}

@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { Reminder } from '../../redux/features/remindersSlice';
 import Sidebar from '../../components/Sidebar/Sidebar';
-import DayBox, { Event as DayBoxEvent } from '../../components/Calendar/DayBox';
+// import DayBox, { Event as DayBoxEvent } from '../../components/Calendar/DayBox';
 import { useMediaQuery } from '@mui/material';
 import './styles.css';
 
@@ -45,17 +45,17 @@ const Calendar: React.FC = () => {
   };
 
   // Convert CalendarEvent to DayBoxEvent
-  const convertToBoxEvent = (event: CalendarEvent): DayBoxEvent => {
-    const eventDate = new Date(event.dueDate);
-    return {
-      id: event.id,
-      title: event.name,
-      start: eventDate,
-      end: eventDate,
-      color: event.priority.toLowerCase() === 'high' ? '#f44336' : 
-             event.priority.toLowerCase() === 'medium' ? '#ffc107' : '#4caf50'
-    };
-  };
+  // const convertToBoxEvent = (event: CalendarEvent): DayBoxEvent => {
+  //   const eventDate = new Date(event.dueDate);
+  //   return {
+  //     id: event.id,
+  //     title: event.name,
+  //     start: eventDate,
+  //     end: eventDate,
+  //     color: event.priority.toLowerCase() === 'high' ? '#f44336' : 
+  //            event.priority.toLowerCase() === 'medium' ? '#ffc107' : '#4caf50'
+  //   };
+  // };
 
   // Format reminders as calendar events
   const getEventsForDate = (dateString: string): CalendarEvent[] => {
@@ -98,14 +98,14 @@ const Calendar: React.FC = () => {
   };
   
   // Event handlers
-  const handleEventClick = (event: DayBoxEvent) => {
-    // Find the original calendar event that matches this day box event
-    const calendarEvent = reminders.find(reminder => reminder.id === event.id);
-    if (calendarEvent) {
-      setSelectedEvent(calendarEvent as CalendarEvent);
-      setShowModal(true);
-    }
-  };
+  // const handleEventClick = (event: DayBoxEvent) => {
+  //   // Find the original calendar event that matches this day box event
+  //   const calendarEvent = reminders.find(reminder => reminder.id === event.id);
+  //   if (calendarEvent) {
+  //     setSelectedEvent(calendarEvent as CalendarEvent);
+  //     setShowModal(true);
+  //   }
+  // };
   
   const closeModal = () => {
     setShowModal(false);
@@ -138,14 +138,14 @@ const Calendar: React.FC = () => {
           // Empty cell
           cells.push(
             <td key={`cell-${i}-${j}`} className="empty">
-              <DayBox
+              {/* <DayBox
                 day={0}
                 month={currentMonth}
                 year={currentYear}
                 isCurrentMonth={false}
                 events={[]}
                 onEventClick={handleEventClick}
-              />
+              /> */}
             </td>
           );
         } else {
@@ -156,18 +156,18 @@ const Calendar: React.FC = () => {
           // Format date for event lookup
           const dateString = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
           const dayEvents = getEventsForDate(dateString);
-          const boxEvents = dayEvents.map(convertToBoxEvent);
+          // const boxEvents = dayEvents.map(convertToBoxEvent);
           
           cells.push(
             <td key={`cell-${i}-${j}`} className={isToday ? 'today' : ''}>
-              <DayBox
+              {/* <DayBox
                 day={currentDay}
                 month={currentMonth}
                 year={currentYear}
                 isCurrentMonth={true}
                 events={boxEvents}
                 onEventClick={handleEventClick}
-              />
+              /> */}
             </td>
           );
           
@@ -242,69 +242,72 @@ const Calendar: React.FC = () => {
   };
   
   return (
-    <div className="calendar-layout">
-      <div className="sidebar">
-        <Sidebar />
-      </div>
+    // <div className="calendar-layout">
+    //   <div className="sidebar">
+    //     <Sidebar />
+    //   </div>
       
-      <div className="calendar-main-content" style={sidebarOpen && !isMobile ? {width: 'calc(100% - 240px)'} : {width: '100%'}}>
-        <div className="calendar-header-bar">
-          <div className="calendar-header-left">
-            <button 
-              onClick={toggleSidebar} 
-              className="sidebar-toggle"
-            >
-              ☰
-            </button>
-            <h1 className="calendar-title">🗓️ Calendar</h1>
-          </div>
-        </div>
+    //   <div className="calendar-main-content" style={sidebarOpen && !isMobile ? {width: 'calc(100% - 240px)'} : {width: '100%'}}>
+    //     <div className="calendar-header-bar">
+    //       <div className="calendar-header-left">
+    //         <button 
+    //           onClick={toggleSidebar} 
+    //           className="sidebar-toggle"
+    //         >
+    //           ☰
+    //         </button>
+    //         <h1 className="calendar-title">🗓️ Calendar</h1>
+    //       </div>
+    //     </div>
 
-        <div style={tempContainerStyle}>
-          <div style={headerStyle}>
-            <div style={headerContentStyle}>
-              <h2 style={titleStyle}>{monthNames[currentMonth]} {currentYear}</h2>
-              <div style={buttonGroupStyle}>
-                <button onClick={handlePrevMonth}>&lt; Prev</button>
-                <button onClick={handleToday}>Today</button>
-                <button onClick={handleNextMonth}>Next &gt;</button>
-              </div>
-            </div>
-          </div>
+    //     <div style={tempContainerStyle}>
+    //       <div style={headerStyle}>
+    //         <div style={headerContentStyle}>
+    //           <h2 style={titleStyle}>{monthNames[currentMonth]} {currentYear}</h2>
+    //           <div style={buttonGroupStyle}>
+    //             <button onClick={handlePrevMonth}>&lt; Prev</button>
+    //             <button onClick={handleToday}>Today</button>
+    //             <button onClick={handleNextMonth}>Next &gt;</button>
+    //           </div>
+    //         </div>
+    //       </div>
 
-          <div style={tempCalendarStyle}>
-            {renderCalendar()}
-          </div>
-        </div>
+    //       <div style={tempCalendarStyle}>
+    //         {renderCalendar()}
+    //       </div>
+    //     </div>
         
-        {/* Event details modal */}
-        {showModal && selectedEvent && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={closeModal}>&times;</button>
-              <div className="modal-details">
-                <h3>{selectedEvent.name}</h3>
-                <p><strong>Time:</strong> {selectedEvent.time || 'All Day'}</p>
-                <p>
-                  <strong>Priority:</strong> 
-                  <span className={`list-item-tag event-${selectedEvent.type}`}>
-                    {selectedEvent.priority}
-                  </span>
-                </p>
-                {selectedEvent.project && (
-                  <p>
-                    <strong>Project:</strong> 
-                    <span className="detail-tag">{selectedEvent.project}</span>
-                  </p>
-                )}
-                {selectedEvent.notes && (
-                  <p><strong>Notes:</strong> {selectedEvent.notes}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+    //     {/* Event details modal */}
+    //     {showModal && selectedEvent && (
+    //       <div className="modal-overlay" onClick={closeModal}>
+    //         <div className="modal-content" onClick={e => e.stopPropagation()}>
+    //           <button className="modal-close" onClick={closeModal}>&times;</button>
+    //           <div className="modal-details">
+    //             <h3>{selectedEvent.name}</h3>
+    //             <p><strong>Time:</strong> {selectedEvent.time || 'All Day'}</p>
+    //             <p>
+    //               <strong>Priority:</strong> 
+    //               <span className={`list-item-tag event-${selectedEvent.type}`}>
+    //                 {selectedEvent.priority}
+    //               </span>
+    //             </p>
+    //             {selectedEvent.project && (
+    //               <p>
+    //                 <strong>Project:</strong> 
+    //                 <span className="detail-tag">{selectedEvent.project}</span>
+    //               </p>
+    //             )}
+    //             {selectedEvent.notes && (
+    //               <p><strong>Notes:</strong> {selectedEvent.notes}</p>
+    //             )}
+    //           </div>
+    //         </div>
+    //       </div>
+    //     )}
+    //   </div>
+    // </div>
+    <div>
+      <h1>Calendar</h1>
     </div>
   );
 };
