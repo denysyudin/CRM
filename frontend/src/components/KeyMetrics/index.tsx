@@ -26,7 +26,6 @@ const KeyMetrics: React.FC = () => {
   return (
     <div className="metrics-container">
       <h2>Key Metrics</h2>
-      
       <div className="metrics-list">
         <MetricItem 
           icon="⚠️" 
