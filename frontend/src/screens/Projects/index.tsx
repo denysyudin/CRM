@@ -73,10 +73,10 @@ const formatTask = (task: Task) => {
   const priorityClass = task.priority ? task.priority.toLowerCase() : 'low';
   return (
     <>
-      <span className="linked-item-name"><span className="item-icon">✅</span> {task.name}</span>
+      <span className="linked-item-name"><span className="item-icon">✅</span> {task.title}</span>
       <span className="linked-item-meta">
         <span className={`status-circle ${statusClass}`} title={`Status: ${task.status}`}></span>
-        {task.dueDate && `Due: ${task.dueDate}`}
+        {task.due_date && `Due: ${task.due_date}`}
         {task.priority && <span className={`priority priority-${priorityClass}`}>{task.priority}</span>}
       </span>
     </>
@@ -94,7 +94,7 @@ const formatEvent = (event: Event) => {
   const tagClass = event.type === 'meeting' ? 'event-type-meeting' : 'event-type-deadline';
   return (
     <>
-      <span className="linked-item-name"><span className="item-icon">🗓️</span> {event.name}</span>
+      <span className="linked-item-name"><span className="item-icon">🗓️</span> {event.title}</span>
       <span className="linked-item-meta">
         {event.date} <span className={`list-item-tag ${tagClass}`} style={{ marginLeft: '5px' }}>{event.type}</span>
       </span>
@@ -106,7 +106,7 @@ const formatReminder = (reminder: Reminder) => {
   const priorityClass = reminder.priority ? reminder.priority.toLowerCase() : 'low';
   return (
     <>
-      <span className="linked-item-name"><span className="item-icon">🔔</span> {reminder.name}</span>
+      <span className="linked-item-name"><span className="item-icon">🔔</span> {reminder.title}</span>
       <span className="linked-item-meta">
         {reminder.dueDate}
         {reminder.priority && <span className={`priority priority-${priorityClass}`}>{reminder.priority}</span>}
@@ -117,7 +117,7 @@ const formatReminder = (reminder: Reminder) => {
 
 const formatFile = (file: File) => (
   <>
-    <span className="linked-item-name"><span className="item-icon">📎</span> {file.name}</span>
+    <span className="linked-item-name"><span className="item-icon">📎</span> {file.title}</span>
     <span className="linked-item-meta">{file.type || ''}</span>
   </>
 );
@@ -173,13 +173,13 @@ const ProjectListItem = React.memo(({
     onClick={() => onSelect(project.id)}
   >
     <div className="project-summary-title">
-      <span className="icon">{project.icon || '📁'}</span> {project.name}
+      <span className="icon">{project.icon || '📁'}</span> <h3>{project.title}</h3>
     </div>
     <div className="project-summary-meta">
       <span className={`project-status-tag status-${project.status.toLowerCase().replace(' ', '')}`}>
         {project.status}
       </span>
-      {project.startDate && <span> | Started: {project.startDate}</span>}
+      {project.start_date && <span> | Started: {project.start_date}</span>}
     </div>
   </li>
 ));
@@ -397,7 +397,7 @@ const Projects: React.FC = () => {
     try {
       const newTask = await tasksApi.create({
         ...taskData,
-        projectId: selectedProject.id
+        project_id: selectedProject.id
       });
       
       await projectsApi.update(selectedProject.id, {
@@ -551,18 +551,18 @@ const Projects: React.FC = () => {
             ) : (
               <div className="project-details-view">
                 <div className="project-details-header">
-                  <h1 className="project-details-title">{selectedProject.name}</h1>
+                  <h1 className="project-details-title">{selectedProject.title}</h1>
                   <div className="project-details-meta">
                     <span>
                       <FontAwesomeIcon className="icon" icon={faChartLine} /> Status: 
-                      <span className={`project-status-tag status-${selectedProject.status.toLowerCase().replace(' ', '')}`}>
+                      <span className={"project-status-tag"}>
                         {selectedProject.status}
                       </span>
                     </span>
                     <span>
                       <FontAwesomeIcon className="icon" icon={faCalendarDay} /> Dates: 
-                      {selectedProject.startDate ? ` Started: ${selectedProject.startDate}` : ' No start date'}
-                      {selectedProject.endDate ? ` | Ended: ${selectedProject.endDate}` : (selectedProject.status !== 'Completed' && selectedProject.startDate ? ' | Ongoing' : '')}
+                      {selectedProject.start_date ? ` Started: ${selectedProject.start_date}` : ' No start date'}
+                      {selectedProject.end_date ? ` | Ended: ${selectedProject.end_date}` : (selectedProject.status !== 'Completed' && selectedProject.start_date ? ' | Ongoing' : '')}
                     </span>
                   </div>
                 </div>
@@ -638,7 +638,7 @@ const Projects: React.FC = () => {
         {showAddTaskModal && selectedProject && (
           <Suspense fallback={<ModalFallback />}>
             <TaskModal 
-              projectName={selectedProject.name}
+              projectName={selectedProject.title}
               onClose={() => setShowAddTaskModal(false)}
               onSubmit={handleTaskSubmit}
             />
@@ -648,7 +648,7 @@ const Projects: React.FC = () => {
         {showAddNoteModal && selectedProject && (
           <Suspense fallback={<ModalFallback />}>
             <NoteModal 
-              projectName={selectedProject.name}
+              projectName={selectedProject.title}
               onClose={() => setShowAddNoteModal(false)}
               onSubmit={handleNoteSubmit}
             />
@@ -658,7 +658,7 @@ const Projects: React.FC = () => {
         {showAddEventModal && selectedProject && (
           <Suspense fallback={<ModalFallback />}>
             <EventModal 
-              projectName={selectedProject.name}
+              projectName={selectedProject.title}
               onClose={() => setShowAddEventModal(false)}
               onSubmit={handleEventSubmit}
             />
@@ -668,7 +668,7 @@ const Projects: React.FC = () => {
         {showAddReminderModal && selectedProject && (
           <Suspense fallback={<ModalFallback />}>
             <ReminderModal 
-              projectName={selectedProject.name}
+              projectName={selectedProject.title}
               onClose={() => setShowAddReminderModal(false)}
               onSubmit={handleReminderSubmit}
             />

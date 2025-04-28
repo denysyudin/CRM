@@ -58,7 +58,7 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
             >
               <option value="meeting">Meeting</option>
               <option value="deadline">Deadline</option>
-              <option value="presentation">Presentation</option>
+              <option value="appointment">Appointment</option>
               <option value="other">Other</option>
             </select>
           </div>

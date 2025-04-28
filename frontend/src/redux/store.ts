@@ -1,8 +1,7 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
-import orderBookSlice from './features/orderBookSlice';
-import currencyPairSlice from './features/currencyPairSlice ';
 import chartSlice from './features/chartSlice';
 import remindersReducer from './features/remindersSlice';
+import eventsReducer from './features/eventsSlice';
 
 // Temporary stubs for the task and notes slices until they're properly implemented
 const tasksSlice = createSlice({
@@ -34,12 +33,11 @@ const notesSlice = createSlice({
 
 const store = configureStore({
     reducer: {
-        orderBook: orderBookSlice,
-        currencyPairs: currencyPairSlice,
         chart: chartSlice,
         tasks: tasksSlice.reducer,
         notes: notesSlice.reducer,
-        reminders: remindersReducer
+        reminders: remindersReducer,
+        events: eventsReducer
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

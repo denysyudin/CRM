@@ -76,7 +76,7 @@ body {
 /* Pane 1: Project List */
 .project-list-pane { width: 320px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; flex-shrink: 0; }
 .project-list-header { padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-.project-list-title { font-size: 1.2em; font-weight: 600; margin: 0; }
+.project-list-title { font-size: 1.2em; font-weight: 600; margin: 0; color: var(--text-primary); }
 .new-project-button { background-color: var(--accent-color); color: white; border: none; border-radius: 6px; padding: 8px 15px; font-size: 0.9em; font-weight: 500; cursor: pointer; transition: background-color 0.2s ease; }
 .new-project-button:hover { background-color: var(--accent-color-darker); }
 .project-list-container { overflow-y: auto; flex-grow: 1; padding: 10px 0; }
@@ -84,14 +84,10 @@ body {
 .project-summary-card { padding: 15px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background-color 0.15s ease; }
 .project-summary-card:hover { background-color: var(--hover-bg); }
 .project-summary-card.active { background-color: var(--active-bg); }
-.project-summary-title { font-weight: 600; font-size: 1.05em; margin-bottom: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; pointer-events: none; /* Prevent title text interfering with card click */ }
+.project-summary-title { font-weight: 600; font-size: 1.05em; margin-bottom: 1px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; pointer-events: none; height: 30px;/* Prevent title text interfering with card click */ }
 .project-summary-title .icon { font-size: 1.1em; color: var(--text-secondary); }
 .project-summary-meta { font-size: 0.85em; color: var(--text-secondary); pointer-events: none; }
-.project-status-tag { display: inline-block; font-size: 0.8em; font-weight: 500; padding: 3px 8px; border-radius: 10px; border: 1px solid transparent; margin-top: 5px; }
-.status-planning { color: var(--status-planning-text); background-color: var(--status-planning-bg); border-color: var(--status-planning-border); }
-.status-inprogress { color: var(--status-inprogress-text); background-color: var(--status-inprogress-bg); border-color: var(--status-inprogress-border); }
-.status-active { color: var(--status-active-text); background-color: var(--status-active-bg); border-color: var(--status-active-border); }
-.status-completed { color: var(--status-completed-text); background-color: var(--status-completed-bg); border-color: var(--status-completed-border); }
+.project-status-tag { display: inline-block; font-size: 1em; font-weight: 500; padding: 3px 8px; border-radius: 10px; border: 1px solid transparent; color: var(--status-planning-text); background-color: var(--status-planning-bg); border-color: var(--status-planning-border);}
 
 /* Pane 2: Project Details */
 .project-details-pane { flex-grow: 1; padding: 30px 40px; overflow-y: auto; background-color: var(--content-bg); }

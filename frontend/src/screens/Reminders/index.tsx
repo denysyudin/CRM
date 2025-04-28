@@ -18,70 +18,7 @@ interface Reminder {
 
 const Reminders: React.FC = () => {
   // Mock data - in a real app this would come from an API
-  const [reminders, setReminders] = useState<Reminder[]>([
-    {
-      id: 'rem-1',
-      name: 'Follow up with Alex re: Vendor Call',
-      dueDate: new Date().toISOString(),
-      priority: 'high',
-      completed: false,
-      relatedTo: {
-        type: 'person',
-        name: 'Alex'
-      }
-    },
-    {
-      id: 'rem-2',
-      name: 'Call the box supplier',
-      dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-      priority: 'medium',
-      completed: false,
-      relatedTo: {
-        type: 'project',
-        name: 'Bravo Jewellers'
-      }
-    },
-    {
-      id: 'rem-3',
-      name: 'Send invoice to Client Y',
-      dueDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-      priority: 'high',
-      completed: true,
-      relatedTo: {
-        type: 'project',
-        name: 'Bravo Creations'
-      }
-    },
-    {
-      id: 'rem-4',
-      name: 'Check inventory levels',
-      dueDate: new Date(Date.now() + 3 * 86400000).toISOString(), // 3 days later
-      priority: 'medium',
-      completed: false
-    },
-    {
-      id: 'rem-5',
-      name: 'Renew software subscription',
-      dueDate: new Date(Date.now() + 4 * 86400000).toISOString(), // 4 days later
-      priority: 'low',
-      completed: false,
-      relatedTo: {
-        type: 'project',
-        name: 'Admin'
-      }
-    },
-    {
-      id: 'rem-6',
-      name: 'Follow up with Bob re: Website Mockup',
-      dueDate: new Date(Date.now() + 4 * 86400000).toISOString(), // 4 days later
-      priority: 'medium',
-      completed: false,
-      relatedTo: {
-        type: 'person',
-        name: 'Bob'
-      }
-    }
-  ]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
 
   // UI state
   const [filter, setFilter] = useState<'pending' | 'completed' | 'all'>('pending');
@@ -200,35 +137,34 @@ const Reminders: React.FC = () => {
                 <FiCalendar className="icon" /> Reminders
               </h1>
             </div>
-            <button className="new-reminder-button" onClick={handleNewReminder}>
-              <FiPlus style={{ marginRight: '5px' }} /> New Reminder
-            </button>
           </header>
 
           <div className="reminders-controls">
-            <label htmlFor="filter-status">Show:</label>
-            <select
-              id="filter-status"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as 'pending' | 'completed' | 'all')}
-              className="filter-select"
-            >
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="all">All</option>
-            </select>
+            <div className="filter-controls">
+              <label htmlFor="filter-status">Show:</label>
+              <select
+                id="filter-status"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as 'pending' | 'completed' | 'all')}
+                className="filter-select"
+              >
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="all">All</option>
+              </select>
 
-            <label htmlFor="sort-by">Sort by:</label>
-            <select
-              id="sort-by"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'due-date' | 'priority' | 'created')}
-              className="filter-select"
-            >
-              <option value="due-date">Due Date</option>
-              <option value="priority">Priority</option>
-              <option value="created">Date Created</option>
-            </select>
+              <label htmlFor="sort-by">Sort by:</label>
+              <select
+                id="sort-by"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'due-date' | 'priority' | 'created')}
+                className="filter-select"
+              >
+                <option value="due-date">Due Date</option>
+                <option value="priority">Priority</option>
+                <option value="created">Date Created</option>
+              </select>
+            </div>
             <button className="new-reminder-button" onClick={handleNewReminder}>
               <FiPlus style={{ marginRight: '5px' }} /> New Reminder
             </button>
@@ -238,9 +174,6 @@ const Reminders: React.FC = () => {
             <div className="no-reminders">
               <FiCalendar className="no-data-icon" />
               <p>No reminders found</p>
-              <button className="new-reminder-button" onClick={handleNewReminder}>
-                Create a Reminder
-              </button>
             </div>
           ) : (
             <ul className="reminders-list">

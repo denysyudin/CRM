@@ -148,6 +148,12 @@ aside, .sidebar {
   border-bottom: 1px solid var(--border-color);
   background-color: #fdfdfd;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filter-controls {
+  display: flex;
   gap: 15px;
   align-items: center;
   font-size: 0.9em;
@@ -435,7 +441,19 @@ aside, .sidebar {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .reminders-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .filter-controls {
+    width: 100%;
     flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .new-reminder-button {
+    align-self: flex-end;
   }
   
   .reminder-meta {

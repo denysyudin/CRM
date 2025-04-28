@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../redux/store';
-import { Event } from '../../services/api';
 import { fetchEvents, createEvent, updateEvent, deleteEvent } from '../../redux/features/eventsSlice';
+import { Event } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import { useMediaQuery } from '@mui/material';
 import './styles.css';
@@ -12,7 +12,7 @@ interface CalendarEvent extends Event {
   time?: string;
 }
 
-// Define our form data structure to match Event API interface
+// Define our form data structure
 interface EventFormData {
   id?: string;
   name: string;
@@ -23,7 +23,7 @@ interface EventFormData {
   projectId?: string;
 }
 
-const Calendar: React.FC = () => {
+const EventCalendar: React.FC = () => {
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useMediaQuery('(max-width:768px)');
@@ -53,8 +53,7 @@ const Calendar: React.FC = () => {
   
   // Fetch events on component mount
   useEffect(() => {
-    // Type assertion as any to bypass TypeScript error
-    dispatch(fetchEvents() as any);
+    dispatch(fetchEvents());
   }, [dispatch]);
 
   // Handle sidebar toggle
@@ -163,7 +162,7 @@ const Calendar: React.FC = () => {
           notes: eventFormData.notes,
           projectId: eventFormData.projectId
         }
-      }) as any);
+      }));
     } else {
       // Add new event
       dispatch(createEvent({
@@ -173,7 +172,7 @@ const Calendar: React.FC = () => {
         participants: eventFormData.participants,
         notes: eventFormData.notes,
         projectId: eventFormData.projectId
-      }) as any);
+      }));
     }
     
     closeEventModal();
@@ -181,7 +180,7 @@ const Calendar: React.FC = () => {
 
   const handleDeleteEvent = () => {
     if (eventFormData.id) {
-      dispatch(deleteEvent(eventFormData.id) as any);
+      dispatch(deleteEvent(eventFormData.id));
       closeEventModal();
     }
   };
@@ -376,7 +375,7 @@ const Calendar: React.FC = () => {
             >
               ☰
             </button>
-            <h1 className="dashboard-title">🗓️ Calendar</h1>
+            <h1 className="dashboard-title">🗓️ Event Calendar</h1>
           </div>
         </div>
 
@@ -437,7 +436,7 @@ const Calendar: React.FC = () => {
                   <button 
                     className="cal-page-btn cal-page-btn-delete"
                     onClick={() => {
-                      dispatch(deleteEvent(selectedEvent.id) as any);
+                      dispatch(deleteEvent(selectedEvent.id));
                       closeModal();
                     }}
                   >
@@ -531,11 +530,11 @@ const Calendar: React.FC = () => {
                 </div>
                 
                 <div className="cal-page-form-actions">
-                  <button type="button" className="form-button button-secondary" onClick={closeEventModal}>
+                  <button type="button" className="cal-page-btn cal-page-btn-secondary" onClick={closeEventModal}>
                     Cancel
                   </button>
-                  <button type="submit" className="form-button button-primary">
-                    {isEditing ? 'Update Event' : 'Create Event'}
+                  <button type="submit" className="cal-page-btn cal-page-btn-save">
+                    {isEditing ? 'Update' : 'Create'}
                   </button>
                   
                   {isEditing && (
@@ -557,4 +556,4 @@ const Calendar: React.FC = () => {
   );
 };
 
-export default Calendar; 
+export default EventCalendar; 

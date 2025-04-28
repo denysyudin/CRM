@@ -13,11 +13,11 @@ const api = axios.create({
 // Type definitions matching backend models
 export interface Project {
   id: string;
-  name: string;
+  title: string;
   icon: string | null;
   status: string;
-  startDate: string | null;
-  endDate: string | null;
+  start_date: string | null;
+  end_date: string | null;
   description: string;
   tasks: string[];
   notes: string[];
@@ -28,10 +28,10 @@ export interface Project {
 
 export interface Task {
   id: string;
-  name: string;
+  title: string;
   status: string;
   priority: string;
-  dueDate: string;
+  due_date: string;
   employee_id: string | null;
   description?: string;
   project_id?: string;
@@ -48,7 +48,7 @@ export interface Note {
 
 export interface Event {
   id: string;
-  name: string;
+  title: string;
   date: string;
   type: string;
   participants?: string;
@@ -58,7 +58,7 @@ export interface Event {
 
 export interface Reminder {
   id: string;
-  name: string;
+  title: string;
   dueDate: string;
   priority: string;
   projectId?: string;
@@ -66,7 +66,7 @@ export interface Reminder {
 
 export interface File {
   id: string;
-  name: string;
+  title: string;
   type: string;
   projectId?: string;
 }

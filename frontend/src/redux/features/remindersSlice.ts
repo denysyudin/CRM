@@ -10,6 +10,8 @@ export interface Reminder {
   priority: string;
   completed?: boolean;
   projectId?: string;
+  description?: string;
+  type?: string;
 }
 
 // Define state structure

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useMediaQuery } from '@mui/material';
-import useWebSocket from '../../hooks/useWebSocket';
 import Sidebar from '../../components/Sidebar/Sidebar.tsx';
 import TodaysTasks from '../../components/TodaysTasks';
 import Calendar from '../../components/Calendar';
@@ -73,25 +72,6 @@ const Dashboard: React.FC = () => {
             });
         }
     };
-
-    // Function to determine column size based on screen width
-    const getColumnSize = () => {
-        if (isSmall) return 12; // 1 item per row on small screens
-        if (isMobile) return 6; // 2 items per row on mobile screens
-        if (isMedium) return 4; // 3 items per row on medium screens
-        return 3; // 4 items per row on large screens
-    };
-
-    // Special case for the Tasks component which takes more width
-    const getTasksColumnSize = () => {
-        if (isSmall) return 12; // 1 item per row on small screens
-        if (isMobile) return 12; // 1 item per row on mobile screens
-        if (isMedium) return 6; // Takes half of the row on medium screens
-        return 6; // Takes half of the row on large screens
-    };
-
-    const columnSize = getColumnSize();
-    const tasksColumnSize = getTasksColumnSize();
 
     // Calculate dynamic classes for different screen sizes, memoized for performance
     const responsiveClass = useMemo(() => {
