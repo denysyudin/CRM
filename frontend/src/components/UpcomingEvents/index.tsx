@@ -52,10 +52,6 @@ const UpcomingEvents: React.FC = () => {
           </div>
         ))}
       </div>
-      
-      <div className="events-footer">
-        (Showing upcoming)
-      </div>
     </div>
   );
 };

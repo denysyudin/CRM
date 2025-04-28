@@ -59,10 +59,6 @@ const ActiveProjects: React.FC = () => {
           </div>
         ))}
       </div>
-      
-      <div className="projects-footer">
-        (Showing active projects)
-      </div>
     </div>
   );
 };

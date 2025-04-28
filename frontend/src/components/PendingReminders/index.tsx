@@ -52,10 +52,6 @@ const PendingReminders: React.FC = () => {
           </div>
         ))}
       </div>
-      
-      <div className="pending-reminders-footer">
-        (Showing upcoming)
-      </div>
     </div>
   );
 };
