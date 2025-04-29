@@ -14,16 +14,10 @@ const api = axios.create({
 export interface Project {
   id: string;
   title: string;
-  icon: string | null;
+  description: string | null;
   status: string;
   start_date: string | null;
   end_date: string | null;
-  description: string;
-  tasks: string[];
-  notes: string[];
-  events: string[];
-  reminders: string[];
-  files: string[];
 }
 
 export interface Task {
@@ -35,40 +29,49 @@ export interface Task {
   employee_id: string | null;
   description?: string;
   project_id?: string;
+  category?: string;
 }
 
 export interface Note {
   id: string;
   title: string;
-  date: string;
-  category: string;
-  project: string;
-  content?: string;
+  category?: string;
+  project_id?: string;
+  employee_id?: string;
+  description?: string;
+  files?: string;
+  created_at: string;
 }
 
 export interface Event {
   id: string;
   title: string;
-  date: string;
+  due_date: string;
   type: string;
   participants?: string;
   notes?: string;
-  projectId?: string;
+  project_id?: string;
+  employee_id?: string;
+  description?: string;
 }
 
 export interface Reminder {
   id: string;
   title: string;
-  dueDate: string;
+  due_date: string;
   priority: string;
-  projectId?: string;
+  status: boolean;
+  project_id?: string;
+  employee_id?: string;
+  description?: string;
 }
 
 export interface File {
   id: string;
   title: string;
   type: string;
-  projectId?: string;
+  project_id?: string;
+  employee_id?: string;
 }
 
 // Projects API
@@ -110,6 +113,16 @@ export const tasksApi = {
     const response = await api.get(`/tasks/${id}`);
     return response.data;
   },
+
+  getByProjectId: async (projectId: string): Promise<Task[]> => {
+    const response = await api.get(`/tasks?project_id=${projectId}`);
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<Task[]> => {
+    const response = await api.get(`/tasks?employee_id=${employeeId}`);
+    return response.data;
+  },
   
   create: async (task: Omit<Task, 'id'>): Promise<Task> => {
     const response = await api.post('/tasks', task);
@@ -129,7 +142,7 @@ export const tasksApi = {
 // Notes API
 export const notesApi = {
   getAll: async (projectId?: string): Promise<Note[]> => {
-    const url = projectId ? `/projects/${projectId}/notes` : '/notes';
+    const url = projectId ? `notes/?project_id=${projectId}` : '/notes';
     const response = await api.get(url);
     return response.data;
   },
@@ -139,8 +152,20 @@ export const notesApi = {
     return response.data;
   },
   
+  getByProjectId: async (projectId: string): Promise<Note[]> => {
+    const response = await api.get(`/notes?project_id=${projectId}`);
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<Note[]> => {
+    const response = await api.get(`/notes?employee_id=${employeeId}`);
+    return response.data;
+  },
+
   create: async (note: Omit<Note, 'id'>): Promise<Note> => {
+    console.log('API: Creating note with data:', note);
     const response = await api.post('/notes', note);
+    console.log('API: Create note response:', response.data);
     return response.data;
   },
   
@@ -157,36 +182,97 @@ export const notesApi = {
 // Events API
 export const eventsApi = {
   getAll: async (projectId?: string): Promise<Event[]> => {
-    const url = projectId ? `/projects/${projectId}/events` : '/events';
-    const response = await api.get(url);
-    return response.data;
+    try {
+      console.log('API: Fetching all events', projectId ? `for project ${projectId}` : '');
+      const queryParams = projectId ? `?project_id=${projectId}` : '';
+      const response = await api.get(`/events${queryParams}`);
+      console.log('API: Events response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error fetching events:', error);
+      throw error;
+    }
   },
   
   getById: async (id: string): Promise<Event> => {
     const response = await api.get(`/events/${id}`);
     return response.data;
   },
+
+  getByProjectId: async (projectId: string): Promise<Event[]> => {
+    const response = await api.get(`/events?project_id=${projectId}`);
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<Event[]> => {
+    const response = await api.get(`/events?employee_id=${employeeId}`);
+    return response.data;
+  },
   
   create: async (event: Omit<Event, 'id'>): Promise<Event> => {
-    const response = await api.post('/events', event);
-    return response.data;
+    try {
+      // Create a special string representation that won't be parsed as a datetime
+      // but will be accepted by FastAPI's validation
+      const modifiedEvent = {
+        ...event,
+        // Send date as simple string, exactly as it would appear in database
+        due_date: event.due_date ? event.due_date.replace(/T.*$/, '') : event.due_date,
+        
+        // Include a field that will tell backend this should be treated as a string
+        due_date_is_string: true
+      };
+      
+      console.log('API: Creating event with modified data:', modifiedEvent);
+      const response = await api.post('/events', modifiedEvent);
+      console.log('API: Create event response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Error creating event:', error);
+      throw error;
+    }
   },
   
   update: async (id: string, event: Partial<Event>): Promise<Event> => {
-    const response = await api.put(`/events/${id}`, event);
-    return response.data;
+    try {
+      // Create a special string representation that won't be parsed as a datetime
+      // but will be accepted by FastAPI's validation
+      const modifiedEvent = {
+        ...event,      
+      };
+      
+      console.log(`API: Updating event ${id} with modified data:`, modifiedEvent);
+      const response = await api.put(`/events/${id}`, modifiedEvent);
+      console.log('API: Update event response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`API: Error updating event ${id}:`, error);
+      throw error;
+    }
   },
   
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/events/${id}`);
+    try {
+      console.log(`API: Deleting event ${id}`);
+      await api.delete(`/events/${id}`);
+      console.log(`API: Event ${id} deleted successfully`);
+    } catch (error) {
+      console.error(`API: Error deleting event ${id}:`, error);
+      throw error;
+    }
   },
 };
 
 // Reminders API
 export const remindersApi = {
-  getAll: async (projectId?: string): Promise<Reminder[]> => {
-    const url = projectId ? `/projects/${projectId}/reminders` : '/reminders';
+  getAll: async (): Promise<Reminder[]> => {
+    const response = await api.get('/reminders');
+    return response.data;
+  },
+
+  getRemindersByProjectId: async (projectId?: string): Promise<Reminder[]> => {
+    const url = projectId ? `/reminders/?project_id=${projectId}` : '/reminders';
     const response = await api.get(url);
+
     return response.data;
   },
   
@@ -194,7 +280,17 @@ export const remindersApi = {
     const response = await api.get(`/reminders/${id}`);
     return response.data;
   },
-  
+
+  getByProjectId: async (projectId: string): Promise<Reminder[]> => {
+    const response = await api.get(`/reminders?project_id=${projectId}`);
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<Reminder[]> => {
+    const response = await api.get(`/reminders?employee_id=${employeeId}`);
+    return response.data;
+  },
+
   create: async (reminder: Omit<Reminder, 'id'>): Promise<Reminder> => {
     const response = await api.post('/reminders', reminder);
     return response.data;
@@ -220,6 +316,16 @@ export const filesApi = {
   
   getById: async (id: string): Promise<File> => {
     const response = await api.get(`/files/${id}`);
+    return response.data;
+  },
+
+  getByProjectId: async (projectId: string): Promise<File[]> => {
+    const response = await api.get(`/files?project_id=${projectId}`);
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<File[]> => {
+    const response = await api.get(`/files?employee_id=${employeeId}`);
     return response.data;
   },
   

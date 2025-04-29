@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Reminder } from '../services/api';
-import '../screens/Projects/styles.css';
+import { Reminder } from '../../types';
+import '../../screens/Projects/styles.css';
 
 interface ReminderModalProps {
   projectName: string;
@@ -10,17 +10,22 @@ interface ReminderModalProps {
 }
 
 const ReminderModal: React.FC<ReminderModalProps> = ({ projectName, onClose, onSubmit, reminder }) => {
-  const [name, setName] = useState(reminder?.name || '');
-  const [dueDate, setDueDate] = useState(reminder?.dueDate || '');
+  const [title, setTitle] = useState(reminder?.title || '');
+  const [due_date, setDueDate] = useState(reminder?.due_date || '');
   const [priority, setPriority] = useState(reminder?.priority || 'Medium');
+  const [description, setDescription] = useState(reminder?.description || '');
+  const [status, setStatus] = useState(reminder?.status || false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      name,
-      dueDate,
+      title,
+      due_date,
       priority,
-      projectId: reminder?.projectId || ''
+      description,
+      status,
+      project_id: reminder?.project_id || '',
+      employee_id: reminder?.employee_id || ''
     });
   };
 
@@ -36,21 +41,21 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ projectName, onClose, onS
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Reminder Name</label>
+            <label htmlFor="title">Reminder Title</label>
             <input
-              id="name"
+              id="title"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               required
             />
           </div>
           <div className="form-group">
-            <label htmlFor="dueDate">Due Date</label>
+            <label htmlFor="due_date">Due Date</label>
             <input
-              id="dueDate"
+              id="due_date"
               type="date"
-              value={dueDate}
+              value={due_date}
               onChange={(e) => setDueDate(e.target.value)}
               required
             />
@@ -67,6 +72,24 @@ const ReminderModal: React.FC<ReminderModalProps> = ({ projectName, onClose, onS
               <option value="High">High</option>
               <option value="Urgent">Urgent</option>
             </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="form-group checkbox-group">
+            <input
+              id="status"
+              type="checkbox"
+              checked={status}
+              onChange={(e) => setStatus(e.target.checked)}
+            />
+            <label htmlFor="status">Completed</label>
           </div>
           <div className="form-actions">
             <button type="button" className="form-button button-secondary" onClick={onClose}>

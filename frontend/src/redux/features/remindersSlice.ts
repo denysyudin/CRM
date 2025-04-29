@@ -5,11 +5,12 @@ import api from '../../services/api';
 // Define the Reminder interface
 export interface Reminder {
   id: string;
-  name: string;
-  dueDate: string;
+  title: string;
+  due_date: string;
   priority: string;
-  completed?: boolean;
-  projectId?: string;
+  status: boolean;
+  project_id?: string;
+  employee_id?: string;
   description?: string;
   type?: string;
 }
@@ -17,7 +18,7 @@ export interface Reminder {
 // Define state structure
 interface RemindersState {
   items: Reminder[];
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  status: boolean;
   error: string | null;
   selectedReminder: Reminder | null;
 }
@@ -25,7 +26,7 @@ interface RemindersState {
 // Initial state
 const initialState: RemindersState = {
   items: [],
-  status: 'idle',
+  status: false,
   error: null,
   selectedReminder: null,
 };
@@ -33,9 +34,21 @@ const initialState: RemindersState = {
 // Async thunk for fetching all reminders
 export const fetchReminders = createAsyncThunk(
   'reminders/fetchReminders',
-  async (projectId: string | undefined = undefined, { rejectWithValue }) => {
+  async ( _, { rejectWithValue } ) => {
     try {
-      const response = await api.reminders.getAll(projectId);
+      const response = await api.reminders.getAll();
+      console.log('API: Reminders response:', response);
+      response.forEach((reminder: Reminder) => {
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        reminder.due_date = new Date(reminder.due_date).toLocaleString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric', 
+          hour: 'numeric', 
+          minute: 'numeric',
+          timeZone: userTimezone
+        }).replace('at', '');
+      });
       return response;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to fetch reminders');
@@ -105,36 +118,36 @@ const remindersSlice = createSlice({
     },
     clearReminders(state) {
       state.items = [];
-      state.status = 'idle';
+      state.status = false;
       state.error = null;
     }
   },
   extraReducers: (builder) => {
     // Handle fetchReminders
     builder.addCase(fetchReminders.pending, (state) => {
-      state.status = 'loading';
+      state.status = true;
     });
     builder.addCase(fetchReminders.fulfilled, (state, action) => {
-      state.status = 'succeeded';
+      state.status = false;
       state.items = action.payload;
       state.error = null;
     });
     builder.addCase(fetchReminders.rejected, (state, action) => {
-      state.status = 'failed';
+      state.status = false;
       state.error = action.payload as string;
     });
 
     // Handle fetchReminderById
     builder.addCase(fetchReminderById.pending, (state) => {
-      state.status = 'loading';
+      state.status = true;
     });
     builder.addCase(fetchReminderById.fulfilled, (state, action) => {
-      state.status = 'succeeded';
+      state.status = false;
       state.selectedReminder = action.payload;
       state.error = null;
     });
     builder.addCase(fetchReminderById.rejected, (state, action) => {
-      state.status = 'failed';
+      state.status = false;
       state.error = action.payload as string;
     });
 

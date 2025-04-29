@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../redux/store';
 import { Event } from '../../services/api';
-import { fetchEvents, createEvent, updateEvent, deleteEvent } from '../../redux/features/eventsSlice';
+import { fetchEvents, createEvent, updateEvent, deleteEvent, selectEventsStatus, selectEventsError } from '../../redux/features/eventsSlice';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import { useMediaQuery } from '@mui/material';
 import './styles.css';
@@ -15,12 +15,16 @@ interface CalendarEvent extends Event {
 // Define our form data structure to match Event API interface
 interface EventFormData {
   id?: string;
-  name: string;
+  title: string;
   date: string;
+  time?: string;
+  hours?: string;
+  minutes?: string;
   type: string;
   participants?: string;
   notes?: string;
-  projectId?: string;
+  project_id?: string;
+  employee_id?: string;
 }
 
 const Calendar: React.FC = () => {
@@ -36,8 +40,10 @@ const Calendar: React.FC = () => {
   // Event form state
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventFormData, setEventFormData] = useState<EventFormData>({
-    name: '',
+    title: '',
     date: new Date().toISOString().split('T')[0],
+    hours: '09',
+    minutes: '00',
     type: 'meeting'
   });
   const [isEditing, setIsEditing] = useState(false);
@@ -50,10 +56,17 @@ const Calendar: React.FC = () => {
   // Redux
   const dispatch = useDispatch();
   const events = useSelector((state: RootState) => state.events?.items || []);
+  const status = useSelector(selectEventsStatus);
+  const error = useSelector(selectEventsError);
+  
+  // Local loading states
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   // Fetch events on component mount
   useEffect(() => {
-    // Type assertion as any to bypass TypeScript error
     dispatch(fetchEvents() as any);
   }, [dispatch]);
 
@@ -72,14 +85,62 @@ const Calendar: React.FC = () => {
 
   // Format events as calendar events
   const getEventsForDate = (dateString: string): CalendarEvent[] => {
+    // console.log(`Looking for events on ${dateString}, total events: ${events.length}`);
+    
     return events.filter(event => {
-      const eventDate = new Date(event.date);
-      const formattedDate = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
-      return formattedDate === dateString;
-    }).map(event => ({
-      ...event,
-      time: 'All Day' // Default time if not specified
-    }));
+      // Check if the event has a date property
+      if (!event.due_date) {
+        console.warn('Event without date:', event);
+        return false;
+      }
+      
+      try {
+        // Parse the date string from timestamptz format
+        const eventDate = new Date(event.due_date);
+        
+        // Check if date is valid
+        if (isNaN(eventDate.getTime())) {
+          console.warn('Invalid event date:', event.due_date, event);
+          return false;
+        }
+        
+        // Get local date components from the timestamptz
+        const year = eventDate.getFullYear();
+        const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+        const day = String(eventDate.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        
+        // Log matching events for debugging
+        // if (formattedDate === dateString) {
+        //   console.log('Found event on', dateString, event);
+        // }
+        
+        return formattedDate === dateString;
+      } catch (err) {
+        console.error('Error processing event date:', err, event);
+        return false;
+      }
+    }).map(event => {
+      // Map event type to one of the predefined types that have CSS classes
+      let mappedType = 'other';
+      if (['meeting', 'deadline', 'appointment'].includes(event.type?.toLowerCase())) {
+        mappedType = event.type.toLowerCase();
+      }
+      
+      // Extract time from the timestamptz
+      const eventDate = new Date(event.due_date);
+      const hours = String(eventDate.getHours()).padStart(2, '0');
+      const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+      
+      // Only show time if not 00:00 (midnight)
+      const timeString = (hours === '00' && minutes === '00') ? 'All Day' : `${hours}:${minutes}`;
+      
+      return {
+        ...event,
+        type: mappedType, // Map to one of our predefined types with CSS classes
+        time: timeString // Format time properly
+      };
+    });
   };
   
   // Navigation handlers
@@ -114,8 +175,10 @@ const Calendar: React.FC = () => {
     setIsEditing(false);
     setSelectedDate(date);
     setEventFormData({
-      name: '',
+      title: '',
       date: date,
+      hours: '09',
+      minutes: '00',
       type: 'meeting'
     });
     setShowEventModal(true);
@@ -123,14 +186,22 @@ const Calendar: React.FC = () => {
 
   const openEditEventModal = (event: CalendarEvent) => {
     setIsEditing(true);
+    // Extract hours and minutes from the event due_date
+    const eventDate = new Date(event.due_date);
+    const hours = String(eventDate.getHours()).padStart(2, '0');
+    const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+    
     setEventFormData({
       id: event.id,
-      name: event.name,
-      date: event.date,
+      title: event.title,
+      date: event.due_date.split('T')[0], // Just get the date part
+      hours: hours,
+      minutes: minutes,
       type: event.type,
       participants: event.participants,
       notes: event.notes,
-      projectId: event.projectId
+      project_id: event.project_id,
+      employee_id: event.employee_id
     });
     setShowEventModal(true);
   };
@@ -148,41 +219,68 @@ const Calendar: React.FC = () => {
     }));
   };
 
-  const handleEventFormSubmit = (e: React.FormEvent) => {
+  const handleEventFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     
-    if (isEditing && eventFormData.id) {
-      // Update existing event
-      dispatch(updateEvent({
-        id: eventFormData.id,
-        event: {
-          name: eventFormData.name,
-          date: eventFormData.date,
-          type: eventFormData.type,
+    try {
+      // Combine date and time for the due_date field
+      const date = eventFormData.date;
+      const hours = eventFormData.hours || '00';
+      const minutes = eventFormData.minutes || '00';
+      
+      // Create a proper ISO timestamp with timezone information
+      const dateObj = new Date(`${date}T${hours}:${minutes}:00`);
+      const timestamptz = dateObj.toISOString();
+      console.log("ISO timestamp with timezone:", timestamptz);
+      
+      if (isEditing && eventFormData.id) {
+        // Update existing event
+        setIsUpdating(true);
+        await dispatch(updateEvent({
+          id: eventFormData.id,
+          event: {
+            title: eventFormData.title,
+            due_date: timestamptz, // Send ISO timestamp with timezone
+            type: eventFormData.type || 'other',
+            participants: eventFormData.participants,
+            notes: eventFormData.notes,
+            project_id: eventFormData.project_id,
+            employee_id: eventFormData.employee_id
+          }
+        }) as any);
+        setIsUpdating(false);
+      } else {
+        // Add new event
+        setIsCreating(true);
+        await dispatch(createEvent({
+          title: eventFormData.title,
+          due_date: timestamptz, // Send ISO timestamp with timezone
+          type: eventFormData.type || 'other',
           participants: eventFormData.participants,
           notes: eventFormData.notes,
-          projectId: eventFormData.projectId
-        }
-      }) as any);
-    } else {
-      // Add new event
-      dispatch(createEvent({
-        name: eventFormData.name,
-        date: eventFormData.date,
-        type: eventFormData.type,
-        participants: eventFormData.participants,
-        notes: eventFormData.notes,
-        projectId: eventFormData.projectId
-      }) as any);
+          project_id: eventFormData.project_id,
+          employee_id: eventFormData.employee_id
+        }) as any);
+        setIsCreating(false);
+      }
+      
+      closeEventModal();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'An error occurred');
+      setIsCreating(false);
+      setIsUpdating(false);
     }
-    
-    closeEventModal();
   };
 
-  const handleDeleteEvent = () => {
-    if (eventFormData.id) {
-      dispatch(deleteEvent(eventFormData.id) as any);
-      closeEventModal();
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      setIsDeleting(true);
+      await dispatch(deleteEvent(id) as any);
+      setIsDeleting(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Error deleting event');
+      setIsDeleting(false);
     }
   };
   
@@ -205,6 +303,25 @@ const Calendar: React.FC = () => {
   
   // Create calendar grid
   const renderCalendar = () => {
+    // If loading events, show loading indicator
+    if (status === 'loading' && events.length === 0) {
+      return (
+        <div className="cal-page-loading">
+          <p>Loading events...</p>
+        </div>
+      );
+    }
+    
+    // If there was an error, show error message
+    if (status === 'failed' && error) {
+      return (
+        <div className="cal-page-error">
+          <p>Error: {error}</p>
+          <button onClick={() => dispatch(fetchEvents() as any)}>Retry</button>
+        </div>
+      );
+    }
+    
     const currentDate = new Date(currentYear, currentMonth, 1);
     const firstDayOfMonth = currentDate.getDay();
     const lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -283,7 +400,7 @@ const Calendar: React.FC = () => {
                     handleEventClick(event, e);
                   }}
                 >
-                  {event.name}
+                  <span className="cal-page-event-time">{event.time}</span> {event.title}
                 </div>
               ))}
             </div>
@@ -403,8 +520,8 @@ const Calendar: React.FC = () => {
             <div className="cal-page-modal-content" onClick={e => e.stopPropagation()}>
               <button className="cal-page-modal-close" onClick={closeModal}>&times;</button>
               <div className="cal-page-modal-details">
-                <h3>{selectedEvent.name}</h3>
-                <p><strong>Date:</strong> {new Date(selectedEvent.date).toLocaleDateString()}</p>
+                <h3>{selectedEvent.title}</h3>
+                <p><strong>Date:</strong> {new Date(selectedEvent.due_date).toLocaleDateString()}</p>
                 <p><strong>Time:</strong> {selectedEvent.time || 'All Day'}</p>
                 <p>
                   <strong>Type:</strong> 
@@ -415,14 +532,14 @@ const Calendar: React.FC = () => {
                 {selectedEvent.participants && (
                   <p><strong>Participants:</strong> {selectedEvent.participants}</p>
                 )}
-                {selectedEvent.projectId && (
+                {selectedEvent.project_id && (
                   <p>
                     <strong>Project:</strong> 
-                    <span className="cal-page-detail-tag">{selectedEvent.projectId}</span>
+                    <span className="cal-page-detail-tag">{selectedEvent.project_id}</span>
                   </p>
                 )}
-                {selectedEvent.notes && (
-                  <p><strong>Notes:</strong> {selectedEvent.notes}</p>
+                {selectedEvent.description && (
+                  <p><strong>Notes:</strong> {selectedEvent.description}</p>
                 )}
                 <div className="cal-page-modal-actions">
                   <button 
@@ -437,7 +554,7 @@ const Calendar: React.FC = () => {
                   <button 
                     className="cal-page-btn cal-page-btn-delete"
                     onClick={() => {
-                      dispatch(deleteEvent(selectedEvent.id) as any);
+                      handleDeleteEvent(selectedEvent.id);
                       closeModal();
                     }}
                   >
@@ -456,14 +573,20 @@ const Calendar: React.FC = () => {
               <button className="cal-page-modal-close" onClick={closeEventModal}>&times;</button>
               <h3>{isEditing ? 'Edit Event' : 'Add New Event'}</h3>
               
+              {formError && (
+                <div className="cal-page-form-error">
+                  <p>{formError}</p>
+                </div>
+              )}
+              
               <form onSubmit={handleEventFormSubmit}>
                 <div className="cal-page-form-group">
                   <label htmlFor="name">Event Name</label>
                   <input
                     type="text"
-                    id="name"
-                    name="name"
-                    value={eventFormData.name}
+                    id="title"
+                    name="title"
+                    value={eventFormData.title}
                     onChange={handleEventFormChange}
                     required
                   />
@@ -479,6 +602,37 @@ const Calendar: React.FC = () => {
                     onChange={handleEventFormChange}
                     required
                   />
+                </div>
+                
+                <div className="cal-page-form-group">
+                  <label htmlFor="time">Time</label>
+                  <div className="cal-page-time-inputs">
+                    <select
+                      id="hours"
+                      name="hours"
+                      value={eventFormData.hours || '00'}
+                      onChange={handleEventFormChange}
+                    >
+                      {[...Array(24)].map((_, i) => (
+                        <option key={i} value={String(i).padStart(2, '0')}>
+                          {String(i).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="cal-page-time-separator">:</span>
+                    <select
+                      id="minutes"
+                      name="minutes"
+                      value={eventFormData.minutes || '00'}
+                      onChange={handleEventFormChange}
+                    >
+                      {[...Array(60)].map((_, i) => (
+                        <option key={i} value={String(i).padStart(2, '0')}>
+                          {String(i).padStart(2, '0')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 
                 <div className="cal-page-form-group">
@@ -512,9 +666,9 @@ const Calendar: React.FC = () => {
                   <label htmlFor="projectId">Project (Optional)</label>
                   <input
                     type="text"
-                    id="projectId"
-                    name="projectId"
-                    value={eventFormData.projectId || ''}
+                    id="project_id"
+                    name="project_id"
+                    value={eventFormData.project_id || ''}
                     onChange={handleEventFormChange}
                   />
                 </div>
@@ -534,17 +688,29 @@ const Calendar: React.FC = () => {
                   <button type="button" className="form-button button-secondary" onClick={closeEventModal}>
                     Cancel
                   </button>
-                  <button type="submit" className="form-button button-primary">
-                    {isEditing ? 'Update Event' : 'Create Event'}
+                  <button 
+                    type="submit" 
+                    className="form-button button-primary"
+                    disabled={isCreating || isUpdating}
+                  >
+                    {isEditing ? 
+                      (isUpdating ? 'Updating...' : 'Update Event') : 
+                      (isCreating ? 'Creating...' : 'Create Event')}
                   </button>
                   
                   {isEditing && (
                     <button
                       type="button"
                       className="cal-page-btn cal-page-btn-delete"
-                      onClick={handleDeleteEvent}
+                      disabled={isDeleting}
+                      onClick={() => {
+                        if (eventFormData.id) {
+                          handleDeleteEvent(eventFormData.id);
+                          closeEventModal();
+                        }
+                      }}
                     >
-                      Delete
+                      {isDeleting ? 'Deleting...' : 'Delete'}
                     </button>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Note } from '../services/api';
-import '../screens/Projects/styles.css';
+import { Note } from '../../types';
+import '../../screens/Projects/styles.css';
 
 interface NoteModalProps {
   projectName: string;
@@ -11,18 +11,18 @@ interface NoteModalProps {
 
 const NoteModal: React.FC<NoteModalProps> = ({ projectName, onClose, onSubmit, note }) => {
   const [title, setTitle] = useState(note?.title || '');
-  const [content, setContent] = useState(note?.content || '');
-  const [date, setDate] = useState(note?.date || new Date().toISOString().split('T')[0]);
+  const [description, setDescription] = useState(note?.description || '');
   const [category, setCategory] = useState(note?.category || 'General');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       title,
-      content,
-      date,
-      project: note?.project || '',
-      category
+      description,
+      category,
+      project_id: note?.project_id || '',
+      employee_id: note?.employee_id || '',
+      created_at: new Date().toISOString()
     });
   };
 
@@ -48,37 +48,28 @@ const NoteModal: React.FC<NoteModalProps> = ({ projectName, onClose, onSubmit, n
             />
           </div>
           <div className="form-group">
-            <label htmlFor="content">Content</label>
-            <textarea
-              id="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={8}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="date">Date</label>
-            <input
-              id="date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div className="form-group">
             <label htmlFor="category">Category</label>
             <select
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
-              <option value="General">General</option>
               <option value="Meeting">Meeting</option>
+              <option value="Client">Client</option>
+              <option value="Task">Task</option>
               <option value="Idea">Idea</option>
-              <option value="Research">Research</option>
-              <option value="Important">Important</option>
+              <option value="General">General</option>
             </select>
+          </div>
+          <div className="form-group">
+            <label htmlFor="description">Content</label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              required
+            />
           </div>
           <div className="form-actions">
             <button type="button" className="form-button button-secondary" onClick={onClose}>

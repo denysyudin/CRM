@@ -23,9 +23,12 @@ export const fetchEvents = createAsyncThunk(
   'events/fetchEvents',
   async (projectId: string | undefined = undefined, { rejectWithValue }) => {
     try {
+      console.log('Fetching events...');
       const response = await api.events.getAll(projectId);
+      console.log('Events fetched successfully:', response);
       return response;
     } catch (error: any) {
+      console.error('Error fetching events:', error);
       return rejectWithValue(error.response?.data?.detail || 'Failed to fetch events');
     }
   }
@@ -49,7 +52,17 @@ export const createEvent = createAsyncThunk(
   'events/createEvent',
   async (event: Omit<Event, 'id'>, { rejectWithValue }) => {
     try {
-      const response = await api.events.create(event);
+      // Format the date as 'YYYY-MM-DD' string instead of a full ISO string
+      // that would trigger datetime conversion in the backend
+      const eventData = {
+        ...event,
+        due_date: typeof event.due_date === 'string' ? 
+          event.due_date.split('T')[0] : // Extract just the date part
+          event.due_date
+      };
+      
+      console.log('Creating event with formatted data:', eventData);
+      const response = await api.events.create(eventData);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to create event');
@@ -62,7 +75,11 @@ export const updateEvent = createAsyncThunk(
   'events/updateEvent',
   async ({ id, event }: { id: string, event: Partial<Event> }, { rejectWithValue }) => {
     try {
-      const response = await api.events.update(id, event);
+      // Format the date in a way that won't trigger datetime conversion
+      const eventData = { ...event };
+      
+      console.log(`Updating event ${id} with formatted data:`, eventData);
+      const response = await api.events.update(id, eventData);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Failed to update event');
@@ -100,14 +117,18 @@ const eventsSlice = createSlice({
   extraReducers: (builder) => {
     // Handle fetchEvents
     builder.addCase(fetchEvents.pending, (state) => {
+      console.log('Events loading state set to loading');
       state.status = 'loading';
+      state.error = null;
     });
     builder.addCase(fetchEvents.fulfilled, (state, action) => {
+      console.log('Events fetched successfully, updating state');
       state.status = 'succeeded';
       state.items = action.payload;
       state.error = null;
     });
     builder.addCase(fetchEvents.rejected, (state, action) => {
+      console.error('Events fetch rejected:', action.payload);
       state.status = 'failed';
       state.error = action.payload as string;
     });

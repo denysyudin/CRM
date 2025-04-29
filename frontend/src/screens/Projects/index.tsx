@@ -1,28 +1,29 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
-import Sidebar from '../../components/Sidebar/Sidebar';
-import './styles.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { Sidebar } from '../../components/Layout';
+import { Button } from '../../components/common';
 import { 
-  faProjectDiagram, 
-  faClipboardList, 
-  faStickyNote, 
-  faCalendarAlt, 
-  faBell, 
-  faFileAlt, 
-  faPlus, 
-  faCalendarDay, 
-  faChartLine,
-  faBars,
-  faExclamationTriangle
-} from '@fortawesome/free-solid-svg-icons';
+  TaskModal, 
+  NoteModal, 
+  EventModal, 
+  ReminderModal,
+  ProjectModal
+} from '../../components/forms';
+import './styles.css';
+import { BiNetworkChart } from 'react-icons/bi';
+import { BsListCheck, BsPencilSquare, BsTrash } from 'react-icons/bs';
+import { BsFileText, BsCalendar, BsBell } from 'react-icons/bs';
+import { IoAdd } from 'react-icons/io5';
 import { useApi } from '../../hooks/useApi';
-import api, {
+import { formatDate } from '../../utils/dateUtils';
+import { 
   Project,
   Task,
   Note,
   Event,
   Reminder,
-  File,
+  File
+} from '../../types';
+import {
   projectsApi,
   tasksApi,
   notesApi,
@@ -31,33 +32,10 @@ import api, {
   filesApi
 } from '../../services/api';
 
-// Lazy load modal components
-const ProjectModal = lazy(() => import('../../components/ProjectModal'));
-const TaskModal = lazy(() => import('../../components/TaskModal'));
-const NoteModal = lazy(() => import('../../components/NoteModal'));
-const EventModal = lazy(() => import('../../components/EventModal'));
-const ReminderModal = lazy(() => import('../../components/ReminderModal'));
-
-// Dictionary type for linked items
-type ItemsDict<T> = Record<string, T>;
-
-// Load state component
-const LoadingState: React.FC = () => (
-  <div className="loading-state">
-    <div className="loading-spinner"></div>
-    <p>Loading data...</p>
-  </div>
-);
-
-// Error state component
-const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
-  <div className="error-state">
-    <FontAwesomeIcon icon={faExclamationTriangle} className="error-icon" />
-    <h3>Error Loading Data</h3>
-    <p>{message}</p>
-    <button onClick={onRetry} className="form-button button-primary">Try Again</button>
-  </div>
-);
+// Dictionary type for collections of items by ID
+type ItemDict<T> = {
+  [key: string]: T;
+};
 
 // Placeholder component for modals when lazy loading
 const ModalFallback: React.FC = () => (
@@ -86,7 +64,7 @@ const formatTask = (task: Task) => {
 const formatNote = (note: Note) => (
   <>
     <span className="linked-item-name"><span className="item-icon">📝</span> {note.title}</span>
-    <span className="linked-item-meta">{note.date}</span>
+    <span className="linked-item-meta">{note.created_at}</span>
   </>
 );
 
@@ -96,7 +74,7 @@ const formatEvent = (event: Event) => {
     <>
       <span className="linked-item-name"><span className="item-icon">🗓️</span> {event.title}</span>
       <span className="linked-item-meta">
-        {event.date} <span className={`list-item-tag ${tagClass}`} style={{ marginLeft: '5px' }}>{event.type}</span>
+        {event.due_date} <span className={`list-item-tag ${tagClass}`} style={{ marginLeft: '5px' }}>{event.type}</span>
       </span>
     </>
   );
@@ -108,7 +86,7 @@ const formatReminder = (reminder: Reminder) => {
     <>
       <span className="linked-item-name"><span className="item-icon">🔔</span> {reminder.title}</span>
       <span className="linked-item-meta">
-        {reminder.dueDate}
+        {reminder.due_date}
         {reminder.priority && <span className={`priority priority-${priorityClass}`}>{reminder.priority}</span>}
       </span>
     </>
@@ -122,15 +100,15 @@ const formatFile = (file: File) => (
   </>
 );
 
-// Linked items list component
+// Linked items list component with updated type to accept any array of items with IDs
 const LinkedItemsList = React.memo(({ 
   items, 
   itemsData, 
   formatter, 
   emptyMessage = "No related items found." 
 }: { 
-  items: string[], 
-  itemsData: ItemsDict<any>, 
+  items: (Task | Note | Event | Reminder | File)[], 
+  itemsData: ItemDict<any> | (Task | Note | Event | Reminder | File)[], 
   formatter: (item: any) => React.ReactNode,
   emptyMessage?: string 
 }) => {
@@ -138,15 +116,19 @@ const LinkedItemsList = React.memo(({
     return <li className="no-items-message">{emptyMessage}</li>;
   }
 
-  // If we don't have the items data (empty dictionaries)
-  if (Object.keys(itemsData).length === 0 && items.length > 0) {
+  // Check if itemsData is an array
+  const isArray = Array.isArray(itemsData);
+  
+  // If we don't have the items data (empty dictionaries or empty array)
+  if ((!isArray && Object.keys(itemsData).length === 0 && items.length > 0) || 
+      (isArray && itemsData.length === 0 && items.length > 0)) {
     return <li className="no-items-message">Related items exist but are not loaded. Click the + button to add new ones.</li>;
   }
 
   return (
     <>
-      {items.map(id => {
-        const item = itemsData[id];
+      {items.map(item => {
+        const id = item.id;
         if (!item) return null;
         return (
           <li key={id} className="linked-item">
@@ -173,7 +155,7 @@ const ProjectListItem = React.memo(({
     onClick={() => onSelect(project.id)}
   >
     <div className="project-summary-title">
-      <span className="icon">{project.icon || '📁'}</span> <h3>{project.title}</h3>
+      <span className="icon">{'📁'}</span> <h3>{project.title}</h3>
     </div>
     <div className="project-summary-meta">
       <span className={`project-status-tag status-${project.status.toLowerCase().replace(' ', '')}`}>
@@ -184,7 +166,7 @@ const ProjectListItem = React.memo(({
   </li>
 ));
 
-// Project details section component
+// Project details section component with updated type
 const ProjectDetailSection = React.memo(({
   title,
   icon,
@@ -195,22 +177,22 @@ const ProjectDetailSection = React.memo(({
 }: {
   title: string,
   icon: any,
-  items: string[],
-  itemsData: ItemsDict<any>,
+  items: (Task | Note | Event | Reminder | File)[],
+  itemsData: ItemDict<any> | (Task | Note | Event | Reminder | File)[],
   formatter: (item: any) => React.ReactNode,
   onAddItem: () => void
 }) => (
   <div className="linked-items-section">
     <h3 className="linked-items-title">
       <span className="title-content">
-        <FontAwesomeIcon className="icon" icon={icon} /> {title}
+        <BiNetworkChart className="icon" size={20} /> {title}
       </span>
       <button
         className="add-linked-item-button"
         title={`Add New ${title.replace('Related ', '')}`}
         onClick={onAddItem}
       >
-        <FontAwesomeIcon icon={faPlus} />
+        <IoAdd size={20} />
       </button>
     </h3>
     <ul className="linked-item-list">
@@ -232,8 +214,16 @@ const Projects: React.FC = () => {
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
+  const [isEditingProject, setIsEditingProject] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isMobile = useMemo(() => window.matchMedia('(max-width: 768px)').matches, []);
+
+  // State for linked items
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   
   // Data fetching hook - only fetch projects
   const {
@@ -245,29 +235,50 @@ const Projects: React.FC = () => {
   
   // Convert projects to dictionary for easier access - memoized
   const projectsDict = useMemo(() => {
-    return projects ? projects.reduce<ItemsDict<Project>>((acc, project) => {
+    return projects ? projects.reduce<ItemDict<Project>>((acc, project) => {
       acc[project.id] = project;
       return acc;
     }, {}) : {};
   }, [projects]);
 
-  // Initialize empty dictionaries for linked items
-  const tasksDict = useMemo<ItemsDict<Task>>(() => ({}), []);
-  const notesDict = useMemo<ItemsDict<Note>>(() => ({}), []);
-  const eventsDict = useMemo<ItemsDict<Event>>(() => ({}), []);
-  const remindersDict = useMemo<ItemsDict<Reminder>>(() => ({}), []);
-  const filesDict = useMemo<ItemsDict<File>>(() => ({}), []);
-
+  // These dictionaries are unused - removed for cleaner code
+  
   // When selectedProjectId changes, fetch the project
   useEffect(() => {
-    if (selectedProjectId && projects) {
-      const project = projectsDict[selectedProjectId];
-      if (project) {
-        setSelectedProject(project);
+    const fetchProjectData = async () => {
+      if (selectedProjectId && projects) {
+        const project = projectsDict[selectedProjectId];
+        if (project) {
+          setSelectedProject(project);
+          const fetchedTasks = await tasksApi.getByProjectId(project.id);
+          const fetchedNotes = await notesApi.getByProjectId(project.id);
+          const fetchedEvents = await eventsApi.getByProjectId(project.id);
+          const fetchedReminders = await remindersApi.getByProjectId(project.id);
+          const fetchedFiles = await filesApi.getByProjectId(project.id);
+          
+          setTasks(fetchedTasks);
+          setNotes(fetchedNotes);
+          setEvents(fetchedEvents);
+          setReminders(fetchedReminders);
+          setFiles(fetchedFiles);
+          
+          console.log("this is tasks", fetchedTasks);
+          console.log("this is notes", fetchedNotes);
+          console.log("this is events", fetchedEvents);
+          console.log("this is reminders", fetchedReminders);
+          console.log("this is files", fetchedFiles);
+        }
+      } else {
+        setSelectedProject(null);
+        // Clear linked items when no project is selected
+        setTasks([]);
+        setNotes([]);
+        setEvents([]);
+        setReminders([]);
+        setFiles([]);
       }
-    } else {
-      setSelectedProject(null);
-    }
+    };
+    fetchProjectData();
   }, [selectedProjectId, projects, projectsDict]);
 
   // Set sidebar state based on screen size
@@ -307,88 +318,38 @@ const Projects: React.FC = () => {
       case 'Reminder':
         setShowAddReminderModal(true);
         break;
-      case 'File':
-        // File upload will be handled differently
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.onchange = async (e) => {
-          const target = e.target as HTMLInputElement;
-          if (target.files && target.files.length > 0) {
-            const file = target.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('projectId', selectedProject.id);
-            
-            try {
-              const createdFile = await filesApi.create(formData);
-              
-              // Update the project's files array
-              await projectsApi.update(selectedProject.id, {
-                files: [...selectedProject.files, createdFile.id]
-              });
-              
-              // Refresh project data
-              await refetchProjects();
-              
-              // Update the selected project with the latest data
-              if (projects && selectedProject) {
-                const updatedProject = projects.find(p => p.id === selectedProject.id);
-                if (updatedProject) {
-                  setSelectedProject(updatedProject);
-                }
-              }
-              
-              alert(`File "${file.name}" uploaded successfully.`);
-            } catch (error) {
-              console.error('Failed to upload file:', error);
-              alert('Failed to upload file. Please try again.');
-            }
-          }
-        };
-        fileInput.click();
-        break;
       default:
         console.error("Unknown item type:", type);
     }
   };
 
-  // Event handlers for form submissions
-  const handleProjectSubmit = async (projectData: Omit<Project, 'id'> & { uploadedFile?: globalThis.File }) => {
+  const handleProjectSubmit = async (projectData: Omit<Project, 'id'>) => {
     try {
-      // Create a clean project object without the uploadedFile property
-      const { uploadedFile, ...projectDataForApi } = projectData;
-      
-      // First create the project
-      const newProject = await projectsApi.create(projectDataForApi);
-      
-      // If there's a file to upload
-      if (uploadedFile) {
-        // Create a FormData object for file upload
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-        formData.append('projectId', newProject.id);
+      if (isEditingProject && selectedProject) {
+        // Update existing project
+        const updatedProject = await projectsApi.update(selectedProject.id, projectData);
         
-        try {
-          // Upload the file
-          const createdFile = await filesApi.create(formData);
-          
-          // Update the project with the file reference
-          await projectsApi.update(newProject.id, {
-            files: [createdFile.id]
-          });
-        } catch (error) {
-          console.error('Failed to upload file:', error);
-          alert('Project created, but file upload failed. Please try adding the file later.');
-        }
+        // Refresh the projects list
+        await refetchProjects();
+        setSelectedProject(updatedProject);
+      } else {
+        // Create new project
+        const newProject = await projectsApi.create(projectData);
+        setSelectedProject(newProject);
       }
       
-      // Refresh projects data
-      await refetchProjects();
+      // Reset state
       setShowAddProjectModal(false);
+      setIsEditingProject(false);
     } catch (error) {
-      console.error('Failed to create project:', error);
-      alert('Failed to create project. Please try again.');
+      console.error(isEditingProject ? 'Failed to update project:' : 'Failed to create project:', error);
+      alert(isEditingProject ? 'Failed to update project' : 'Failed to create project');
     }
+  };
+
+  const handleEditProject = () => {
+    setIsEditingProject(true);
+    setShowAddProjectModal(true);
   };
 
   const handleTaskSubmit = async (taskData: Omit<Task, 'id'>) => {
@@ -400,9 +361,8 @@ const Projects: React.FC = () => {
         project_id: selectedProject.id
       });
       
-      await projectsApi.update(selectedProject.id, {
-        tasks: [...selectedProject.tasks, newTask.id]
-      });
+      // Update local tasks state
+      setTasks(prevTasks => [...prevTasks, newTask]);
       
       await refetchProjects();
       
@@ -424,12 +384,11 @@ const Projects: React.FC = () => {
     try {
       const newNote = await notesApi.create({
         ...noteData,
-        project: selectedProject.id
+        project_id: selectedProject.id
       });
       
-      await projectsApi.update(selectedProject.id, {
-        notes: [...selectedProject.notes, newNote.id]
-      });
+      // Update local notes state
+      setNotes(prevNotes => [...prevNotes, newNote]);
       
       await refetchProjects();
       
@@ -451,12 +410,11 @@ const Projects: React.FC = () => {
     try {
       const newEvent = await eventsApi.create({
         ...eventData,
-        projectId: selectedProject.id
+        project_id: selectedProject.id
       });
       
-      await projectsApi.update(selectedProject.id, {
-        events: [...selectedProject.events, newEvent.id]
-      });
+      // Update local events state
+      setEvents(prevEvents => [...prevEvents, newEvent]);
       
       await refetchProjects();
       
@@ -478,12 +436,11 @@ const Projects: React.FC = () => {
     try {
       const newReminder = await remindersApi.create({
         ...reminderData,
-        projectId: selectedProject.id
+        project_id: selectedProject.id
       });
       
-      await projectsApi.update(selectedProject.id, {
-        reminders: [...selectedProject.reminders, newReminder.id]
-      });
+      // Update local reminders state
+      setReminders(prevReminders => [...prevReminders, newReminder]);
       
       await refetchProjects();
       
@@ -499,6 +456,18 @@ const Projects: React.FC = () => {
     }
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm('Are you sure you want to delete this project?')) return;
+    
+    try {
+      await projectsApi.delete(projectId);
+      await refetchProjects();
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+    }
+  };
+
   return (
     <div className="app-container">
       <div className='sidebar'>
@@ -511,9 +480,9 @@ const Projects: React.FC = () => {
               onClick={toggleSidebar} 
               className="sidebar-toggle"
             >
-              <FontAwesomeIcon icon={faBars} />
+              <BiNetworkChart size={20} />
             </button>
-            <h1 className="dashboard-title"><FontAwesomeIcon icon={faProjectDiagram} /> Projects & Businesses</h1>
+            <h1 className="dashboard-title"><BiNetworkChart size={24} /> Projects & Businesses</h1>
           </div>
         </div>
 
@@ -523,7 +492,7 @@ const Projects: React.FC = () => {
             <div className="project-list-header">
               <h2 className="project-list-title">Projects & Businesses</h2>
               <button className="new-project-button" onClick={() => setShowAddProjectModal(true)}>
-                <FontAwesomeIcon icon={faPlus} /> New
+                <IoAdd size={20} /> New
               </button>
             </div>
             <div className="project-list-container">
@@ -544,7 +513,7 @@ const Projects: React.FC = () => {
           <main className="project-details-pane">
             {!selectedProject ? (
               <div className="details-placeholder">
-                <FontAwesomeIcon className="icon" icon={faProjectDiagram} style={{ fontSize: '3em' }} />
+                <BiNetworkChart className="icon" size={36} />
                 <h2>Select a Project</h2>
                 <p>Choose a project or business from the list to see its details and related items.</p>
               </div>
@@ -554,16 +523,22 @@ const Projects: React.FC = () => {
                   <h1 className="project-details-title">{selectedProject.title}</h1>
                   <div className="project-details-meta">
                     <span>
-                      <FontAwesomeIcon className="icon" icon={faChartLine} /> Status: 
+                      <BiNetworkChart className="icon" size={20} /> Status: 
                       <span className={"project-status-tag"}>
                         {selectedProject.status}
                       </span>
                     </span>
                     <span>
-                      <FontAwesomeIcon className="icon" icon={faCalendarDay} /> Dates: 
+                      <BsCalendar className="icon" size={20} /> Dates: 
                       {selectedProject.start_date ? ` Started: ${selectedProject.start_date}` : ' No start date'}
-                      {selectedProject.end_date ? ` | Ended: ${selectedProject.end_date}` : (selectedProject.status !== 'Completed' && selectedProject.start_date ? ' | Ongoing' : '')}
+                      {selectedProject.end_date ? ` | EST: ${selectedProject.end_date}` : (selectedProject.status !== 'Completed' && selectedProject.start_date ? ' | Ongoing' : '')}
                     </span>
+                    <button className="edit-project-button" onClick={() => handleEditProject()}>
+                      <BsPencilSquare className="edit-icon" size={20} />
+                    </button>
+                    <button className="delete-project-button" onClick={() => handleDeleteProject(selectedProject.id)}>
+                      <BsTrash className="delete-icon" size={20} />
+                    </button>
                   </div>
                 </div>
 
@@ -574,9 +549,9 @@ const Projects: React.FC = () => {
                 {/* Related Tasks */}
                 <ProjectDetailSection
                   title="Related Tasks"
-                  icon={faClipboardList}
-                  items={selectedProject.tasks}
-                  itemsData={tasksDict}
+                  icon={BsListCheck}
+                  items={tasks}
+                  itemsData={tasks}
                   formatter={formatTask}
                   onAddItem={() => handleAddLinkedItem('Task')}
                 />
@@ -584,9 +559,9 @@ const Projects: React.FC = () => {
                 {/* Related Notes */}
                 <ProjectDetailSection
                   title="Related Notes"
-                  icon={faStickyNote}
-                  items={selectedProject.notes}
-                  itemsData={notesDict}
+                  icon={BsFileText}
+                  items={notes}
+                  itemsData={notes}
                   formatter={formatNote}
                   onAddItem={() => handleAddLinkedItem('Note')}
                 />
@@ -594,9 +569,9 @@ const Projects: React.FC = () => {
                 {/* Related Events */}
                 <ProjectDetailSection
                   title="Related Events"
-                  icon={faCalendarAlt}
-                  items={selectedProject.events}
-                  itemsData={eventsDict}
+                  icon={BsCalendar}
+                  items={events}
+                  itemsData={events}
                   formatter={formatEvent}
                   onAddItem={() => handleAddLinkedItem('Event')}
                 />
@@ -604,9 +579,9 @@ const Projects: React.FC = () => {
                 {/* Related Reminders */}
                 <ProjectDetailSection
                   title="Related Reminders"
-                  icon={faBell}
-                  items={selectedProject.reminders}
-                  itemsData={remindersDict}
+                  icon={BsBell}
+                  items={reminders}
+                  itemsData={reminders}
                   formatter={formatReminder}
                   onAddItem={() => handleAddLinkedItem('Reminder')}
                 />
@@ -614,9 +589,9 @@ const Projects: React.FC = () => {
                 {/* Related Files */}
                 <ProjectDetailSection
                   title="Related Files"
-                  icon={faFileAlt}
-                  items={selectedProject.files}
-                  itemsData={filesDict}
+                  icon={BsFileText}
+                  items={files}
+                  itemsData={files}
                   formatter={formatFile}
                   onAddItem={() => handleAddLinkedItem('File')}
                 />
@@ -629,7 +604,11 @@ const Projects: React.FC = () => {
         {showAddProjectModal && (
           <Suspense fallback={<ModalFallback />}>
             <ProjectModal 
-              onClose={() => setShowAddProjectModal(false)}
+              project={isEditingProject ? selectedProject : undefined}
+              onClose={() => {
+                setShowAddProjectModal(false)
+                setIsEditingProject(false)
+              }}
               onSubmit={handleProjectSubmit}
             />
           </Suspense>

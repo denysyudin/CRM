@@ -1,115 +1,67 @@
-import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import noteApi from '../../services/noteApi';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api, { Note } from '../../services/api';
 
-// Define interfaces for the Note state
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  projectId?: string;
-  employeeId?: string;
-  createdAt: string;
-  updatedAt: string;
-  category?: string; // Added to match API
-}
-
-// Backend to frontend mapping
-const mapBackendNoteToFrontend = (backendNote: any): Note => {
-  return {
-    id: backendNote.id,
-    title: backendNote.title,
-    content: backendNote.content || '',
-    projectId: backendNote.project_id,
-    createdAt: backendNote.created_at,
-    updatedAt: backendNote.updated_at,
-    category: backendNote.category
-  };
-};
-
-// Frontend to backend mapping
-const mapFrontendNoteToBackend = (frontendNote: Partial<Note>): any => {
-  const backendNote: any = {
-    title: frontendNote.title,
-    content: frontendNote.content,
-    project_id: frontendNote.projectId,
-    category: frontendNote.category
-  };
-  
-  // Remove undefined properties
-  Object.keys(backendNote).forEach(key => 
-    backendNote[key] === undefined && delete backendNote[key]
-  );
-  
-  return backendNote;
-};
-
+// Define state structure
 interface NotesState {
-  notes: Note[];
-  selectedNote: Note | null;
-  loading: boolean;
+  items: Note[];
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 }
 
 const initialState: NotesState = {
-  notes: [],
-  selectedNote: null,
-  loading: false,
-  error: null,
+  items: [],
+  status: 'idle',
+  error: null
 };
 
-// Async Thunks
+// Fetch notes (optionally filtered by project)
 export const fetchNotes = createAsyncThunk(
   'notes/fetchNotes',
-  async (projectId: string | undefined = undefined, { rejectWithValue }) => {
+  async (projectId: string | undefined, { rejectWithValue }) => {
     try {
-      return await noteApi.getAllNotes(projectId);
+      const response = await api.notes.getAll(projectId);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch notes');
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch notes');
     }
   }
 );
 
-export const fetchNoteById = createAsyncThunk(
-  'notes/fetchNoteById',
-  async (noteId: string, { rejectWithValue }) => {
-    try {
-      return await noteApi.getNoteById(noteId);
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to fetch note');
-    }
-  }
-);
-
+// Create a new note
 export const createNote = createAsyncThunk(
   'notes/createNote',
-  async (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>, { rejectWithValue }) => {
+  async (note: Omit<Note, 'id'>, { rejectWithValue }) => {
     try {
-      return await noteApi.createNote(note);
+      const response = await api.notes.create(note);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to create note');
+      return rejectWithValue(error.response?.data?.message || 'Failed to create note');
     }
   }
 );
 
-export const updateNoteAsync = createAsyncThunk(
+// Update an existing note
+export const updateNote = createAsyncThunk(
   'notes/updateNote',
-  async ({ id, ...updates }: Partial<Note> & { id: string }, { rejectWithValue }) => {
+  async ({ id, note }: { id: string; note: Partial<Note> }, { rejectWithValue }) => {
     try {
-      return await noteApi.updateNote(id, updates);
+      const response = await api.notes.update(id, note);
+      return response;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to update note');
+      return rejectWithValue(error.response?.data?.message || 'Failed to update note');
     }
   }
 );
 
-export const deleteNoteAsync = createAsyncThunk(
+// Delete a note
+export const deleteNote = createAsyncThunk(
   'notes/deleteNote',
-  async (noteId: string, { rejectWithValue }) => {
+  async (id: string, { rejectWithValue }) => {
     try {
-      await noteApi.deleteNote(noteId);
-      return noteId;
+      await api.notes.delete(id);
+      return id;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.detail || 'Failed to delete note');
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete note');
     }
   }
 );
@@ -117,180 +69,68 @@ export const deleteNoteAsync = createAsyncThunk(
 const notesSlice = createSlice({
   name: 'notes',
   initialState,
-  reducers: {
-    // Get all notes
-    fetchNotesStart(state) {
-      state.loading = true;
-      state.error = null;
-    },
-    fetchNotesSuccess(state, action: PayloadAction<Note[]>) {
-      state.notes = action.payload;
-      state.loading = false;
-    },
-    fetchNotesFailure(state, action: PayloadAction<string>) {
-      state.loading = false;
-      state.error = action.payload;
-    },
-
-    // Add a new note
-    addNote(state, action: PayloadAction<Omit<Note, 'id' | 'createdAt' | 'updatedAt'>>) {
-      const newNote: Note = {
-        id: Date.now().toString(),
-        ...action.payload,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      state.notes.push(newNote);
-    },
-
-    // Update a note
-    updateNote(state, action: PayloadAction<Partial<Note> & { id: string }>) {
-      const index = state.notes.findIndex(note => note.id === action.payload.id);
-      if (index !== -1) {
-        state.notes[index] = {
-          ...state.notes[index],
-          ...action.payload,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        // If the selected note is being updated, update it as well
-        if (state.selectedNote && state.selectedNote.id === action.payload.id) {
-          state.selectedNote = {
-            ...state.selectedNote,
-            ...action.payload,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-      }
-    },
-
-    // Delete a note
-    deleteNote(state, action: PayloadAction<string>) {
-      state.notes = state.notes.filter(note => note.id !== action.payload);
-      if (state.selectedNote && state.selectedNote.id === action.payload) {
-        state.selectedNote = null;
-      }
-    },
-
-    // Select a note
-    selectNote(state, action: PayloadAction<string>) {
-      state.selectedNote = state.notes.find(note => note.id === action.payload) || null;
-    },
-
-    // Clear selected note
-    clearSelectedNote(state) {
-      state.selectedNote = null;
-    },
-    
-    // Filter notes by project
-    filterNotesByProject(state, action: PayloadAction<string>) {
-      if (action.payload) {
-        // Filter logic would typically be in a selector, but we can store the filtered results here
-        // or just handle this in the component using a selector
-      }
-    },
-    
-    // Filter notes by employee
-    filterNotesByEmployee(state, action: PayloadAction<string>) {
-      if (action.payload) {
-        // Filter logic would typically be in a selector, but we can store the filtered results here
-        // or just handle this in the component using a selector
-      }
-    }
-  },
+  reducers: {},
   extraReducers: (builder) => {
-    // Handle fetchNotes
-    builder.addCase(fetchNotes.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(fetchNotes.fulfilled, (state, action) => {
-      state.notes = action.payload;
-      state.loading = false;
-    });
-    builder.addCase(fetchNotes.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
-
-    // Handle fetchNoteById
-    builder.addCase(fetchNoteById.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(fetchNoteById.fulfilled, (state, action) => {
-      state.selectedNote = action.payload;
-      state.loading = false;
-    });
-    builder.addCase(fetchNoteById.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
-
-    // Handle createNote
-    builder.addCase(createNote.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(createNote.fulfilled, (state, action) => {
-      state.notes.push(action.payload);
-      state.loading = false;
-    });
-    builder.addCase(createNote.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
-
-    // Handle updateNoteAsync
-    builder.addCase(updateNoteAsync.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(updateNoteAsync.fulfilled, (state, action) => {
-      const index = state.notes.findIndex(note => note.id === action.payload.id);
-      if (index !== -1) {
-        state.notes[index] = action.payload;
-      }
-      if (state.selectedNote && state.selectedNote.id === action.payload.id) {
-        state.selectedNote = action.payload;
-      }
-      state.loading = false;
-    });
-    builder.addCase(updateNoteAsync.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
-
-    // Handle deleteNoteAsync
-    builder.addCase(deleteNoteAsync.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(deleteNoteAsync.fulfilled, (state, action) => {
-      state.notes = state.notes.filter(note => note.id !== action.payload);
-      if (state.selectedNote && state.selectedNote.id === action.payload) {
-        state.selectedNote = null;
-      }
-      state.loading = false;
-    });
-    builder.addCase(deleteNoteAsync.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
+    builder
+      // Fetch notes
+      .addCase(fetchNotes.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(fetchNotes.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.items = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchNotes.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      })
+      
+      // Create note
+      .addCase(createNote.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(createNote.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.items.push(action.payload);
+        state.error = null;
+      })
+      .addCase(createNote.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      })
+      
+      // Update note
+      .addCase(updateNote.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(updateNote.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        const index = state.items.findIndex(note => note.id === action.payload.id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
+        }
+        state.error = null;
+      })
+      .addCase(updateNote.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      })
+      
+      // Delete note
+      .addCase(deleteNote.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(deleteNote.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.items = state.items.filter(note => note.id !== action.payload);
+        state.error = null;
+      })
+      .addCase(deleteNote.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      });
   }
 });
 
-export const {
-  fetchNotesStart,
-  fetchNotesSuccess,
-  fetchNotesFailure,
-  addNote,
-  updateNote,
-  deleteNote,
-  selectNote,
-  clearSelectedNote,
-  filterNotesByProject,
-  filterNotesByEmployee,
-} = notesSlice.actions;
-
-export default notesSlice.reducer; 
+export default notesSlice.reducer;

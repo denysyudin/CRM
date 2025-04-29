@@ -1,0 +1,121 @@
+.sidebar-nav {
+  width: 240px;
+  background-color: var(--bg-color, #f8f9fa);
+  padding: 25px 15px;
+  border-right: 1px solid var(--border-color, #e9ecef);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--text-primary, #e4e5e6);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px 20px 10px;
+  border-bottom: 1px solid var(--border-color, #e9ecef);
+  margin-bottom: 20px;
+}
+
+.sidebar-header .logo-icon {
+  color: var(--accent-color, #007bff);
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.nav-list li a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-secondary, #6c757d);
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.nav-list li a:hover {
+  background-color: #eef2f7;
+  color: var(--text-primary, #212529);
+}
+
+.nav-list li a.active {
+  background-color: #e7f3ff;
+  color: var(--accent-color, #007bff);
+  font-weight: 600;
+}
+
+.nav-list li a .nav-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 1.1em;
+}
+
+@media (max-width: 992px) {
+  .sidebar-nav {
+    width: 220px;
+    padding: 20px 10px;
+  }
+  
+  .sidebar-header {
+    font-size: 1.3em;
+    padding: 0 5px 15px 5px;
+  }
+  
+  .nav-list li a {
+    padding: 10px 12px;
+    font-size: 0.95em;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar-nav {
+    position: fixed;
+    left: -250px;
+    width: 250px;
+    height: 100%;
+    transition: left 0.3s ease;
+    z-index: 1000;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  }
+  
+  .sidebar-nav.mobile-visible {
+    background-color: var(--bg-color, #f8f9fa);
+    left: 0;
+  }
+}
+
+@media (max-width: 576px) {
+  .sidebar-nav {
+    width: 240px;
+  }
+  
+  .sidebar-header {
+    font-size: 1.2em;
+  }
+  
+  .nav-list li a {
+    padding: 8px 10px;
+    font-size: 0.9em;
+  }
+  
+  .nav-list li a .nav-icon {
+    width: 18px;
+    font-size: 1em;
+  }
+} 

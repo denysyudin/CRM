@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Task } from '../services/api';
-import '../screens/Projects/styles.css';
+import { Task } from '../../types';
+import '../../screens/Projects/styles.css';
 
 interface TaskModalProps {
   projectName: string;
@@ -10,20 +10,22 @@ interface TaskModalProps {
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, task }) => {
-  const [name, setName] = useState(task?.name || '');
+  const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [status, setStatus] = useState(task?.status || 'To Do');
-  const [dueDate, setDueDate] = useState(task?.dueDate || '');
+  const [due_date, setDueDate] = useState(task?.due_date || '');
   const [priority, setPriority] = useState(task?.priority || 'Medium');
+  const [category, setCategory] = useState(task?.category || 'General');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      name,
+      title,
       description,
       status,
-      dueDate,
+      due_date,
       priority,
+      category,
       project_id: task?.project_id || '',
       employee_id: task?.employee_id || ''
     });
@@ -43,12 +45,30 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
           <div className="form-group">
             <label htmlFor="name">Task Name</label>
             <input
-              id="name"
+              id="title"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               required
             />
+          </div>
+          <div className="form-group">
+            <label htmlFor="category">Category</label>
+            <select
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="To Buy">To Buy</option>
+              <option value="To Pay">To Pay</option>
+              <option value="To Fix">To Fix</option>
+              <option value="To Contact">To Contact</option>
+              <option value="To Follow Up">To Follow Up</option>
+              <option value="To Research">To Research</option>
+              <option value="To Prepare/Make">To Prepare/Make</option>
+              <option value="To Review">To Review</option>
+              <option value="General">General</option>
+            </select>
           </div>
           <div className="form-group">
             <label htmlFor="description">Description</label>
@@ -88,10 +108,11 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
           <div className="form-group">
             <label htmlFor="dueDate">Due Date</label>
             <input
-              id="dueDate"
+              id="due_date"
               type="date"
-              value={dueDate}
+              value={due_date}
               onChange={(e) => setDueDate(e.target.value)}
+              required
             />
           </div>
           <div className="form-actions">

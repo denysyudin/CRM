@@ -1,9 +1,11 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
-import chartSlice from './features/chartSlice';
 import remindersReducer from './features/remindersSlice';
 import eventsReducer from './features/eventsSlice';
+import projectsReducer from './features/projectsSlice';
+import employeesReducer from './features/employeesSlice';
+import notesReducer from './features/notesSlice';
 
-// Temporary stubs for the task and notes slices until they're properly implemented
+// Temporary stubs for the task slice until it's properly implemented
 const tasksSlice = createSlice({
     name: 'tasks',
     initialState: {
@@ -15,29 +17,14 @@ const tasksSlice = createSlice({
     reducers: {}
 });
 
-const notesSlice = createSlice({
-    name: 'notes',
-    initialState: {
-        notes: [],
-        projects: [],
-        employees: [],
-        selectedNote: null,
-        selectedProject: null,
-        selectedCategory: null,
-        selectedEmployee: null,
-        loading: false,
-        error: null
-    },
-    reducers: {}
-});
-
 const store = configureStore({
     reducer: {
-        chart: chartSlice,
         tasks: tasksSlice.reducer,
-        notes: notesSlice.reducer,
+        notes: notesReducer,
         reminders: remindersReducer,
-        events: eventsReducer
+        events: eventsReducer,
+        projects: projectsReducer,
+        employees: employeesReducer
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

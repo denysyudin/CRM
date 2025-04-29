@@ -44,7 +44,7 @@ class ProjectBase(BaseModel):
 class TaskBase(BaseModel):
     id: Optional[str] = None
     title: str
-    category: str
+    category: Optional[str] = None
     status: str
     priority: str
     employee_id: Optional[str] = None
@@ -69,7 +69,7 @@ class EventBase(BaseModel):
     title: str
     description: Optional[str] = None
     due_date: datetime
-    type: str
+    type: Optional[str] = None
     project_id: Optional[str] = None
     employee_id: Optional[str] = None
 
@@ -78,7 +78,7 @@ class ReminderBase(BaseModel):
     title: str
     due_date: datetime
     priority: str
-    status: str
+    status: bool
     project_id: Optional[str] = None
     employee_id: Optional[str] = None
 
@@ -89,6 +89,8 @@ class FileBase(BaseModel):
     file_type: str
     size: int
     category: str
+    project_id: Optional[str] = None
+    employee_id: Optional[str] = None
 
 class EmployeeBase(BaseModel):
     id: Optional[str] = None
@@ -135,6 +137,7 @@ def read_root():
 @app.get("/projects", response_model=List[ProjectBase])
 async def get_projects():
     response = supabase.table("projects").select("*").execute()
+    # print("this is the response", response)
     if response.data is None:
         return []
     return response.data
@@ -151,13 +154,11 @@ async def get_project(project_id: str):
 @app.post("/projects", response_model=ProjectBase)
 async def create_project(project: ProjectBase):
     project_data = project.dict()
-    
+    print('this is project data', project_data)
     if not project_data.get("id"):
         project_data["id"] = generate_id()
     
-    now = get_current_timestamp()
-    project_data["created_at"] = now
-    project_data["updated_at"] = now
+    project_data = convert_datetimes_to_strings(project_data)
     
     response = supabase.table("projects").insert(project_data).execute()
     if not response.data:
@@ -174,7 +175,6 @@ async def update_project(project_id: str, project: ProjectBase):
         raise HTTPException(status_code=404, detail="Project not found")
     
     project_data = project.dict(exclude_unset=True)
-    project_data["updated_at"] = get_current_timestamp()
     
     response = supabase.table("projects").update(project_data).eq("id", project_id).execute()
     if not response.data:
@@ -196,26 +196,15 @@ async def delete_project(project_id: str):
 # Tasks
 #get all tasks
 @app.get("/tasks", response_model=List[TaskBase])
-async def get_tasks():
+async def get_tasks(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("tasks").select("*")
-    
+    if project_id:
+        query = query.eq("project_id", project_id)
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
     response = query.execute()
     if response.data is None:
         return []
-    return response.data
-
-#get tasks by project id
-@app.get("/tasks/{project_id}", response_model=List[TaskBase])
-async def get_tasks_by_project_id(project_id: str):
-    query = supabase.table("tasks").select("*").eq("project_id", project_id)
-    response = query.execute()
-    return response.data
-
-#get tasks by employee id
-@app.get("/tasks/employee/{employee_id}", response_model=List[TaskBase])
-async def get_tasks_by_employee_id(employee_id: str):
-    query = supabase.table("tasks").select("*").eq("employee_id", employee_id)
-    response = query.execute()
     return response.data
 
 #get task by id
@@ -279,51 +268,18 @@ async def delete_task(task_id: str):
 # Notes
 #get all notes
 @app.get("/notes", response_model=List[NoteBase])
-async def get_notes(project_id: Optional[str] = None):
+async def get_notes(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("notes").select("*")
-    
     if project_id:
         query = query.eq("project_id", project_id)
-    
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
     response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get notes by project id
-@app.get("/notes/{project_id}", response_model=List[NoteBase])
-async def get_notes_by_project_id(project_id: str):
-    query = supabase.table("notes").select("*").eq("project_id", project_id)
-    response = query.execute()
-    return response.data
-
-#get notes by employee id
-@app.get("/notes/employee/{employee_id}", response_model=List[NoteBase])
-async def get_notes_by_employee_id(employee_id: str):
-    query = supabase.table("notes").select("*").eq("employee_id", employee_id)
-    response = query.execute()
-    return response.data
-
-#get note by month
-@app.get("/notes/by-month/{year}/{month}", response_model=List[NoteBase])
-async def get_notes_by_month(year: int, month: int):
-    # Validate month range
-    if month < 1 or month > 12:
-        raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
-    
-    # Use PostgreSQL EXTRACT function to filter by month and year
-    query = supabase.table("notes").select("*").eq(
-        "extract(year from due_date::timestamp)", year
-    ).eq(
-        "extract(month from due_date::timestamp)", month
-    )
-    
-    response = query.execute()
-    if response.data is None:
-        return []
-    return response.data
-
-#get note by id
+#get notes by id
 @app.get("/notes/{note_id}", response_model=NoteBase)
 async def get_note(note_id: str):
     response = supabase.table("notes").select("*").eq("id", note_id).execute()
@@ -335,14 +291,11 @@ async def get_note(note_id: str):
 @app.post("/notes", response_model=NoteBase)
 async def create_note(note: NoteBase):
     note_data = note.dict()
-    
+    # print("this is the note data", note_data)
     if not note_data.get("id"):
         note_data["id"] = generate_id()
-    
-    now = get_current_timestamp()
-    note_data["created_at"] = now
-    note_data["updated_at"] = now
-    
+    note_data = convert_datetimes_to_strings(note_data)
+    print("this is the note data", note_data)
     response = supabase.table("notes").insert(note_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create note")
@@ -358,7 +311,6 @@ async def update_note(note_id: str, note: NoteBase):
         raise HTTPException(status_code=404, detail="Note not found")
     
     note_data = note.dict(exclude_unset=True)
-    note_data["updated_at"] = get_current_timestamp()
     
     response = supabase.table("notes").update(note_data).eq("id", note_id).execute()
     if not response.data:
@@ -380,30 +332,24 @@ async def delete_note(note_id: str):
 # Events
 #get all events
 @app.get("/events", response_model=List[EventBase])
-async def get_events(project_id: Optional[str] = None):
+async def get_events(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("events").select("*")
-    
     if project_id:
         query = query.eq("project_id", project_id)
-    
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
     response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get events by project id
-@app.get("/events/{project_id}", response_model=List[EventBase])
-async def get_events_by_project_id(project_id: str):
-    query = supabase.table("events").select("*").eq("project_id", project_id)
-    response = query.execute()
-    return response.data
-
-#get events by employee id
-@app.get("/events/employee/{employee_id}", response_model=List[EventBase])
-async def get_events_by_employee_id(employee_id: str):
-    query = supabase.table("events").select("*").eq("employee_id", employee_id)
-    response = query.execute()
-    return response.data
+#get event by id
+@app.get("/events/{event_id}", response_model=EventBase)
+async def get_event(event_id: str):
+    response = supabase.table("events").select("*").eq("id", event_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return response.data[0]
 
 #get event by month
 @app.get("/events/by-month/{year}/{month}", response_model=List[EventBase])
@@ -418,26 +364,16 @@ async def get_events_by_month(year: int, month: int):
     if response.data is None:
         return []   
 
-
-#get event by id
-@app.get("/events/{event_id}", response_model=EventBase)
-async def get_event(event_id: str):
-    response = supabase.table("events").select("*").eq("id", event_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return response.data[0]
-
 #create event
 @app.post("/events", response_model=EventBase)
 async def create_event(event: EventBase):
     event_data = event.dict()
-    
+    print("this is the event data", event_data)
     if not event_data.get("id"):
         event_data["id"] = generate_id()
     
-    now = get_current_timestamp()
-    event_data["created_at"] = now
-    event_data["updated_at"] = now
+    # Convert all datetime objects to ISO strings
+    event_data = convert_datetimes_to_strings(event_data)
     
     response = supabase.table("events").insert(event_data).execute()
     if not response.data:
@@ -454,7 +390,9 @@ async def update_event(event_id: str, event: EventBase):
         raise HTTPException(status_code=404, detail="Event not found")
     
     event_data = event.dict(exclude_unset=True)
-    event_data["updated_at"] = get_current_timestamp()
+    print("this is the event data", event_data)
+    # Convert all datetime objects to ISO strings
+    event_data = convert_datetimes_to_strings(event_data)
     
     response = supabase.table("events").update(event_data).eq("id", event_id).execute()
     if not response.data:
@@ -476,13 +414,14 @@ async def delete_event(event_id: str):
 # Reminders
 #get all reminders  
 @app.get("/reminders", response_model=List[ReminderBase])
-async def get_reminders(project_id: Optional[str] = None):
+async def get_reminders(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("reminders").select("*")
-    
     if project_id:
         query = query.eq("project_id", project_id)
-    
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
     response = query.execute()
+    # print("this is the response", response)
     if response.data is None:
         return []
     return response.data
@@ -503,11 +442,9 @@ async def create_reminder(reminder: ReminderBase):
     if not reminder_data.get("id"):
         reminder_data["id"] = generate_id()
     
-    now = get_current_timestamp()
-    reminder_data["created_at"] = now
-    reminder_data["updated_at"] = now
+    response_data = convert_datetimes_to_strings(reminder_data)
     
-    response = supabase.table("reminders").insert(reminder_data).execute()
+    response = supabase.table("reminders").insert(response_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create reminder")
     
@@ -515,15 +452,14 @@ async def create_reminder(reminder: ReminderBase):
 
 #update reminder
 @app.put("/reminders/{reminder_id}", response_model=ReminderBase)
-async def update_reminder(reminder_id: str, reminder: ReminderBase):
+async def update_reminder(reminder_id: str, reminder: dict):
     # Verify the reminder exists
     check_response = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
     
-    reminder_data = reminder.dict(exclude_unset=True)
-    reminder_data["updated_at"] = get_current_timestamp()
-    
+    reminder_data = reminder
+    # print("this is the reminder data", reminder_data)
     response = supabase.table("reminders").update(reminder_data).eq("id", reminder_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update reminder")
@@ -544,12 +480,13 @@ async def delete_reminder(reminder_id: str):
 # Files
 #get all files
 @app.get("/files", response_model=List[FileBase])
-async def get_files(project_id: Optional[str] = None):
+async def get_files(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("files").select("*")
     
     if project_id:
         query = query.eq("project_id", project_id)
-    
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
     response = query.execute()
     if response.data is None:
         return []

@@ -29,8 +29,14 @@ import {
   SelectChangeEvent,
   InputAdornment,
   createTheme,
-  ThemeProvider
+  ThemeProvider,
+  CircularProgress
 } from '@mui/material';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../redux/store';
+import { fetchProjects } from '../../redux/features/projectsSlice';
+import { fetchEmployees } from '../../redux/features/employeesSlice';
+import { fetchNotes, createNote, updateNote, deleteNote, Note as ReduxNote } from '../../redux/features/notesSlice';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
@@ -59,18 +65,8 @@ library.add(
   faBars
 );
 
-// Define local interfaces until Redux is fully set up
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  project: string;
-  category?: string;
-  createdBy: string;
-  hasAttachment?: boolean;
-  attachments?: string[];
-}
+// Define local interfaces for UI state
+interface Note extends ReduxNote {} // Use the Redux Note type
 
 interface Project {
   id: string;
@@ -89,24 +85,27 @@ interface Employee {
   avatar?: string;
 }
 
-// Mock data for development until Redux is fully implemented
-const mockNotes: Note[] = [];
-
-const mockProjects: Project[] = [];
-
-const mockEmployees: Employee[] = [];
-
 const Notes: React.FC = () => {
-  // Create mock data
-  const employees = mockEmployees;
-  const projects = mockProjects;
-  const [notes, setNotes] = useState<Note[]>(mockNotes);
+  const dispatch = useDispatch();
+  
+  // Get data from Redux store
+  const projects = useSelector((state: RootState) => state.projects?.items || []);
+  const employees = useSelector((state: RootState) => state.employees?.items || []);
+  const notes = useSelector((state: RootState) => state.notes?.items || []);
+  const projectsStatus = useSelector((state: RootState) => state.projects?.status);
+  const employeesStatus = useSelector((state: RootState) => state.employees?.status);
+  const notesStatus = useSelector((state: RootState) => state.notes?.status);
+  const projectsError = useSelector((state: RootState) => state.projects?.error);
+  const employeesError = useSelector((state: RootState) => state.employees?.error);
+  const notesError = useSelector((state: RootState) => state.notes?.error);
+  
+  const isLoading = projectsStatus === 'loading' || employeesStatus === 'loading' || notesStatus === 'loading';
 
   // State for currently selected items
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [selectedProject, setSelectedProject] = useState<string>(mockProjects.length > 0 ? mockProjects[0].id : "");
+  const [selectedProject, setSelectedProject] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedEmployee, setSelectedEmployee] = useState<string>(mockEmployees.length > 0 ? mockEmployees[0].id : "");
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,36 +113,57 @@ const Notes: React.FC = () => {
   const [editMode, setEditMode] = useState(false);
   const [newNote, setNewNote] = useState<Partial<Note>>({
     title: '',
-    content: '',
-    project: '',
-    category: '',
-    createdBy: 'user-1', // Default to current user
-    date: new Date().toISOString().split('T')[0],
-    hasAttachment: false
+    description: '',
+    project_id: '',
+    employee_id: '', // Will be set to current user
+    created_at: new Date().toISOString(),
+    files: '',
   });
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
-  // Effect to filter notes based on default selections when component mounts
+  // Fetch data from the backend when component mounts
   useEffect(() => {
-    // This ensures the filtered notes are updated with default selections on mount
-    const defaultFiltered = notes.filter(note => {
-      return note.project === selectedProject && note.createdBy === selectedEmployee;
-    });
-    
-    // If we don't have any notes matching our default filters, clear the filters
-    if (defaultFiltered.length === 0) {
-      clearAllFilters();
+    dispatch(fetchProjects() as any);
+    dispatch(fetchEmployees() as any);
+    dispatch(fetchNotes(undefined) as any);
+  }, [dispatch]);
+
+  // Set default selections after data is loaded
+  useEffect(() => {
+    if (projects.length > 0 && selectedProject === "") {
+      setSelectedProject(projects[0].id);
     }
-  }, []);
+    
+    if (employees.length > 0 && selectedEmployee === "") {
+      // Find the current user (you could have a way to identify the current user)
+      const currentUser = employees.find((emp: Employee) => emp.id === 'user-1') || employees[0];
+      setSelectedEmployee(currentUser.id);
+      
+      // Also set the current user as the creator for new notes
+      setNewNote(prev => ({
+        ...prev,
+        createdBy: currentUser.id
+      }));
+    }
+  }, [projects, employees]);
+
+  // Effect to filter notes based on project when project selection changes
+  useEffect(() => {
+    if (selectedProject) {
+      dispatch(fetchNotes(selectedProject) as any);
+    } else {
+      dispatch(fetchNotes(undefined) as any);
+    }
+  }, [selectedProject, dispatch]);
 
   // Filter notes based on selections and search term
   const filteredNotes = notes.filter(note => {
-    const matchesProject = selectedProject ? note.project === selectedProject : true;
+    const matchesProject = selectedProject ? note.project_id === selectedProject : true;
     const matchesCategory = selectedCategory ? note.category === selectedCategory : true;
-    const matchesEmployee = selectedEmployee ? note.createdBy === selectedEmployee : true;
+    const matchesEmployee = selectedEmployee ? note.employee_id === selectedEmployee : true;
     const matchesSearch = searchTerm
       ? note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase())
+      note.description.toLowerCase().includes(searchTerm.toLowerCase())
       : true;
 
     return matchesProject && matchesCategory && matchesEmployee && matchesSearch;
@@ -157,12 +177,12 @@ const Notes: React.FC = () => {
     } else {
       setNewNote({
         title: '',
-        content: '',
-        project: selectedProject || '',
+        description: '',
+        project_id: selectedProject || '',
         category: selectedCategory || '',
-        createdBy: 'user-1', // Default to current user
-        date: new Date().toISOString().split('T')[0],
-        hasAttachment: false
+        employee_id: selectedEmployee || '', // Use selected employee as default creator
+        created_at: new Date().toISOString(),
+        files: ''
       });
       setEditMode(false);
     }
@@ -174,48 +194,62 @@ const Notes: React.FC = () => {
     setIsModalOpen(false);
     setNewNote({
       title: '',
-      content: '',
-      project: selectedProject || '',
+      description: '',
+      project_id: selectedProject || '',
       category: selectedCategory || '',
-      createdBy: 'user-1',
-      date: new Date().toISOString().split('T')[0],
-      hasAttachment: false
+      employee_id: selectedEmployee || '',
+      created_at: new Date().toISOString(),
+      files: ''
     });
     setEditMode(false);
     setDeleteConfirm(false);
   };
 
   // Handle saving a new or edited note
-  const handleSaveNote = () => {
-    if (!newNote.title || !newNote.content || !newNote.project) {
+  const handleSaveNote = async () => {
+    if (!newNote.title || !newNote.description || !newNote.project_id) {
       alert('Please fill in all required fields');
       return;
     }
 
-    if (editMode && newNote.id) {
-      // Update existing note
-      setNotes(prev => prev.map((n: Note) => n.id === newNote.id ? newNote as Note : n));
-      if (selectedNote?.id === newNote.id) {
-        setSelectedNote(newNote as Note);
+    try {
+      if (editMode && newNote.id) {
+        // Update existing note
+        await dispatch(updateNote({
+          id: newNote.id,
+          note: newNote
+        }) as any);
+        
+        if (selectedNote?.id === newNote.id) {
+          setSelectedNote(newNote as Note);
+        }
+      } else {
+        // Add new note
+        await dispatch(createNote(newNote as Omit<Note, 'id'>) as any);
       }
-    } else {
-      // Add new note
-      const noteWithId = {
-        ...newNote,
-        id: `note-${Date.now()}`
-      } as Note;
-      setNotes(prev => [...prev, noteWithId]);
+  
+      handleCloseModal();
+      // Refresh notes list
+      dispatch(fetchNotes(selectedProject || undefined) as any);
+    } catch (error) {
+      console.error('Error saving note:', error);
+      alert('Failed to save note. Please try again.');
     }
-
-    handleCloseModal();
   };
 
   // Handle deleting a note
-  const handleDeleteNote = () => {
+  const handleDeleteNote = async () => {
     if (selectedNote?.id) {
-      setNotes(prev => prev.filter((n: Note) => n.id !== selectedNote.id));
-      setSelectedNote(null);
-      setDeleteConfirm(false);
+      try {
+        await dispatch(deleteNote(selectedNote.id) as any);
+        setSelectedNote(null);
+        setDeleteConfirm(false);
+        // Refresh notes list
+        dispatch(fetchNotes(selectedProject || undefined) as any);
+      } catch (error) {
+        console.error('Error deleting note:', error);
+        alert('Failed to delete note. Please try again.');
+      }
     }
   };
 
@@ -227,7 +261,7 @@ const Notes: React.FC = () => {
 
   // Find project name by ID
   const getProjectNameById = (id: string) => {
-    const project = projects.find(p => p.id === id);
+    const project = projects.find((p: Project) => p.id === id);
     return project ? project.name : '';
   };
 
@@ -258,6 +292,8 @@ const Notes: React.FC = () => {
     setSelectedCategory('');
     setSelectedEmployee('');
     setSearchTerm('');
+    // Fetch all notes when filters are cleared
+    dispatch(fetchNotes(undefined) as any);
   };
 
   // Helper functions
@@ -297,6 +333,41 @@ const Notes: React.FC = () => {
       },
     },
   });
+
+  // Display loading state
+  if (isLoading) {
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <div className="dashboard-main-content loading-container">
+          <CircularProgress />
+          <p>Loading data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Display error state
+  if (projectsError || employeesError || notesError) {
+    return (
+      <div className="dashboard-container">
+        <Sidebar />
+        <div className="dashboard-main-content error-container">
+          <p>Error loading data. Please try again.</p>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              dispatch(fetchProjects() as any);
+              dispatch(fetchEmployees() as any);
+              dispatch(fetchNotes(undefined) as any);
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ThemeProvider theme={darkTextTheme}>
@@ -409,9 +480,9 @@ const Notes: React.FC = () => {
                         onClick={() => setSelectedNote(note)}
                       >
                         <h3 className="note-item-title">{note.title}</h3>
-                        <p>{note.content.substring(0, 100)}...</p>
+                        <p>{note.description.substring(0, 100)}...</p>
                         <div className="note-item-meta">
-                          <span className="note-item-date">{formatDate(note.date)}</span>
+                          <span className="note-item-date">{formatDate(note.created_at)}</span>
                           {note.category && (
                             <span className="note-item-category-tag">
                               {getCategoryNameById(note.category)}
@@ -458,8 +529,8 @@ const Notes: React.FC = () => {
                   <div className="form-group">
                     <label>Content <span className="required">*</span></label>
                     <textarea
-                      name="content"
-                      value={newNote.content || ''}
+                      name="description"
+                      value={newNote.description || ''}
                       onChange={handleInputChange}
                       placeholder="Enter note content"
                       rows={8}
@@ -469,8 +540,8 @@ const Notes: React.FC = () => {
                   <div className="form-group">
                     <label>Project <span className="required">*</span></label>
                     <select
-                      name="project"
-                      value={newNote.project || ''}
+                      name="project_id"
+                      value={newNote.project_id || ''}
                       onChange={handleInputChange}
                     >
                       <option value="">Select a project</option>
@@ -482,7 +553,7 @@ const Notes: React.FC = () => {
                     </select>
                   </div>
 
-                  {newNote.project && (
+                  {newNote.project_id && (
                     <div className="form-group">
                       <label>Category</label>
                       <select
@@ -491,7 +562,7 @@ const Notes: React.FC = () => {
                         onChange={handleInputChange}
                       >
                         <option value="">Select a category</option>
-                        {getAvailableCategoriesForProject(newNote.project).map(category => (
+                        {getAvailableCategoriesForProject(newNote.project_id).map(category => (
                           <option key={category.id} value={category.id}>
                             {category.name}
                           </option>
@@ -524,17 +595,17 @@ const Notes: React.FC = () => {
                 <div className="note-view-header">
                   <h2 className="note-view-title">{selectedNote.title}</h2>
                   <div className="note-view-meta">
-                    <span><CalendarTodayIcon className="icon" /> {formatDate(selectedNote.date)}</span>
-                    <span><BusinessIcon className="icon" /> {getProjectNameById(selectedNote.project)}</span>
+                    <span><CalendarTodayIcon className="icon" /> {formatDate(selectedNote.created_at)}</span>
+                    <span><BusinessIcon className="icon" /> {getProjectNameById(selectedNote.project_id)}</span>
                     {selectedNote.category && (
                       <span className="tag">{getCategoryNameById(selectedNote.category)}</span>
                     )}
-                    <span><PersonIcon className="icon" /> {getEmployeeNameById(selectedNote.createdBy)}</span>
+                    <span><PersonIcon className="icon" /> {getEmployeeNameById(selectedNote.employee_id)}</span>
                   </div>
                 </div>
 
                 <div className="note-view-body">
-                  <p>{selectedNote.content}</p>
+                  <p>{selectedNote.description}</p>
                 </div>
 
                 <div className="note-view-actions">
@@ -546,7 +617,7 @@ const Notes: React.FC = () => {
                   </button>
                   <button
                     className={`action-button delete ${deleteConfirm ? 'confirm' : ''}`}
-                    onClick={handleDeleteNote}
+                    onClick={deleteConfirm ? handleDeleteNote : () => setDeleteConfirm(true)}
                   >
                     <DeleteIcon /> {deleteConfirm ? 'Confirm Delete' : 'Delete'}
                   </button>

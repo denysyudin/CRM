@@ -229,24 +229,32 @@
     font-weight: bold;
 }
 
-.cal-page-events-container {
+/* Calendar styling for events */
+.cal-page-day-events {
     flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    margin-top: 4px;
 }
 
 .cal-page-event {
     font-size: 0.75em;
-    padding: 2px 4px;
-    margin-bottom: 1px;
+    padding: 3px 5px;
+    margin-bottom: 2px;
     border-radius: 3px;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.cal-page-event-time {
+    font-weight: bold;
+    margin-right: 3px;
+    font-size: 0.9em;
 }
 
 .cal-page-event:hover {
@@ -266,6 +274,25 @@
     background-color: #ea4335;
     color: white;
     border-left: 3px solid #c5221f;
+}
+
+.cal-page-event-appointment {
+    background-color: #34a853;
+    color: white;
+    border-left: 3px solid #1e8e3e;
+}
+
+.cal-page-event-other {
+    background-color: #fbbc05;
+    color: #333;
+    border-left: 3px solid #f09300;
+}
+
+/* Additional styles for custom event types */
+.cal-page-event-test, .cal-page-event-string {
+    background-color: #9c27b0;
+    color: white;
+    border-left: 3px solid #7b1fa2;
 }
 
 .cal-page-empty-day {
@@ -332,10 +359,11 @@
     margin: 8px 0;
     line-height: 1.4;
     font-size: 0.9em;
+    color: var(--text-primary);
 }
 
 .cal-page-modal-details strong {
-    color: var(--text-secondary);
+    color: var(--text-primary);
     margin-right: 8px;
 }
 
@@ -371,6 +399,10 @@
     justify-content: flex-end;
 }
 
+.cal-page-loading{
+    color: var(--text-primary);
+}
+
 /* Form styles */
 .cal-page-form-group {
     margin-bottom: 15px;
@@ -381,6 +413,28 @@
     margin-bottom: 5px;
     font-weight: 500;
     font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+/* Time input styles */
+.cal-page-time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cal-page-time-inputs select {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9em;
+    flex: 1;
+    text-align: center;
+}
+
+.cal-page-time-separator {
+    font-weight: bold;
+    font-size: 1.2em;
     color: var(--text-secondary);
 }
 

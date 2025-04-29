@@ -461,3 +461,42 @@ aside, .sidebar {
     gap: 5px;
   }
 }
+
+/* Reminder Actions */
+.reminder-actions {
+  display: flex;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.action-button_reminder {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  background-color: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.action-button_reminder:hover {
+  background-color: var(--hover-bg);
+  color: var(--accent-color);
+}
+
+.edit-button_reminder {
+  font-size: 14px;
+  border: 1px solid green;
+  color: green;
+}
+
+.delete-button_reminder {
+  font-size: 14px;
+  border: 1px solid red;
+  color: red;
+}

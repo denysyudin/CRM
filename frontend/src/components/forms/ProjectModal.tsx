@@ -1,42 +1,28 @@
 import React, { useState } from 'react';
-import { Project } from '../services/api';
-import '../screens/Projects/styles.css';
+import { Project } from '../../types';
+import '../../screens/Projects/styles.css';
 
 interface ProjectModalProps {
   onClose: () => void;
-  onSubmit: (projectData: Omit<Project, 'id'> & { uploadedFile?: globalThis.File }) => void;
-  project?: Project;
+  onSubmit: (projectData: Omit<Project, 'id'>) => void;
+  project?: Project | null | undefined;
 }
 
 const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project }) => {
-  const [name, setName] = useState(project?.name || '');
+  const [title, setTitle] = useState(project?.title || '');
   const [description, setDescription] = useState(project?.description || '');
   const [status, setStatus] = useState(project?.status || 'Not Started');
-  const [startDate, setStartDate] = useState(project?.startDate || '');
-  const [endDate, setEndDate] = useState(project?.endDate || '');
-  const [uploadedFile, setUploadedFile] = useState<globalThis.File | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setUploadedFile(e.target.files[0]);
-    }
-  };
+  const [start_date, setStartDate] = useState(project?.start_date || '');
+  const [end_date, setEndDate] = useState(project?.end_date || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      name,
+      title,
       description,
       status,
-      startDate,
-      endDate,
-      tasks: [],
-      notes: [],
-      events: [],
-      reminders: [],
-      files: [],
-      icon: '📁', // Keep a default icon
-      uploadedFile: uploadedFile || undefined
+      start_date,
+      end_date
     });
   };
 
@@ -49,12 +35,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Project Name</label>
+            <label htmlFor="title">Project Name</label>
             <input
-              id="name"
+              id="title"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               required
             />
           </div>
@@ -62,8 +48,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
             <label htmlFor="description">Description</label>
             <textarea
               id="description"
-              value={description}
+              value={description || ''}
               onChange={(e) => setDescription(e.target.value)}
+              rows={4}
             />
           </div>
           <div className="form-group">
@@ -81,35 +68,22 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
             </select>
           </div>
           <div className="form-group">
-            <label htmlFor="startDate">Start Date</label>
+            <label htmlFor="start_date">Start Date</label>
             <input
-              id="startDate"
+              id="start_date"
               type="date"
-              value={startDate}
+              value={start_date || ''}
               onChange={(e) => setStartDate(e.target.value)}
             />
           </div>
           <div className="form-group">
-            <label htmlFor="endDate">End Date</label>
+            <label htmlFor="end_date">Estimated End Date</label>
             <input
-              id="endDate"
+              id="end_date"
               type="date"
-              value={endDate}
+              value={end_date || ''}
               onChange={(e) => setEndDate(e.target.value)}
             />
-          </div>
-          <div className="form-group">
-            <label htmlFor="fileInput">Attach File</label>
-            <input
-              id="fileInput"
-              type="file"
-              onChange={handleFileChange}
-            />
-            {uploadedFile && (
-              <div className="file-info">
-                Selected file: {uploadedFile.name} ({Math.round(uploadedFile.size / 1024)} KB)
-              </div>
-            )}
           </div>
           <div className="form-actions">
             <button type="button" className="form-button button-secondary" onClick={onClose}>
