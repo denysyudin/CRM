@@ -15,8 +15,6 @@ import {
   Modal,
   SelectChangeEvent,
   InputAdornment,
-  createTheme,
-  ThemeProvider,
   Box,
   Typography,
   IconButton,
@@ -31,7 +29,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
 } from '@mui/material';
 import { Note } from '../../types/note.types';
 import CloseIcon from '@mui/icons-material/Close';
@@ -83,7 +80,8 @@ const Notes: React.FC = () => {
     created_at: new Date().toISOString(),
     files: '',
   });
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
   // Show notification helper
   const showNotification = (message: string, severity: AlertColor = 'success') => {
@@ -105,7 +103,7 @@ const Notes: React.FC = () => {
   // Fetch data from the backend when component mounts
   useEffect(() => {
     // Removed previous get call that was causing an error
-  }, [deleteConfirm]);
+  }, [deleteConfirmModalOpen]);
 
   // Filter notes based on selections and search term
   const filteredNotes = notes.filter((note: Note) => {
@@ -121,9 +119,9 @@ const Notes: React.FC = () => {
   });
 
   // Handle opening the modal for creating or editing a note
-  const handleOpenModal = (mode: 'add' | 'edit') => {
-    if (mode === 'edit' && selectedNote) {
-      setNewNote({ ...selectedNote });
+  const handleOpenModal = (mode: 'add' | 'edit', noteToEdit?: Note) => {
+    if (mode === 'edit' && noteToEdit) {
+      setNewNote({ ...noteToEdit });
       setEditMode(true);
     } else {
       setNewNote({
@@ -153,7 +151,8 @@ const Notes: React.FC = () => {
       files: ''
     });
     setEditMode(false);
-    setDeleteConfirm(false);
+    setDeleteConfirmModalOpen(false);
+    setNoteToDelete(null);
   };
 
   // Handle saving a new or edited note
@@ -199,11 +198,14 @@ const Notes: React.FC = () => {
 
   // Handle deleting a note
   const handleDeleteNote = async () => {
-    if (selectedNote?.id) {
+    if (noteToDelete?.id) {
       try {
-        await deleteNoteMutation(selectedNote.id);
-        setSelectedNote(null);
-        setDeleteConfirm(false);
+        await deleteNoteMutation(noteToDelete.id);
+        if (selectedNote?.id === noteToDelete.id) {
+          setSelectedNote(null);
+        }
+        setDeleteConfirmModalOpen(false);
+        setNoteToDelete(null);
         showNotification('Note deleted successfully');
       } catch (error) {
         console.error('Error deleting note:', error);
@@ -244,39 +246,6 @@ const Notes: React.FC = () => {
   const formatDate = (date: string): string => {
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
-
-  // Create a theme with black text
-  const darkTextTheme = createTheme({
-    palette: {
-      text: {
-        primary: '#000000',
-        secondary: '#000000',
-      },
-    },
-    components: {
-      MuiInputLabel: {
-        styleOverrides: {
-          root: {
-            color: 'black',
-          },
-        },
-      },
-      MuiOutlinedInput: {
-        styleOverrides: {
-          input: {
-            color: 'black',
-          },
-        },
-      },
-      MuiSelect: {
-        styleOverrides: {
-          select: {
-            color: 'black',
-          },
-        },
-      },
-    },
-  });
 
   // Modal style
   const modalStyle = {
@@ -467,8 +436,7 @@ const Notes: React.FC = () => {
                                   aria-label="edit"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedNote(note);
-                                    handleOpenModal('edit');
+                                    handleOpenModal('edit', note);
                                   }}
                                 >
                                   <EditIcon fontSize="small" />
@@ -478,8 +446,8 @@ const Notes: React.FC = () => {
                                   aria-label="delete"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedNote(note);
-                                    setDeleteConfirm(true);
+                                    setNoteToDelete(note);
+                                    setDeleteConfirmModalOpen(true);
                                   }}
                                 >
                                   <DeleteIcon fontSize="small" />
@@ -623,6 +591,37 @@ const Notes: React.FC = () => {
                       </Select>
                     </FormControl>
                   </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      component="label"
+                      variant="outlined"
+                      startIcon={<AddIcon />}
+                      sx={{ mb: 1 }}
+                    >
+                      Attach File
+                      <input
+                        type="file"
+                        hidden
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            const fileName = e.target.files[0].name;
+                            setNewNote(prev => ({ ...prev, files: fileName }));
+                          }
+                        }}
+                      />
+                    </Button>
+                    {newNote.files && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                        <Typography variant="body2">{newNote.files}</Typography>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => setNewNote(prev => ({ ...prev, files: '' }))}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Grid>
                 </Grid>
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
@@ -707,6 +706,39 @@ const Notes: React.FC = () => {
                 {notification.message}
               </Alert>
             </Snackbar>
+
+            {/* Delete Confirmation Modal */}
+            <Modal
+              open={deleteConfirmModalOpen}
+              onClose={() => setDeleteConfirmModalOpen(false)}
+            >
+              <Box sx={{
+                ...modalStyle,
+                width: 800,
+              }}>
+                <Typography variant="h6" component="h2" gutterBottom>
+                  Confirm Delete
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                  Are you sure you want to delete this note? This action cannot be undone.
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => setDeleteConfirmModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="contained" 
+                    color="error" 
+                    onClick={handleDeleteNote}
+                  >
+                    Delete
+                  </Button>
+                </Box>
+              </Box>
+            </Modal>
           </div>
         </div>
       </div>
