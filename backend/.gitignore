@@ -12,3 +12,6 @@ __pycache__
 htmlcov/
 *.log
 *.json.secret
+./GBdrive_test.py
+./credentials.json
+./token.pickle

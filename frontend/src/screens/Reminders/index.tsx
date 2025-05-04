@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiCalendar, FiAlertCircle, FiPlus, FiTrash2, FiEdit, FiX, FiMenu, FiUser, FiFolder } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import './styles.css';
-import { Reminder } from '../../services/api';
+import { Reminder } from '../../types/reminder.types';
 
 import { 
   useGetRemindersQuery, 

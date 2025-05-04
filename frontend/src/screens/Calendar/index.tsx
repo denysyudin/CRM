@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../redux/store';
-import { Event } from '../../services/api';
-import { fetchEvents, createEvent, updateEvent, deleteEvent, selectEventsStatus, selectEventsError } from '../../redux/features/eventsSlice';
+import { Events } from '../../types/event.types';
+import { useCreateEventMutation, useUpdateEventMutation, useDeleteEventMutation, useGetEventsQuery } from '../../redux/api/eventsApi';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import {
   Box,
@@ -22,6 +20,8 @@ import {
   Paper,
   Select,
   SelectChangeEvent,
+  Snackbar,
+  Alert,
   Table,
   TableBody,
   TableCell,
@@ -43,11 +43,6 @@ import {
   DeleteOutline,
   Menu
 } from '@mui/icons-material';
-
-// Define a CalendarEvent that extends the API Event interface
-interface CalendarEvent extends Event {
-  time?: string;
-}
 
 // Define our form data structure to match Event API interface
 interface EventFormData {
@@ -90,25 +85,23 @@ const Calendar: React.FC = () => {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
 
-  // Redux
-  const dispatch = useDispatch();
-  const events = useSelector((state: RootState) => state.events?.items || []);
-  const status = useSelector(selectEventsStatus);
-  const error = useSelector(selectEventsError);
-
-  // Local loading states
-  const [isCreating, setIsCreating] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // RTK Query hooks
+  const { data: events = [], isLoading, error } = useGetEventsQuery();
+  const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
+  const [updateEvent, { isLoading: isUpdating }] = useUpdateEventMutation();
+  const [deleteEvent, { isLoading: isDeleting }] = useDeleteEventMutation();
+  
   const [formError, setFormError] = useState<string | null>(null);
-
-  // Fetch events on component mount
-  useEffect(() => {
-    dispatch(fetchEvents() as any);
-  }, [dispatch]);
+  
+  // Notification state
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'; open: boolean}>({
+    message: '',
+    type: 'info',
+    open: false
+  });
 
   // Handle sidebar toggle
   useEffect(() => {
@@ -124,7 +117,7 @@ const Calendar: React.FC = () => {
   };
 
   // Format events as calendar events
-  const getEventsForDate = (dateString: string): CalendarEvent[] => {
+  const getEventsForDate = (dateString: string): Events[] => {
     return events.filter(event => {
       // Check if the event has a date property
       if (!event.due_date) {
@@ -217,7 +210,7 @@ const Calendar: React.FC = () => {
     setShowEventModal(true);
   };
 
-  const openEditEventModal = (event: CalendarEvent) => {
+  const openEditEventModal = (event: Events) => {
     setIsEditing(true);
     // Extract hours and minutes from the event due_date
     const eventDate = new Date(event.due_date);
@@ -277,60 +270,82 @@ const Calendar: React.FC = () => {
       const timestamptz = dateObj.toISOString();
       console.log("ISO timestamp with timezone:", timestamptz);
 
+      const eventData = {
+        title: eventFormData.title,
+        due_date: timestamptz, // Send ISO timestamp with timezone
+        type: eventFormData.type || 'other',
+        participants: eventFormData.participants,
+        notes: eventFormData.notes,
+        project_id: eventFormData.project_id,
+        employee_id: eventFormData.employee_id,
+        description: eventFormData.description
+      };
+
       if (isEditing && eventFormData.id) {
         // Update existing event
-        setIsUpdating(true);
-        await dispatch(updateEvent({
+        await updateEvent({
           id: eventFormData.id,
-          event: {
-            title: eventFormData.title,
-            due_date: timestamptz, // Send ISO timestamp with timezone
-            type: eventFormData.type || 'other',
-            participants: eventFormData.participants,
-            notes: eventFormData.notes,
-            project_id: eventFormData.project_id,
-            employee_id: eventFormData.employee_id,
-            description: eventFormData.description
-          }
-        }) as any);
-        setIsUpdating(false);
+          ...eventData
+        }).unwrap();
+        setNotification({
+          message: 'Event updated successfully',
+          type: 'success',
+          open: true
+        });
       } else {
         // Add new event
-        setIsCreating(true);
-        await dispatch(createEvent({
-          title: eventFormData.title,
-          due_date: timestamptz, // Send ISO timestamp with timezone
-          type: eventFormData.type || 'other',
-          participants: eventFormData.participants,
-          notes: eventFormData.notes,
-          project_id: eventFormData.project_id,
-          employee_id: eventFormData.employee_id,
-          description: eventFormData.description
-        }) as any);
-        setIsCreating(false);
+        await createEvent({
+          ...eventData,
+          id: '' 
+        }).unwrap();
+        setNotification({
+          message: 'Event created successfully',
+          type: 'success',
+          open: true
+        });
       }
 
       closeEventModal();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'An error occurred');
-      setIsCreating(false);
-      setIsUpdating(false);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setFormError(errorMessage);
+      setNotification({
+        message: errorMessage,
+        type: 'error',
+        open: true
+      });
     }
   };
 
   const handleDeleteEvent = async (id: string) => {
     try {
-      setIsDeleting(true);
-      await dispatch(deleteEvent(id) as any);
-      setIsDeleting(false);
+      await deleteEvent({ id: id } as Events).unwrap();
+      setNotification({
+        message: 'Event deleted successfully',
+        type: 'success',
+        open: true
+      });
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Error deleting event');
-      setIsDeleting(false);
+      const errorMessage = err instanceof Error ? err.message : 'Error deleting event';
+      setFormError(errorMessage);
+      setNotification({
+        message: errorMessage,
+        type: 'error',
+        open: true
+      });
     }
   };
 
+  // Handle notification close
+  const handleNotificationClose = () => {
+    setNotification({
+      ...notification,
+      open: false
+    });
+  };
+
   // Event handlers
-  const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
+  const handleEventClick = (event: Events, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering day click
     setSelectedEvent(event);
     setShowModal(true);
@@ -363,7 +378,7 @@ const Calendar: React.FC = () => {
   // Create calendar grid
   const renderCalendar = () => {
     // If loading events, show loading indicator
-    if (status === 'loading' && events.length === 0) {
+    if (isLoading && events.length === 0) {
       return (
         <Box display="flex" justifyContent="center" alignItems="center" p={4}>
           <CircularProgress />
@@ -375,15 +390,15 @@ const Calendar: React.FC = () => {
     }
 
     // If there was an error, show error message
-    if (status === 'failed' && error) {
+    if (error) {
       return (
         <Box p={4} textAlign="center">
           <Typography color="error" paragraph>
-            Error: {error}
+            Error: {typeof error === 'string' ? error : 'Failed to load events'}
           </Typography>
           <Button
             variant="contained"
-            onClick={() => dispatch(fetchEvents() as any)}
+            onClick={() => window.location.reload()}
           >
             Retry
           </Button>
@@ -423,9 +438,6 @@ const Calendar: React.FC = () => {
 
     // Add previous month days
     prevMonthDays.forEach(day => {
-      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-      const dateStr = `${prevYear}-${(prevMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 
       cells.push(
         <TableCell
@@ -487,7 +499,7 @@ const Calendar: React.FC = () => {
                 <Chip
                   key={index}
                   size="small"
-                  label={`${event.time} ${event.title}`}
+                  label={`${event.due_date.slice(11, 16)} ${event.title}`}
                   color={getEventColor(event.type) as any}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -516,10 +528,6 @@ const Calendar: React.FC = () => {
 
     // Add next month days
     nextMonthDays.forEach(day => {
-      const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-      const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-      const dateStr = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-
       cells.push(
         <TableCell
           key={`next-${day}`}
@@ -680,7 +688,7 @@ const Calendar: React.FC = () => {
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <Typography variant="subtitle2" color="text.secondary">Time</Typography>
-                        <Typography variant="body1">{selectedEvent.time || 'All Day'}</Typography>
+                        <Typography variant="body1">{selectedEvent.due_date.slice(11, 16) || 'All Day'}</Typography>
                       </Grid>
                       <Grid item xs={12}>
                         <Typography variant="subtitle2" color="text.secondary">Type</Typography>
@@ -922,6 +930,22 @@ const Calendar: React.FC = () => {
                 </DialogActions>
               </form>
             </Dialog>
+
+            {/* Notification Snackbar */}
+            <Snackbar
+              open={notification.open}
+              autoHideDuration={6000}
+              onClose={handleNotificationClose}
+              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <Alert 
+                onClose={handleNotificationClose} 
+                severity={notification.type} 
+                sx={{ width: '100%' }}
+              >
+                {notification.message}
+              </Alert>
+            </Snackbar>
           </Box>
         </Box>
       </div>

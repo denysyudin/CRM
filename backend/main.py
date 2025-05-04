@@ -39,7 +39,8 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     employee_id: Optional[str] = None
     created_at: Optional[str] = None
-    files: Optional[str] = None
+    file_name: Optional[str] = None
+    file: Optional[str] = None
 
 class NoteBase(BaseModel):
     id: Optional[str] = None
@@ -66,8 +67,8 @@ class ReminderBase(BaseModel):
     due_date: str
     priority: str
     status: bool
-    created_at: Optional[str] = None
     project_id: Optional[str] = None
+    employee_id: Optional[str] = None
 
 class FileBase(BaseModel):
     id: Optional[str] = None
@@ -416,9 +417,6 @@ async def create_reminder(reminder: ReminderBase):
     
     if not reminder_data.get("id"):
         reminder_data["id"] = generate_id()
-    
-    now = get_current_timestamp()
-    reminder_data["created_at"] = now
     
     response = supabase.table("reminders").insert(reminder_data).execute()
     if not response.data:
