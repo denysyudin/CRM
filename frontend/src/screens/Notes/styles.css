@@ -14,6 +14,14 @@
   background-color: white;
 }
 
+.dashboard-main-content.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
 /* Mobile Header */
 .mobile-header {
   display: none;
@@ -401,7 +409,7 @@
 .notes-list-container {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 24px;
+  padding-top: 16px;
 }
 
 .notes-controls {
@@ -442,7 +450,6 @@
 
 .notes-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
@@ -957,7 +964,6 @@
 .notes-header {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   padding: 16px 24px;
   background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);

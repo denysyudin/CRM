@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Typography, Button, Container, Paper, Grid, Checkbox,
+  Box, Typography, Button, Paper, Grid, Checkbox,
   FormControl, InputLabel, MenuItem, Select, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  IconButton, Chip, Divider, ListItem, List, ListItemText,
+  IconButton, Chip, ListItem, List, ListItemText,
   ListItemIcon, Snackbar, Alert, CircularProgress,
   SelectChangeEvent, FormControlLabel
 } from '@mui/material';
@@ -470,13 +470,9 @@ const Reminders: React.FC = () => {
         overflow: 'auto' 
       }}>
         <Paper elevation={0} sx={{ p: { xs: 1, sm: 2 }, mb: 2 }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mb: 2 
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex' }}>
               <IconButton
                 sx={{ mr: 1, display: { md: 'none' } }}
                 onClick={toggleSidebar}
@@ -487,11 +483,9 @@ const Reminders: React.FC = () => {
                 <CalendarIcon sx={{ mr: 1 }} /> Reminders
               </Typography>
             </Box>
-          </Box>
-
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={12} md={8}>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <FormControl size="small" variant="outlined" sx={{ minWidth: 120 }}>
                   <InputLabel id="filter-status-label">Show</InputLabel>
                   <Select
@@ -523,7 +517,7 @@ const Reminders: React.FC = () => {
                 </FormControl>
               </Box>
             </Grid>
-            <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+            <Grid item xs={12} md={2} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
               <Button 
                 variant="contained" 
                 color="primary" 
@@ -672,6 +666,7 @@ const Reminders: React.FC = () => {
         open={notification.visible}
         autoHideDuration={3000}
         onClose={() => setNotification({ ...notification, visible: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert 
           onClose={() => setNotification({ ...notification, visible: false })} 

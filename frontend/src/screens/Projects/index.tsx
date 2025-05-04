@@ -695,8 +695,6 @@ const Projects: React.FC = () => {
             justifyContent: 'space-between',
             backgroundColor: 'white',
             borderRadius: 2,
-            mr: 3,
-            ml: 3,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', }}>
@@ -740,7 +738,7 @@ const Projects: React.FC = () => {
           </Box>
         </Box>
 
-        <Box sx={{ p: 3, flex: 1 }}>
+        <Box sx={{mt: 2, flex: 1 }}>
           {!selectedProject ? (
             <Box 
               display="flex" 

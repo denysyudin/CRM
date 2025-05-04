@@ -24,6 +24,14 @@ import {
   Paper,
   Grid,
   Chip,
+  Snackbar,
+  Alert,
+  AlertColor,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
 } from '@mui/material';
 import { Note } from '../../types/note.types';
 import CloseIcon from '@mui/icons-material/Close';
@@ -56,6 +64,13 @@ const Notes: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
 
+  // Notification state
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as AlertColor
+  });
+
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,9 +85,25 @@ const Notes: React.FC = () => {
   });
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
+  // Show notification helper
+  const showNotification = (message: string, severity: AlertColor = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  // Close notification handler
+  const handleCloseNotification = (_?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setNotification({...notification, open: false});
+  };
+
   // Fetch data from the backend when component mounts
   useEffect(() => {
-
     // Removed previous get call that was causing an error
   }, [deleteConfirm]);
 
@@ -128,7 +159,7 @@ const Notes: React.FC = () => {
   // Handle saving a new or edited note
   const handleSaveNote = async () => {
     if (!newNote.title || !newNote.description || !newNote.project_id) {
-      alert('Please fill in all required fields');
+      showNotification('Please fill in all required fields', 'error');
       return;
     }
 
@@ -143,6 +174,7 @@ const Notes: React.FC = () => {
         if (selectedNote?.id === newNote.id) {
           setSelectedNote(newNote as Note);
         }
+        showNotification('Note updated successfully');
       } else {
         // Add new note
         const noteData = {
@@ -155,12 +187,13 @@ const Notes: React.FC = () => {
           files: newNote.files
         };
         await createNoteMutation(noteData);
+        showNotification('Note created successfully');
       }
   
       handleCloseModal();
     } catch (error) {
       console.error('Error saving note:', error);
-      alert('Failed to save note. Please try again.');
+      showNotification('Failed to save note. Please try again.', 'error');
     }
   };
 
@@ -171,9 +204,10 @@ const Notes: React.FC = () => {
         await deleteNoteMutation(selectedNote.id);
         setSelectedNote(null);
         setDeleteConfirm(false);
+        showNotification('Note deleted successfully');
       } catch (error) {
         console.error('Error deleting note:', error);
-        alert('Failed to delete note. Please try again.');
+        showNotification('Failed to delete note. Please try again.', 'error');
       }
     }
   };
@@ -193,7 +227,8 @@ const Notes: React.FC = () => {
   // Find category name by ID
   const getCategoryNameById = (id: string) => {
     for (const project of projects) {
-      const category = project.categories?.find((c: any) => c.id === id);
+      // Using type assertion to access categories since it's not defined in the type
+      const category = (project as any).categories?.find((c: any) => c.id === id);
       if (category) return category.name;
     }
     return '';
@@ -204,20 +239,6 @@ const Notes: React.FC = () => {
     const employee = employees.find(e => e.id === id);
     return employee ? employee.name : '';
   };
-
-  // Find available categories for selected project
-  // const getAvailableCategoriesForProject = (projectId: string) => {
-  //   const project = projects.find(p => p.id === projectId);
-  //   return project?.categories || [];
-  // };
-
-  // Clear all filters
-  // const clearAllFilters = () => {
-  //   setSelectedProject('');
-  //   setSelectedCategory('');
-  //   setSelectedEmployee('');
-  //   setSearchTerm('');
-  // };
 
   // Helper functions
   const formatDate = (date: string): string => {
@@ -278,8 +299,8 @@ const Notes: React.FC = () => {
           <Sidebar />
         </div>
         <div className="dashboard-main-content loading-container">
-          
-          <p>Loading data...</p>
+          <CircularProgress size={60} />
+          <p style={{ marginTop: '16px', fontSize: '18px' }}>Loading Notes...</p>
         </div>
       </div>
     );
@@ -307,7 +328,6 @@ const Notes: React.FC = () => {
   }
 
   return (
-    <ThemeProvider theme={darkTextTheme}>
       <div className="app-container">
         <div className='sidebar'>
           <Sidebar />
@@ -317,128 +337,216 @@ const Notes: React.FC = () => {
             {/* Main Content */}
             <div className="notes-content-wrapper">
               {/* Top Header with Search, Create, and Filters */}
-              <div className="notes-header">
-                <div className="notes-filters">
-                  {/* Project Dropdown */}
-                  <FormControl variant="outlined" size="small" className="filter-dropdown">
-                    <InputLabel id="project-select-label" shrink={true}>Project</InputLabel>
-                    <Select
-                      labelId="project-select-label"
-                      id="project-select"
-                      value={selectedProject}
-                      onChange={(e) => setSelectedProject(e.target.value)}
-                      label="Project"
-                      displayEmpty
-                      renderValue={(value) => {
-                        return (
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <FolderIcon style={{ marginRight: '8px' }} />
-                            {value === "" ? "All Projects" : getProjectNameById(value as string)}
-                          </div>
-                        );
-                      }}
-                    >
-                      <MenuItem value="">
-                        <FolderIcon style={{ marginRight: '8px' }} /> All Projects
-                      </MenuItem>
-                      {projects.map((project) => (
-                        <MenuItem key={project.id} value={project.id}>
-                          <FolderIcon className="menu-icon" /> {project.title}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+              <Grid container spacing={1} className="notes-header">
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ display: 'flex' }}>
+                    <Typography variant="h5" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
+                      <NoteIcon sx={{ mr: 1 }} /> Notes
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Grid container spacing={1}>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl variant="outlined" size="small" fullWidth>
+                        <InputLabel id="project-select-label" shrink={true}>Project</InputLabel>
+                        <Select
+                          labelId="project-select-label"
+                          id="project-select"
+                          value={selectedProject}
+                          onChange={(e) => setSelectedProject(e.target.value)}
+                          label="Project"
+                          displayEmpty
+                          renderValue={(value) => {
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <FolderIcon style={{ marginRight: '8px' }} />
+                                {value === "" ? "All Projects" : getProjectNameById(value as string)}
+                              </div>
+                            );
+                          }}
+                        >
+                          <MenuItem value="">
+                            <FolderIcon style={{ marginRight: '8px' }} /> All Projects
+                          </MenuItem>
+                          {projects.map((project) => (
+                            <MenuItem key={project.id} value={project.id}>
+                              <FolderIcon className="menu-icon" /> {project.title}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
 
-                  {/* Team Members Dropdown */}
-                  <FormControl variant="outlined" size="small" className="filter-dropdown">
-                    <InputLabel id="employee-select-label" shrink={true}>Team Member</InputLabel>
-                    <Select
-                      labelId="employee-select-label"
-                      id="employee-select"
-                      value={selectedEmployee}
-                      onChange={(e) => setSelectedEmployee(e.target.value)}
-                      label="Team Member"
-                      displayEmpty
-                      renderValue={(value) => {
-                        return (
-                          <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <PersonIcon style={{ marginRight: '8px' }} />
-                            {value === "" ? "All Members" : getEmployeeNameById(value as string)}
-                          </div>
-                        );
-                      }}
-                    >
-                      <MenuItem value="">
-                        <PersonIcon style={{ marginRight: '8px' }} /> All Members
-                      </MenuItem>
-                      {employees.map((employee) => (
-                        <MenuItem key={employee.id} value={employee.id}>
-                          <PersonIcon className="menu-icon" /> {employee.name}
-                          {employee.id === 'user-1' && <span className="self-tag"> (You)</span>}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <div className="notes-actions">
-                    <TextField
-                      placeholder="Search notes..."
-                      variant="outlined"
-                      size="small"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon />
-                          </InputAdornment>
-                        ),
-                      }}
-                      className="search-field"
-                    />
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<AddIcon />}
-                      onClick={() => handleOpenModal('add')}
-                      className="create-note-btn"
-                    >
-                      New Note
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl variant="outlined" size="small" fullWidth>
+                        <InputLabel id="employee-select-label" shrink={true}>Team Member</InputLabel>
+                        <Select
+                          labelId="employee-select-label"
+                          id="employee-select"
+                          value={selectedEmployee}
+                          onChange={(e) => setSelectedEmployee(e.target.value)}
+                          label="Team Member"
+                          displayEmpty
+                          renderValue={(value) => {
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <PersonIcon style={{ marginRight: '8px' }} />
+                                {value === "" ? "All Members" : getEmployeeNameById(value as string)}
+                              </div>
+                            );
+                          }}
+                        >
+                          <MenuItem value="">
+                            <PersonIcon style={{ marginRight: '8px' }} /> All Members
+                          </MenuItem>
+                          {employees.map((employee) => (
+                            <MenuItem key={employee.id} value={employee.id}>
+                              <PersonIcon className="menu-icon" /> {employee.name}
+                              {employee.id === 'user-1' && <span className="self-tag"> (You)</span>}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </Grid>
+                
+                <Grid item xs={12} md={4}>
+                  <Grid container spacing={2} alignItems="right">
+                    <Grid item xs={8}>
+                      <TextField
+                        placeholder="Search notes..."
+                        variant="outlined"
+                        size="small"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchIcon />
+                            </InputAdornment>
+                          ),
+                        }}
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<AddIcon />}
+                        onClick={() => handleOpenModal('add')}
+                        fullWidth
+                      >
+                        New
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Grid>
+              </Grid>
 
               {/* Notes List */}
               <div className="notes-list-container">
                 <div className="notes-list">
                   {filteredNotes.length > 0 ? (
-                    filteredNotes.map(note => (
-                      <Paper
-                        key={note.id}
-                        className={`note-item ${selectedNote?.id === note.id ? 'active' : ''}`}
-                        onClick={() => setSelectedNote(note)}
-                        elevation={selectedNote?.id === note.id ? 3 : 1}
-                        sx={{ p: 2, mb: 2, cursor: 'pointer' }}
-                      >
-                        <Typography variant="h6" className="note-item-title">{note.title}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {note.description?.substring(0, 100) || ''}...
-                        </Typography>
-                        <Box className="note-item-meta" sx={{ display: 'flex', mt: 1, justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="caption" className="note-item-date">
-                            {formatDate(note.created_at)}
-                          </Typography>
-                          {note.category && (
-                            <Chip 
-                              size="small"
-                              label={getCategoryNameById(note.category)}
-                              color="primary" 
-                              variant="outlined"
+                    <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
+                      {filteredNotes.map(note => (
+                        <React.Fragment key={note.id}>
+                          <ListItem
+                            sx={{
+                              borderLeft: 3,
+                              borderColor: 'primary.main',
+                              mb: 1,
+                              cursor: 'pointer',
+                            }}
+                            secondaryAction={
+                              <Box>
+                                <IconButton 
+                                  edge="end" 
+                                  aria-label="edit"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedNote(note);
+                                    handleOpenModal('edit');
+                                  }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton 
+                                  edge="end" 
+                                  aria-label="delete"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedNote(note);
+                                    setDeleteConfirm(true);
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            }
+                            onClick={() => {
+                              setSelectedNote(note);
+                            }}
+                          >
+                            <ListItemText
+                              primary={
+                                <Typography 
+                                  variant="subtitle1" 
+                                  component="div"
+                                  sx={{ fontWeight: 500 }}
+                                >
+                                  {note.title}
+                                </Typography>
+                              }
+                              secondary={
+                                <Box sx={{ mt: 0.5 }}>
+                                  <Typography variant="body2" color="text.secondary" component="span">
+                                    {note.description?.substring(0, 120) || ''}
+                                    {note.description && note.description.length > 120 ? '...' : ''}
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, gap: 1 }}>
+                                    <Chip 
+                                      size="small" 
+                                      icon={<CalendarTodayIcon fontSize="small" />}
+                                      label={formatDate(note.created_at)}
+                                      variant="outlined"
+                                    />
+                                    
+                                    {note.project_id && (
+                                      <Chip
+                                        size="small"
+                                        icon={<FolderIcon />}
+                                        label={getProjectNameById(note.project_id)}
+                                        variant="outlined"
+                                      />
+                                    )}
+                                    
+                                    {note.category && (
+                                      <Chip
+                                        size="small"
+                                        color="primary"
+                                        label={getCategoryNameById(note.category)}
+                                      />
+                                    )}
+                                    
+                                    {note.employee_id && (
+                                      <Chip
+                                        size="small"
+                                        icon={<PersonIcon />}
+                                        label={getEmployeeNameById(note.employee_id)}
+                                        variant="outlined"
+                                      />
+                                    )}
+                                  </Box>
+                                </Box>
+                              }
                             />
-                          )}
-                        </Box>
-                      </Paper>
-                    ))
+                          </ListItem>
+                        </React.Fragment>
+                      ))}
+                    </List>
                   ) : (
                     <Box sx={{ textAlign: 'center', mt: 4 }}>
                       <NoteIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5 }} />
@@ -515,30 +623,6 @@ const Notes: React.FC = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-
-                  {/* {newNote.project_id && (
-                    <Grid item xs={12}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel id="category-label">Category</InputLabel>
-                        <Select
-                          labelId="category-label"
-                          name="category"
-                          value={newNote.category || ''}
-                          onChange={handleInputChange}
-                          label="Category"
-                        >
-                          <MenuItem value="">
-                            <em>Select a category</em>
-                          </MenuItem>
-                          {getAvailableCategoriesForProject(newNote.project_id).map(category => (
-                            <MenuItem key={category.id} value={category.id}>
-                              {category.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                  )} */}
                 </Grid>
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
@@ -562,7 +646,13 @@ const Notes: React.FC = () => {
             {/* Note Detail View */}
             {selectedNote && (
               <Paper className="note-detail-panel" elevation={2} sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                  <IconButton 
+                    sx={{ position: 'absolute', top: -10, right: -10 }}
+                    onClick={() => setSelectedNote(null)}
+                  >
+                    <CloseIcon />
+                  </IconButton>
                   <Typography variant="h5" gutterBottom>
                     {selectedNote.title}
                   </Typography>
@@ -598,40 +688,28 @@ const Notes: React.FC = () => {
                 <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-wrap' }}>
                   {selectedNote.description}
                 </Typography>
-
-                <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleOpenModal('edit')}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={deleteConfirm ? handleDeleteNote : () => setDeleteConfirm(true)}
-                  >
-                    {deleteConfirm ? 'Confirm Delete' : 'Delete'}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<CloseIcon />}
-                    onClick={() => {
-                      setSelectedNote(null);
-                      setDeleteConfirm(false);
-                    }}
-                  >
-                    Close
-                  </Button>
-                </Box>
               </Paper>
             )}
+
+            {/* Notification Snackbar */}
+            <Snackbar 
+              open={notification.open} 
+              autoHideDuration={3000} 
+              onClose={handleCloseNotification}
+              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <Alert 
+                onClose={handleCloseNotification} 
+                severity={notification.severity} 
+                variant="filled"
+                sx={{ width: '100%' }}
+              >
+                {notification.message}
+              </Alert>
+            </Snackbar>
           </div>
         </div>
       </div>
-    </ThemeProvider>
   );
 };
 

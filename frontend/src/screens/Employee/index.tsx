@@ -240,7 +240,6 @@ const EmployeePage: React.FC = () => {
           elevation={0}
           sx={{
             backgroundColor: theme.palette.grey[100],
-            px: 3,
             width: '100%',
           }}
         >
@@ -335,7 +334,7 @@ const EmployeePage: React.FC = () => {
         <Box
           sx={{
             flexGrow: 1,
-            p: 3,
+            mt: 2,
             overflow: 'auto',
             backgroundColor: theme.palette.grey[100]
           }}
@@ -343,7 +342,6 @@ const EmployeePage: React.FC = () => {
           <Paper
             elevation={0}
             sx={{
-              p: 3,
               height: '100%',
               display: 'flex',
               flexDirection: 'column',

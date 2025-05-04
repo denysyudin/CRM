@@ -5,8 +5,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Divider,
-  Grid,
   IconButton,
   InputAdornment,
   List,
@@ -33,11 +31,8 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import VideoFileIcon from '@mui/icons-material/VideoFile';
 import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import CloseIcon from '@mui/icons-material/Close';
-import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 import { useGetFilesQuery, useCreateFileMutation, useDeleteFileMutation } from '../../redux/api/filesApi';
@@ -53,8 +48,6 @@ const FileManager: React.FC = () => {
   const [folderPath, setFolderPath] = useState<{id: string, name: string}[]>([{id: 'root', name: 'My Drive'}]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
-  const [newFolderModalOpen, setNewFolderModalOpen] = useState<boolean>(false);
-  const [newFolderName, setNewFolderName] = useState<string>('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
   
@@ -314,33 +307,6 @@ const FileManager: React.FC = () => {
     });
   };
 
-  const handleCreateFolder = () => {
-    // Would handle folder creation API call in production
-    console.log(`Creating folder: ${newFolderName} in ${currentFolder}`);
-    
-    // Mock adding a new folder
-    const newFolder: File = {
-      id: `folder-${Date.now()}`,
-      title: newFolderName,
-      type: 'application/vnd.google-apps.folder',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      parent_id: currentFolder
-    };
-    
-    // Update both state variables
-    const updatedAllFiles = [...allFiles, newFolder];
-    setAllFiles(updatedAllFiles);
-    
-    // Only update displayed files if the new folder belongs in current view
-    if (newFolder.parent_id === currentFolder) {
-      setFiles([...files, newFolder]);
-    }
-    
-    setNewFolderName('');
-    setNewFolderModalOpen(false);
-  };
-
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = event.target.files;
     
@@ -370,26 +336,6 @@ const FileManager: React.FC = () => {
   const closeContextMenu = () => {
     setAnchorEl(null);
     setContextMenuFile(null);
-  };
-
-  const handleDownload = (file: File) => {
-    // Would handle actual download in production
-    console.log(`Downloading file: ${file.title}`);
-    closeContextMenu();
-  };
-
-  const handleDelete = (file: File) => {
-    // Would handle actual deletion API call in production
-    console.log(`Deleting file: ${file.title}`);
-    
-    // Update both state variables
-    setAllFiles(allFiles.filter(f => f.id !== file.id));
-    setFiles(files.filter(f => f.id !== file.id));
-    
-    closeContextMenu();
-    if (selectedFile?.id === file.id) {
-      setSelectedFile(null);
-    }
   };
 
   return (
@@ -424,24 +370,6 @@ const FileManager: React.FC = () => {
                 ),
               }}
             />
-            
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<CloudUploadIcon />}
-              onClick={() => setUploadModalOpen(true)}
-              sx={{ mr: 1 }}
-            >
-              Upload
-            </Button>
-            
-            <Button
-              variant="outlined"
-              startIcon={<CreateNewFolderIcon />}
-              onClick={() => setNewFolderModalOpen(true)}
-            >
-              New Folder
-            </Button>
           </Toolbar>
           
           {/* Folder Path Navigation */}
@@ -530,86 +458,6 @@ const FileManager: React.FC = () => {
               </List>
             )}
           </Paper>
-          
-          {/* File Details Panel */}
-          {selectedFile && (
-            <Paper sx={{ width: 350, p: 3, overflow: 'auto', display: { xs: 'none', md: 'block' } }}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <IconButton onClick={() => setSelectedFile(null)}>
-                  <CloseIcon />
-                </IconButton>
-                <Box>
-                  <Button
-                    variant="outlined"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => handleDownload(selectedFile)}
-                    sx={{ mr: 1 }}
-                  >
-                    Download
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDelete(selectedFile)}
-                  >
-                    Delete
-                  </Button>
-                </Box>
-              </Box>
-              
-              <Box display="flex" alignItems="center" mb={3}>
-                <Box sx={{ mr: 2 }}>
-                  {getFileIcon(selectedFile.type)}
-                </Box>
-                <Box>
-                  <Typography variant="h6">{selectedFile.title}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedFile.type.split('/').pop()?.toUpperCase()}
-                    {selectedFile.size ? ` • ${formatBytes(selectedFile.size)}` : ''}
-                  </Typography>
-                </Box>
-              </Box>
-              
-              <Divider sx={{ my: 2 }} />
-              
-              <Typography variant="subtitle2" gutterBottom>Details</Typography>
-              
-              <Grid container spacing={2}>
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">Type</Typography>
-                </Grid>
-                <Grid item xs={8}>
-                  <Typography variant="body2">{selectedFile.type}</Typography>
-                </Grid>
-                
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">Created</Typography>
-                </Grid>
-                <Grid item xs={8}>
-                  <Typography variant="body2">{formatDate(selectedFile.created_at || '')}</Typography>
-                </Grid>
-                
-                <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">Modified</Typography>
-                </Grid>
-                <Grid item xs={8}>
-                  <Typography variant="body2">{formatDate(selectedFile.updated_at || '')}</Typography>
-                </Grid>
-                
-                {selectedFile.size && (
-                  <>
-                    <Grid item xs={4}>
-                      <Typography variant="body2" color="text.secondary">Size</Typography>
-                    </Grid>
-                    <Grid item xs={8}>
-                      <Typography variant="body2">{formatBytes(selectedFile.size)}</Typography>
-                    </Grid>
-                  </>
-                )}
-              </Grid>
-            </Paper>
-          )}
         </Box>
       </Box>
       
@@ -619,15 +467,7 @@ const FileManager: React.FC = () => {
         open={Boolean(anchorEl)}
         onClose={closeContextMenu}
       >
-        {contextMenuFile && contextMenuFile.type !== 'application/vnd.google-apps.folder' && (
-          <MenuItem onClick={() => { handleDownload(contextMenuFile); closeContextMenu(); }}>
-            <ListItemIcon>
-              <DownloadIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Download</ListItemText>
-          </MenuItem>
-        )}
-        <MenuItem onClick={() => { contextMenuFile && handleDelete(contextMenuFile); }}>
+        <MenuItem onClick={() => { contextMenuFile }}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" />
           </ListItemIcon>
@@ -678,51 +518,6 @@ const FileManager: React.FC = () => {
           >
             Cancel
           </Button>
-        </Box>
-      </Modal>
-      
-      {/* New Folder Modal */}
-      <Modal
-        open={newFolderModalOpen}
-        onClose={() => setNewFolderModalOpen(false)}
-      >
-        <Box sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 400,
-          bgcolor: 'background.paper',
-          boxShadow: 24,
-          p: 4,
-          borderRadius: 2
-        }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Create New Folder
-          </Typography>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Folder Name"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            sx={{ mb: 3 }}
-          />
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-            <Button onClick={() => setNewFolderModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateFolder}
-              variant="contained"
-              disabled={!newFolderName.trim()}
-            >
-              Create
-            </Button>
-          </Box>
         </Box>
       </Modal>
     </Box>
