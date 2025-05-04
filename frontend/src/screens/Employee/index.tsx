@@ -15,7 +15,6 @@ import {
   SelectChangeEvent,
   IconButton,
   Paper,
-  Drawer,
   useMediaQuery,
   useTheme,
   Stack,
@@ -36,21 +35,6 @@ import { useGetEmployeesQuery, useCreateEmployeeMutation } from '../../redux/api
 import { useGetNotesQuery, useCreateNoteMutation } from '../../redux/api/notesApi';
 import { useGetRemindersQuery } from '../../redux/api/remindersApi';
 import { useGetTasksQuery, useCreateTaskMutation, useUpdateTaskMutation } from '../../redux/api/tasksApi';
-
-// Define local interfaces for EmployeeDetails component if needed
-interface EmployeeDetailsProps {
-  employee: Employee | null;
-  tasks: any[];
-  notes: any[];
-  reminders: any[];
-  taskFilterStatus: string;
-  taskSortBy: string;
-  onTaskFilterChange: (status: string) => void;
-  onTaskSortChange: (sortBy: string) => void;
-  onTaskStatusChange: (taskId: string, status: string) => void;
-  onAssignTask: () => void;
-  onAddNote: () => void;
-}
 
 const EmployeePage: React.FC = () => {
   const theme = useTheme();

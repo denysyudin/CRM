@@ -1,30 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { FiCalendar, FiAlertCircle, FiPlus, FiLink, FiTrash2, FiEdit, FiX, FiMenu, FiUser, FiFolder } from 'react-icons/fi';
+import { FiCalendar, FiAlertCircle, FiPlus, FiTrash2, FiEdit, FiX, FiMenu, FiUser, FiFolder } from 'react-icons/fi';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import './styles.css';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../../redux/store';
-import { 
-  fetchReminders, 
-  createReminder, 
-  updateReminder, 
-  deleteReminder, 
-  Reminder as ReduxReminder 
-} from '../../redux/features/remindersSlice';
 import { Reminder } from '../../services/api';
-import { fetchProjects } from '../../redux/features/projectsSlice';
-import { fetchEmployees } from '../../redux/features/employeesSlice';
+
+import { 
+  useGetRemindersQuery, 
+  useCreateReminderMutation, 
+  useUpdateReminderMutation, 
+  useDeleteReminderMutation 
+} from '../../redux/api/remindersApi';
+import { useGetProjectsQuery } from '../../redux/api/projectsApi';
+import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
 
 const Reminders: React.FC = () => {
-  const dispatch = useDispatch();
+  // RTK Query hooks
+  const { 
+    data: reduxReminders = [], 
+    isLoading, 
+    error: remindersError, 
+    refetch: refetchReminders 
+  } = useGetRemindersQuery();
   
-  // Get data from Redux store
-  const reduxReminders = useSelector((state: RootState) => state.reminders?.items || []);
-  const status = useSelector((state: RootState) => state.reminders?.status);
-  const error = useSelector((state: RootState) => state.reminders?.error);
-  const projects = useSelector((state: RootState) => state.projects?.items || []);
-  console.log('Projects:', projects);
-  const employees = useSelector((state: RootState) => state.employees?.items || []);
+  const { data: projects = [] } = useGetProjectsQuery();
+  const { data: employees = [] } = useGetEmployeesQuery();
+  
+  const [createReminder] = useCreateReminderMutation();
+  const [updateReminder] = useUpdateReminderMutation();
+  const [deleteReminder] = useDeleteReminderMutation();
   
   // Local state for UI display
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -44,16 +47,9 @@ const Reminders: React.FC = () => {
     dueTime: '',
     priority: 'medium' as 'high' | 'medium' | 'low',
     project_id: '',
-    employee_id: ''
+    employee_id: '',
+    status: false
   });
-
-  // Fetch reminders when component mounts
-  useEffect(() => {
-    // console.log('Reminders: Fetching reminders from backend');
-    dispatch(fetchReminders() as any);
-    dispatch(fetchProjects() as any);
-    dispatch(fetchEmployees() as any);
-  }, [dispatch]);
   
   useEffect(() => {
     // Map Redux reminders to local interface
@@ -67,7 +63,7 @@ const Reminders: React.FC = () => {
       employee_id: reminder.employee_id || '',
       relatedTo: reminder.project_id ? {
         type: 'project' as const,
-        name: `Project ${reminder.project_id}` // You might want to look up the actual project name
+        name: `Project ${reminder.project_id}`
       } : undefined
     }));
     
@@ -103,35 +99,34 @@ const Reminders: React.FC = () => {
   };
 
   // Toggle reminder completed status
-  const toggleReminderStatus = (id: string) => {
+  const toggleReminderStatus = async (id: string) => {
     console.log(`Reminders: Toggling status for reminder ${id}`);
     const reminder = reminders.find(r => r.id === id);
     
     if (reminder) {
       const status = !reminder.status;
-      const new_reminder = {
-        id,
-        title: reminder.title,
-        due_date: reminder.due_date,
-        priority: reminder.priority,
-        status: status,
-        project_id: reminder.project_id,
-        employee_id: reminder.employee_id
+      try {
+        await updateReminder({
+          id,
+          title: reminder.title,
+          due_date: reminder.due_date,
+          priority: reminder.priority,
+          status: status,
+          project_id: reminder.project_id,
+          employee_id: reminder.employee_id
+        }).unwrap();
+        
+        // Also update local state immediately for UI responsiveness
+        setReminders(prevReminders => 
+          prevReminders.map(reminder => 
+            reminder.id === id 
+              ? { ...reminder, status: !reminder.status } 
+              : reminder
+          )
+        );
+      } catch (error) {
+        console.error('Failed to update reminder status:', error);
       }
-      // Update in Redux
-      dispatch(updateReminder({
-        id,
-        reminder: new_reminder
-      }) as any);
-      
-      // Also update local state immediately for UI responsiveness
-      setReminders(prevReminders => 
-        prevReminders.map(reminder => 
-          reminder.id === id 
-            ? { ...reminder, status: !reminder.status } 
-            : reminder
-        )
-      );
     }
   };
 
@@ -144,7 +139,8 @@ const Reminders: React.FC = () => {
       dueTime: '',
       priority: 'medium',
       project_id: '',
-      employee_id: ''
+      employee_id: '',
+      status: false
     });
     setIsModalOpen(true);
   };
@@ -157,11 +153,12 @@ const Reminders: React.FC = () => {
       const dueDate = new Date(reminder.due_date);
       const dateStr = dueDate.toISOString().split('T')[0];
       const timeStr = dueDate.toTimeString().substring(0, 5);
-      
+      console.log('Reminders: Editing reminder', reminder);
       setNewReminder({
         name: reminder.title,
         dueDate: dateStr,
         dueTime: timeStr,
+        status: reminder.status,
         priority: reminder.priority as 'high' | 'medium' | 'low',
         project_id: reminder.project_id || '',
         employee_id: reminder.employee_id || ''
@@ -181,7 +178,7 @@ const Reminders: React.FC = () => {
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Reminders: Creating/updating reminder', newReminder);
     
@@ -191,48 +188,56 @@ const Reminders: React.FC = () => {
         ? `${newReminder.dueDate}T${newReminder.dueTime}`
         : `${newReminder.dueDate}T00:00:00`;
       
-      if (editingReminder) {
-        // Update existing reminder
-        dispatch(updateReminder({
-          id: editingReminder,
-          reminder: {
+      try {
+        if (editingReminder) {
+          // Update existing reminder
+          await updateReminder({
+            id: editingReminder,
             title: newReminder.name,
             due_date: combinedDateTime,
             priority: newReminder.priority,
             project_id: newReminder.project_id || undefined,
+            employee_id: newReminder.employee_id || undefined,
+            status: newReminder.status
+          }).unwrap();
+        } else {
+          // Create new reminder
+          await createReminder({
+            title: newReminder.name,
+            due_date: combinedDateTime,
+            priority: newReminder.priority,
+            status: false,
+            project_id: newReminder.project_id || undefined,
             employee_id: newReminder.employee_id || undefined
-          }
-        }) as any);
-      } else {
-        // Create new reminder
-        dispatch(createReminder({
-          title: newReminder.name,
-          due_date: combinedDateTime,
-          priority: newReminder.priority,
-          status: false,
-          project_id: newReminder.project_id || undefined,
-          employee_id: newReminder.employee_id || undefined
-        }) as any);
+          }).unwrap();
+        }
+        
+        // Close modal and reset form
+        setIsModalOpen(false);
+        setEditingReminder(null);
+        setNewReminder({
+          name: '',
+          dueDate: '',
+          dueTime: '',
+          priority: 'medium',
+          project_id: '',
+          employee_id: '',
+          status: false
+        });
+      } catch (error) {
+        console.error('Failed to save reminder:', error);
       }
-      
-      // Close modal and reset form
-      setIsModalOpen(false);
-      setEditingReminder(null);
-      setNewReminder({
-        name: '',
-        dueDate: '',
-        dueTime: '',
-        priority: 'medium',
-        project_id: '',
-        employee_id: ''
-      });
     }
   };
 
   // Handle delete reminder
-  const handleDeleteReminder = (id: string) => {
+  const handleDeleteReminder = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this reminder?')) {
-      dispatch(deleteReminder(id) as any);
+      try {
+        await deleteReminder(id).unwrap();
+      } catch (error) {
+        console.error('Failed to delete reminder:', error);
+      }
     }
   };
 
@@ -284,7 +289,7 @@ const Reminders: React.FC = () => {
   };
   
   // Show loading state
-  if (status) {
+  if (isLoading) {
     return (
       <div className="app-container">
         <Sidebar />
@@ -301,16 +306,16 @@ const Reminders: React.FC = () => {
   }
   
   // Show error state
-  if (error) {
+  if (remindersError) {
     return (
       <div className="app-container">
         <Sidebar />
         <div className="main-content">
           <div className="error-container" style={{ textAlign: 'center', padding: '20px' }}>
             <FiAlertCircle style={{ fontSize: '48px', color: '#dc3545', marginBottom: '10px' }} />
-            <p>Error loading reminders: {error}</p>
+            <p>Error loading reminders: {JSON.stringify(remindersError)}</p>
             <button 
-              onClick={() => dispatch(fetchReminders() as any)}
+              onClick={() => refetchReminders()}
               style={{ 
                 backgroundColor: '#007bff', 
                 color: 'white', 
@@ -410,7 +415,7 @@ const Reminders: React.FC = () => {
                           <span className="icon">
                             <FiFolder />
                           </span> 
-                          {projects.find(p => p.id === reminder.project_id)?.name || 'Project ' + reminder.project_id}
+                          {projects.find(p => p.id === reminder.project_id)?.title || 'Project ' + reminder.project_id}
                         </span>
                       )}
                       {reminder.employee_id && (
@@ -457,7 +462,7 @@ const Reminders: React.FC = () => {
         </div>
       </div>
       
-      {/* Reminder Modal would go here */}
+      {/* Reminder Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -525,7 +530,7 @@ const Reminders: React.FC = () => {
                   <option value="">-- Select Project --</option>
                   {projects.map(project => (
                     <option key={project.id} value={project.id}>
-                      {project.name || project.id}
+                      {project.title || project.id}
                     </option>
                   ))}
                 </select>

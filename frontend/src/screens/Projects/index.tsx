@@ -322,18 +322,19 @@ const ProjectListItem = React.memo(({
 // Project details section component with updated type
 const ProjectDetailSection = React.memo(({
   title,
-  icon,
   items,
   itemsData,
   formatter,
-  onAddItem
+  onAddItem,
+  showaddbutton = true
 }: {
   title: string,
   icon: React.ReactNode,
   items: (Task | Note | Event | Reminder | File)[],
   itemsData: ItemDict<any> | (Task | Note | Event | Reminder | File)[],
   formatter: (item: any) => React.ReactNode,
-  onAddItem: () => void
+  onAddItem: () => void,
+  showaddbutton: boolean
 }) => (
   <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -346,7 +347,7 @@ const ProjectDetailSection = React.memo(({
         onClick={onAddItem}
         title={`Add New ${title.replace('Related ', '')}`}
       >
-        <AddCircleOutline />
+        {showaddbutton && <AddCircleOutline />}
       </IconButton>
     </Box>
     <List sx={{ width: '100%' }}>
@@ -593,7 +594,7 @@ const Projects: React.FC = () => {
     }
   };
 
-  const handleEventSubmit = async (eventData: Omit<Event, 'id'>) => {
+  const handleEventSubmit = async (eventData: Omit<Events, 'id'>) => {
     if (!selectedProject) return;
     
     try {
@@ -825,6 +826,7 @@ const Projects: React.FC = () => {
                 itemsData={tasks}
                 formatter={formatTask}
                 onAddItem={() => handleAddLinkedItem('Task')}
+                showaddbutton={true}
               />
 
               {/* Related Notes */}
@@ -835,6 +837,7 @@ const Projects: React.FC = () => {
                 itemsData={notes}
                 formatter={formatNote}
                 onAddItem={() => handleAddLinkedItem('Note')}
+                showaddbutton={true}
               />
 
               {/* Related Events */}
@@ -845,6 +848,7 @@ const Projects: React.FC = () => {
                 itemsData={events}
                 formatter={formatEvent}
                 onAddItem={() => handleAddLinkedItem('Event')}
+                showaddbutton={true}
               />
 
               {/* Related Reminders */}
@@ -855,6 +859,7 @@ const Projects: React.FC = () => {
                 itemsData={reminders}
                 formatter={formatReminder}
                 onAddItem={() => handleAddLinkedItem('Reminder')}
+                showaddbutton={true}
               />
 
               {/* Related Files */}
@@ -865,6 +870,7 @@ const Projects: React.FC = () => {
                 itemsData={files}
                 formatter={formatFile}
                 onAddItem={() => handleAddLinkedItem('File')}
+                showaddbutton={false}
               />
             </Box>
           )}
