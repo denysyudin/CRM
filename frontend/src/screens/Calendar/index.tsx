@@ -83,6 +83,10 @@ const Calendar: React.FC = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
 
+  // Confirmation dialog state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
@@ -333,6 +337,28 @@ const Calendar: React.FC = () => {
         type: 'error',
         open: true
       });
+    }
+  };
+
+  // Open delete confirmation dialog
+  const openDeleteConfirmation = (id: string) => {
+    setEventToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  // Close delete confirmation dialog
+  const closeDeleteConfirmation = () => {
+    setDeleteConfirmOpen(false);
+    setEventToDelete(null);
+  };
+
+  // Confirm and delete event
+  const confirmDelete = () => {
+    if (eventToDelete) {
+      handleDeleteEvent(eventToDelete);
+      closeDeleteConfirmation();
+      closeEventModal();
+      closeModal();
     }
   };
 
@@ -739,8 +765,7 @@ const Calendar: React.FC = () => {
                       color="error"
                       startIcon={<DeleteOutline />}
                       onClick={() => {
-                        handleDeleteEvent(selectedEvent.id);
-                        closeModal();
+                        openDeleteConfirmation(selectedEvent.id);
                       }}
                     >
                       Delete
@@ -920,8 +945,7 @@ const Calendar: React.FC = () => {
                       startIcon={<DeleteOutline />}
                       disabled={isDeleting}
                       onClick={() => {
-                        handleDeleteEvent(eventFormData.id!);
-                        closeEventModal();
+                        openDeleteConfirmation(eventFormData.id!);
                       }}
                     >
                       {isDeleting ? 'Deleting...' : 'Delete'}
@@ -946,6 +970,28 @@ const Calendar: React.FC = () => {
                 {notification.message}
               </Alert>
             </Snackbar>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+              open={deleteConfirmOpen}
+              onClose={closeDeleteConfirmation}
+              aria-labelledby="delete-confirm-dialog-title"
+            >
+              <DialogTitle id="delete-confirm-dialog-title">
+                Confirm Delete
+              </DialogTitle>
+              <DialogContent>
+                <Typography>
+                  Are you sure you want to delete this event? This action cannot be undone.
+                </Typography>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={closeDeleteConfirmation}>Cancel</Button>
+                <Button onClick={confirmDelete} color="error" variant="contained">
+                  Delete
+                </Button>
+              </DialogActions>
+            </Dialog>
           </Box>
         </Box>
       </div>
