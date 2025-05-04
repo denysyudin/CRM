@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Event } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Events } from '../../types/event.types';
 import '../../screens/Projects/styles.css';
 
 interface EventModalProps {
   projectName: string;
   onClose: () => void;
-  onSubmit: (eventData: Omit<Event, 'id'>) => void;
-  event?: Event;
+  onSubmit: (eventData: Omit<Events, 'id'>) => void;
+  event?: Events;
 }
 
 const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit, event }) => {
@@ -16,6 +16,28 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
   const [participants, setParticipants] = useState(event?.participants || '');
   const [notes, setNotes] = useState(event?.notes || '');
   const [description, setDescription] = useState(event?.description || '');
+  
+  // Reference for initial focus
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  
+  // Focus the title input when modal opens
+  useEffect(() => {
+    if (titleInputRef.current) {
+      setTimeout(() => {
+        titleInputRef.current?.focus();
+      }, 100);
+    }
+    
+    // Save the active element to restore focus when modal closes
+    const activeElement = document.activeElement;
+    
+    return () => {
+      // Cast to HTMLElement to access focus method
+      if (activeElement instanceof HTMLElement) {
+        activeElement.focus();
+      }
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,13 +52,35 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
       employee_id: event?.employee_id || ''
     });
   };
+  
+  // Handle ESC key press
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content">
+    <div 
+      className="modal-backdrop" 
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="event-modal-title"
+      onKeyDown={handleKeyDown}
+    >
+      <div 
+        className="modal-content"
+        tabIndex={-1}
+      >
         <div className="modal-header">
-          <h2>{event ? 'Edit Event' : 'Add New Event'}</h2>
-          <button className="close-button" onClick={onClose}>&times;</button>
+          <h2 id="event-modal-title">{event ? 'Edit Event' : 'Add New Event'}</h2>
+          <button 
+            className="close-button" 
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            &times;
+          </button>
         </div>
         <div className="modal-subheader">
           Project: {projectName}
@@ -50,6 +94,7 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
+              ref={titleInputRef}
             />
           </div>
           <div className="form-group">
@@ -67,11 +112,11 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
             </select>
           </div>
           <div className="form-group">
-            <label htmlFor="due_date">Date</label>
+            <label htmlFor="due_date">Date and Time</label>
             <input
               id="due_date"
-              type="date"
-              value={due_date}
+              type="datetime-local"
+              value={due_date ? due_date.substring(0, 16) : ''}
               onChange={(e) => setDueDate(e.target.value)}
               required
             />

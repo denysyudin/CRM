@@ -1,23 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import { useGetTasksQuery, useUpdateTaskMutation } from '../../redux/api/tasksApi';
 import './styles.css';
-
-interface Task {
-  id: string;
-  title: string;
-  status: 'not-started' | 'in-progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  date: string;
-  project: string;
-  category: string;
-  assignedTo?: string;
-  hasAttachment: boolean;
-  description?: string;
-}
+import { Task } from '../../types/task.types';
 
 const TaskDashboard: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [shouldFetch, setShouldFetch] = useState(true);
+  const { data = [], isLoading, isError, refetch } = useGetTasksQuery(undefined, {
+    skip: !shouldFetch
+  });
+  useEffect(() => {
+    if (data.length === 0) {
+      setShouldFetch(true);
+    }
+  }, [data]);
+  const [updateTask] = useUpdateTaskMutation();
+
+  const tasks = data as unknown as Task[];
+  
+  const tasksLoading = isLoading;
+  const tasksError = isError;
+  
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
@@ -33,81 +36,22 @@ const TaskDashboard: React.FC = () => {
     }
   }, [isMobile]);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/tasks');
-        const data = await response.json();
-        
-        // Transform the API data to match our Task interface
-        const transformedTasks: Task[] = data.slice(0, 20).map((item: any) => ({
-          id: String(item.id),
-          title: item.title,
-          status: item.completed ? 'completed' : 'not-started',
-          priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-          date: 'Apr 15',
-          project: 'Project ' + (Math.floor(Math.random() * 3) + 1),
-          category: ['To Buy', 'To Pay', 'To Fix', 'To Review'][Math.floor(Math.random() * 4)],
-          assignedTo: Math.random() > 0.5 ? 'John Doe' : undefined,
-          hasAttachment: Math.random() > 0.7,
-          description: `This is a sample task description for task #${item.id}.`
-        }));
-        
-        setTasks(transformedTasks);
-      } catch (error) {
-        console.error('Error fetching tasks:', error);
-        // Set some default tasks as fallback
-        setTasks([
-          {
-            id: '1',
-            title: 'Complete project documentation',
-            status: 'in-progress',
-            priority: 'high',
-            date: 'Apr 15',
-            project: 'Documentation',
-            category: 'To Review',
-            assignedTo: 'Jane Smith',
-            hasAttachment: true,
-            description: 'Finish all documentation for the current sprint.'
-          },
-          {
-            id: '2',
-            title: 'Fix navigation bug',
-            status: 'not-started',
-            priority: 'medium',
-            date: 'Apr 15',
-            project: 'Bugfixes',
-            category: 'To Fix',
-            hasAttachment: false,
-            description: 'Address the navigation issue reported in the mobile view.'
-          }
-        ]);
-      }
-    };
-    
-    fetchTasks();
-  }, []);
-
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
   // Handle status circle click
   const handleStatusChange = (taskId: string) => {
-    setTasks(prevTasks => 
-      prevTasks.map(task => {
-        if (task.id === taskId) {
-          let newStatus: 'not-started' | 'in-progress' | 'completed' = 'not-started';
-          
-          if (task.status === 'not-started') newStatus = 'in-progress';
-          else if (task.status === 'in-progress') newStatus = 'completed';
-          else if (task.status === 'completed') newStatus = 'not-started';
-          
-          return { ...task, status: newStatus };
-        }
-        return task;
-      })
-    );
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    let newStatus = 'not-started';
+    if (task.status === 'not-started') newStatus = 'in-progress';
+    else if (task.status === 'in-progress') newStatus = 'completed';
+    else if (task.status === 'completed') newStatus = 'not-started';
+    updateTask({
+      id: taskId,
+      status: newStatus
+    });
   };
 
   // Modal handlers
@@ -146,26 +90,32 @@ const TaskDashboard: React.FC = () => {
     e.currentTarget.classList.remove('drag-over');
     
     if (draggedTask) {
-      setTasks(prevTasks => 
-        prevTasks.map(task => {
-          if (task.id === draggedTask) {
-            return { ...task, status: newStatus };
-          }
-          return task;
-        })
-      );
+      const task = tasks.find(t => t.id === draggedTask);
+      if (task) {
+        updateTask({
+          id: draggedTask,
+          status: newStatus
+        });
+      }
+      
       setDraggedTask(null);
     }
   };
 
   const getTasksByCategory = () => {
-    const categories: { [key: string]: Task[] } = {};
+    const categories: { [key: string]: Task[] } = {
+      'General': []
+    };
     
     tasks.forEach(task => {
-      if (!categories[task.category]) {
-        categories[task.category] = [];
+      if (task.category) {
+        if (!categories[task.category]) {
+          categories[task.category] = [];
+        }
+        categories[task.category].push(task);
+      } else {
+        categories['General'].push(task);
       }
-      categories[task.category].push(task);
     });
     
     return categories;
@@ -180,8 +130,14 @@ const TaskDashboard: React.FC = () => {
   };
 
   const getTodaysTasks = () => {
-    // In a real app, we'd compare with today's date
-    return tasks.filter(task => task.date === 'Apr 15');
+    // Get today's date in local timezone (YYYY-MM-DD format)
+    const today = new Date();
+    const localDate = today.getFullYear() + '-' + 
+                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                     String(today.getDate()).padStart(2, '0');
+    
+    // Filter tasks by local date
+    return tasks.filter(task => task.due_date === localDate);
   };
 
   // Status circle component
@@ -200,6 +156,54 @@ const TaskDashboard: React.FC = () => {
   const PriorityTag = ({ priority }: { priority: string }) => (
     <span className={`priority priority-${priority}`}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</span>
   );
+
+  // Format date to a readable string
+  const formatDate = (date: Date): string => {
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  // Display loading state
+  if (tasksLoading) {
+    return (
+      <div className="app-container">
+        <div className="sidebar">
+          <Sidebar />
+        </div>
+        <main className="main-content">
+          <div className="loading-container">
+            <p>Loading tasks...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Display error state
+  if (tasksError) {
+    return (
+      <div className="app-container">
+        <div className="sidebar">
+          <Sidebar />
+        </div>
+        <main className="main-content">
+          <div className="error-container">
+            <p>Error loading tasks. Please try again.</p>
+            <button 
+              className="retry-button"
+              onClick={() => refetch()}
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -246,10 +250,10 @@ const TaskDashboard: React.FC = () => {
                         </span>
                         <div className="task-card-meta">
                           <PriorityTag priority={task.priority} />
-                          <span className="date">{task.date}</span>
-                          <span className="project">{task.project}</span>
-                          {task.assignedTo && <span className="assigned-user">👤 {task.assignedTo}</span>}
-                          {task.hasAttachment && <span className="attachment-icon">📎</span>}
+                          <span className="date">{task.due_date}</span>
+                          {/* <span className="project">{task.project_id}</span> */}
+                          {/* {task.employee_id && <span className="assigned-user">👤 {task.employee_id}</span>}
+                          {task.files && <span className="attachment-icon">📎</span>} */}
                         </div>
                       </div>
                     </div>
@@ -261,6 +265,7 @@ const TaskDashboard: React.FC = () => {
 
           {/* Status (Kanban) View */}
           <div className="view-section" data-view-type="status-board">
+            fasdfasdfasdfasdf
             <h2 className="view-title">Tasks by Status (Kanban)</h2>
             <div className="board-view">
               {Object.entries(getTasksByStatus()).map(([status, statusTasks]) => (
@@ -297,10 +302,10 @@ const TaskDashboard: React.FC = () => {
                         <div className="task-card-meta">
                           <PriorityTag priority={task.priority} />
                           <span className="category">{task.category}</span>
-                          <span className="date">{task.date}</span>
-                          <span className="project">{task.project}</span>
-                          {task.assignedTo && <span className="assigned-user">👤 {task.assignedTo}</span>}
-                          {task.hasAttachment && <span className="attachment-icon">📎</span>}
+                          <span className="date">{task.due_date}</span>
+                          {/* <span className="project">{task.project_id}</span>
+                          {task.employee_id && <span className="assigned-user">👤 {task.employee_id}</span>}
+                          {task.files && <span className="attachment-icon">📎</span>} */}
                         </div>
                       </div>
                     </div>
@@ -312,7 +317,7 @@ const TaskDashboard: React.FC = () => {
 
           {/* Today's Tasks (Grid Table View) */}
           <div className="view-section">
-            <h2 className="view-title">Today's Tasks (Apr 15, 2025) - Grid Table</h2>
+            <h2 className="view-title">Today's Tasks ({formatDate(new Date())}) - Grid Table</h2>
             <table className="today-grid-table">
               <thead>
                 <tr>
@@ -335,13 +340,13 @@ const TaskDashboard: React.FC = () => {
                       <PriorityTag priority={task.priority} />
                     </td>
                     <td className="meta-cell">
-                      <span className="project">{task.project}</span>
+                      <span className="project">{task.project_id}</span>
                     </td>
                     <td className="meta-cell">
-                      {task.assignedTo && <span className="assigned-user">👤 {task.assignedTo}</span>}
+                      {/* {task.employee_id && <span className="assigned-user">👤 {task.employee_id}</span>} */}
                     </td>
                     <td className="meta-cell">
-                      {task.hasAttachment && <span className="attachment-icon">📎</span>}
+                      {/* {task.files && <span className="attachment-icon">📎</span>} */}
                     </td>
                   </tr>
                 ))}
@@ -385,4 +390,4 @@ const getCategoryIcon = (category: string): string => {
   }
 };
 
-export default TaskDashboard; 
+export default TaskDashboard;

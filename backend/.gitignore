@@ -7,3 +7,8 @@ __pycache__
 *.pyw
 *.pyz
 *.pywz
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+*.json.secret

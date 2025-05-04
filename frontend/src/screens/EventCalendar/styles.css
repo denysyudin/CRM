@@ -146,6 +146,11 @@
   cursor: pointer;
 }
 
+.cal-page-event-time {
+  font-weight: bold;
+  margin-right: 3px;
+}
+
 .cal-page-event:hover {
   filter: brightness(0.95);
 }
@@ -343,4 +348,24 @@
     font-size: 0.75em;
     padding: 2px 4px;
   }
+}
+
+/* Remove notification portal styles */
+.event-modal-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure focusable elements aren't hidden */
+.MuiChip-root:focus,
+.MuiChip-root:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
 } 

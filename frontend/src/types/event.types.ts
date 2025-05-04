@@ -1,5 +1,5 @@
 // Event type definitions
-export interface Event {
+export interface Events {
   id: string;
   title: string;
   due_date: string;
@@ -12,5 +12,5 @@ export interface Event {
 }
 
 // Event creation/update payload types
-export type CreateEventPayload = Omit<Event, 'id'>;
-export type UpdateEventPayload = Partial<Event>; 
+export type CreateEventPayload = Omit<Events, 'id'>;
+export type UpdateEventPayload = Partial<Events>; 

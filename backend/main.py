@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +9,6 @@ from dotenv import load_dotenv
 import uuid
 from supabase import create_client, Client
 from fastapi.responses import JSONResponse
-import io
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 
 # Load environment variables
 load_dotenv()
@@ -22,36 +18,27 @@ supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# Initialize Google Drive client
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
-SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
-GOOGLE_DRIVE_FOLDER_ID = "17gyX14WCWpOiOyiwBout9-wvkhtuNV7q"
-
-def get_google_drive_service():
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    return build('drive', 'v3', credentials=credentials)
-
 # Define Pydantic models
 class ProjectBase(BaseModel):
     id: Optional[str] = None
     title: str
     description: Optional[str] = None
-    start_date: str
-    end_date: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
     status: str
+    created_at: Optional[str] = None
 
 class TaskBase(BaseModel):
     id: Optional[str] = None
     title: str
-    category: Optional[str] = None
     status: str
+    category: Optional[str] = None
     priority: str
-    employee_id: Optional[str] = None
-    due_date: datetime
+    due_date: str
     project_id: Optional[str] = None
     description: Optional[str] = None
-    next_checkin_date: Optional[datetime] = None
+    employee_id: Optional[str] = None
+    created_at: Optional[str] = None
     files: Optional[str] = None
 
 class NoteBase(BaseModel):
@@ -61,42 +48,47 @@ class NoteBase(BaseModel):
     description: Optional[str] = None
     employee_id: Optional[str] = None
     project_id: Optional[str] = None
-    created_at: Optional[datetime] = None
-    files: Optional[str] = None
+    created_at: Optional[str] = None
+    file: Optional[str] = None
 
 class EventBase(BaseModel):
     id: Optional[str] = None
     title: str
     description: Optional[str] = None
     due_date: datetime
-    type: Optional[str] = None
+    type: str
     project_id: Optional[str] = None
     employee_id: Optional[str] = None
 
 class ReminderBase(BaseModel):
     id: Optional[str] = None
     title: str
-    due_date: datetime
+    due_date: str
     priority: str
     status: bool
+    created_at: Optional[str] = None
     project_id: Optional[str] = None
-    employee_id: Optional[str] = None
 
 class FileBase(BaseModel):
     id: Optional[str] = None
     title: str
-    file_path: str
-    file_type: str
-    size: int
-    category: str
+    type: Optional[str] = None
     project_id: Optional[str] = None
     employee_id: Optional[str] = None
+    note_id: Optional[str] = None
+    event_id: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    size: Optional[str] = None
 
 class EmployeeBase(BaseModel):
     id: Optional[str] = None
     name: str
+    project_id: Optional[str] = None
     role: Optional[str] = None
 
+class TaskStatusUpdate(BaseModel):
+    status: str
 
 # Initialize FastAPI
 app = FastAPI()
@@ -117,15 +109,11 @@ def generate_id() -> str:
 def get_current_timestamp() -> str:
     return datetime.now().isoformat()
 
-def convert_datetimes_to_strings(obj):
-    """Recursively convert all datetime objects to ISO format strings"""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    elif isinstance(obj, dict):
-        return {key: convert_datetimes_to_strings(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_datetimes_to_strings(item) for item in obj]
-    return obj
+def convert_datetime_to_string(data: dict) -> dict:
+    for key, value in data.items():
+        if isinstance(value, datetime):
+            data[key] = value.isoformat()
+    return data
 
 # API Routes
 @app.get("/")
@@ -133,32 +121,33 @@ def read_root():
     return {"message": "Welcome to Project Management API"}
 
 # Projects
-#get all projects       
-@app.get("/projects", response_model=List[ProjectBase])
-async def get_projects():
-    response = supabase.table("projects").select("*").execute()
-    # print("this is the response", response)
+@app.get("/projects")
+async def get_projects(status: Optional[str] = None):
+    query = supabase.table("projects").select("*")
+    if status:
+        query = query.neq("status", status)
+    response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get project by id
 @app.get("/projects/{project_id}", response_model=ProjectBase)
 async def get_project(project_id: str):
-    response = supabase.table("projects").select("*").eq("id", project_id).execute()
+    query = supabase.table("projects").select("*").eq("id", project_id)
+    response = query.execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Project not found")
     return response.data[0]
 
-#create project
 @app.post("/projects", response_model=ProjectBase)
 async def create_project(project: ProjectBase):
     project_data = project.dict()
-    print('this is project data', project_data)
+    
     if not project_data.get("id"):
         project_data["id"] = generate_id()
     
-    project_data = convert_datetimes_to_strings(project_data)
+    now = get_current_timestamp()
+    project_data["created_at"] = now
     
     response = supabase.table("projects").insert(project_data).execute()
     if not response.data:
@@ -166,7 +155,6 @@ async def create_project(project: ProjectBase):
     
     return response.data[0]
 
-#update project
 @app.put("/projects/{project_id}", response_model=ProjectBase)
 async def update_project(project_id: str, project: ProjectBase):
     # Verify the project exists
@@ -182,7 +170,6 @@ async def update_project(project_id: str, project: ProjectBase):
     
     return response.data[0]
 
-#delete project
 @app.delete("/projects/{project_id}")
 async def delete_project(project_id: str):
     # Verify the project exists
@@ -194,20 +181,21 @@ async def delete_project(project_id: str):
     return {"message": "Project deleted successfully"}
 
 # Tasks
-#get all tasks
-@app.get("/tasks", response_model=List[TaskBase])
+@app.get("/tasks")
 async def get_tasks(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("tasks").select("*")
+    
     if project_id:
         query = query.eq("project_id", project_id)
+    
     if employee_id:
         query = query.eq("employee_id", employee_id)
+
     response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get task by id
 @app.get("/tasks/{task_id}", response_model=TaskBase)
 async def get_task(task_id: str):
     response = supabase.table("tasks").select("*").eq("id", task_id).execute()
@@ -215,16 +203,12 @@ async def get_task(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
     return response.data[0]
 
-#create task
 @app.post("/tasks", response_model=TaskBase)
 async def create_task(task: TaskBase):
     task_data = task.dict()
-    print("this is the task data", task_data)
+    
     if not task_data.get("id"):
         task_data["id"] = generate_id()
-    
-    # Convert all datetime objects to ISO strings
-    task_data = convert_datetimes_to_strings(task_data)
     
     now = get_current_timestamp()
     task_data["created_at"] = now
@@ -235,9 +219,8 @@ async def create_task(task: TaskBase):
     
     return response.data[0]
 
-#update task
-@app.put("/tasks/{task_id}", response_model=TaskBase)
-async def update_task(task_id: str, task: TaskBase):
+@app.put("/tasks/{task_id}")
+async def update_task(task_id: str, task: Union[TaskBase, TaskStatusUpdate]):
     # Verify the task exists
     check_response = supabase.table("tasks").select("*").eq("id", task_id).execute()
     if not check_response.data:
@@ -245,16 +228,29 @@ async def update_task(task_id: str, task: TaskBase):
     
     task_data = task.dict(exclude_unset=True)
     
-    # Convert all datetime objects to ISO strings
-    task_data = convert_datetimes_to_strings(task_data)
-    
     response = supabase.table("tasks").update(task_data).eq("id", task_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update task")
     
     return response.data[0]
 
-#delete task
+@app.put("/tasks/{task_id}/status")
+async def update_task_status(task_id: str, status: str):
+    # Verify the task exists
+    check_response = supabase.table("tasks").select("*").eq("id", task_id).execute()
+    if not check_response.data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    update_data = {
+        "status": status,
+    }
+    
+    response = supabase.table("tasks").update(update_data).eq("id", task_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=400, detail="Failed to update task status")
+    
+    return response.data[0]
+
 @app.delete("/tasks/{task_id}")
 async def delete_task(task_id: str):
     # Verify the task exists
@@ -266,20 +262,18 @@ async def delete_task(task_id: str):
     return {"message": "Task deleted successfully"}
 
 # Notes
-#get all notes
-@app.get("/notes", response_model=List[NoteBase])
+@app.get("/notes")
 async def get_notes(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("notes").select("*")
+    
     if project_id:
         query = query.eq("project_id", project_id)
-    if employee_id:
-        query = query.eq("employee_id", employee_id)
+    
     response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get notes by id
 @app.get("/notes/{note_id}", response_model=NoteBase)
 async def get_note(note_id: str):
     response = supabase.table("notes").select("*").eq("id", note_id).execute()
@@ -287,22 +281,22 @@ async def get_note(note_id: str):
         raise HTTPException(status_code=404, detail="Note not found")
     return response.data[0]
 
-#create note
 @app.post("/notes", response_model=NoteBase)
 async def create_note(note: NoteBase):
     note_data = note.dict()
-    # print("this is the note data", note_data)
+    
     if not note_data.get("id"):
         note_data["id"] = generate_id()
-    note_data = convert_datetimes_to_strings(note_data)
-    print("this is the note data", note_data)
+    
+    now = get_current_timestamp()
+    note_data["created_at"] = now
+    
     response = supabase.table("notes").insert(note_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create note")
     
     return response.data[0]
 
-#update note
 @app.put("/notes/{note_id}", response_model=NoteBase)
 async def update_note(note_id: str, note: NoteBase):
     # Verify the note exists
@@ -318,7 +312,6 @@ async def update_note(note_id: str, note: NoteBase):
     
     return response.data[0]
 
-#delete note
 @app.delete("/notes/{note_id}")
 async def delete_note(note_id: str):
     # Verify the note exists
@@ -330,20 +323,21 @@ async def delete_note(note_id: str):
     return {"message": "Note deleted successfully"}
 
 # Events
-#get all events
-@app.get("/events", response_model=List[EventBase])
+@app.get("/events")
 async def get_events(project_id: Optional[str] = None, employee_id: Optional[str] = None):
     query = supabase.table("events").select("*")
+    
     if project_id:
         query = query.eq("project_id", project_id)
+    
     if employee_id:
         query = query.eq("employee_id", employee_id)
+    
     response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get event by id
 @app.get("/events/{event_id}", response_model=EventBase)
 async def get_event(event_id: str):
     response = supabase.table("events").select("*").eq("id", event_id).execute()
@@ -351,29 +345,14 @@ async def get_event(event_id: str):
         raise HTTPException(status_code=404, detail="Event not found")
     return response.data[0]
 
-#get event by month
-@app.get("/events/by-month/{year}/{month}", response_model=List[EventBase])
-async def get_events_by_month(year: int, month: int):
-    query = supabase.table("events").select("*").eq(
-        "extract(year from due_date::timestamp)", year
-    ).eq(
-        "extract(month from due_date::timestamp)", month
-    )
-    
-    response = query.execute()
-    if response.data is None:
-        return []   
-
-#create event
 @app.post("/events", response_model=EventBase)
 async def create_event(event: EventBase):
     event_data = event.dict()
-    print("this is the event data", event_data)
+    
     if not event_data.get("id"):
         event_data["id"] = generate_id()
     
-    # Convert all datetime objects to ISO strings
-    event_data = convert_datetimes_to_strings(event_data)
+    event_data = convert_datetime_to_string(event_data)
     
     response = supabase.table("events").insert(event_data).execute()
     if not response.data:
@@ -381,26 +360,19 @@ async def create_event(event: EventBase):
     
     return response.data[0]
 
-#update event
 @app.put("/events/{event_id}", response_model=EventBase)
 async def update_event(event_id: str, event: EventBase):
     # Verify the event exists
     check_response = supabase.table("events").select("*").eq("id", event_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Event not found")
-    
-    event_data = event.dict(exclude_unset=True)
-    print("this is the event data", event_data)
-    # Convert all datetime objects to ISO strings
-    event_data = convert_datetimes_to_strings(event_data)
-    
+    event_data = convert_datetime_to_string(event.dict(exclude_unset=True))
     response = supabase.table("events").update(event_data).eq("id", event_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update event")
     
     return response.data[0]
 
-#delete event
 @app.delete("/events/{event_id}")
 async def delete_event(event_id: str):
     # Verify the event exists
@@ -412,21 +384,25 @@ async def delete_event(event_id: str):
     return {"message": "Event deleted successfully"}
 
 # Reminders
-#get all reminders  
-@app.get("/reminders", response_model=List[ReminderBase])
-async def get_reminders(project_id: Optional[str] = None, employee_id: Optional[str] = None):
+@app.get("/reminders")
+async def get_reminders(project_id: Optional[str] = None, employee_id: Optional[str] = None, status: Optional[str] = None):
     query = supabase.table("reminders").select("*")
+    
     if project_id:
         query = query.eq("project_id", project_id)
     if employee_id:
         query = query.eq("employee_id", employee_id)
+    if status:
+        if status == "false":
+            query = query.eq("status", False)
+        else:
+            query = query.eq("status", True)
+    
     response = query.execute()
-    # print("this is the response", response)
     if response.data is None:
         return []
     return response.data
 
-#get reminder by id
 @app.get("/reminders/{reminder_id}", response_model=ReminderBase)
 async def get_reminder(reminder_id: str):
     response = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
@@ -434,7 +410,6 @@ async def get_reminder(reminder_id: str):
         raise HTTPException(status_code=404, detail="Reminder not found")
     return response.data[0]
 
-#create reminder
 @app.post("/reminders", response_model=ReminderBase)
 async def create_reminder(reminder: ReminderBase):
     reminder_data = reminder.dict()
@@ -442,31 +417,30 @@ async def create_reminder(reminder: ReminderBase):
     if not reminder_data.get("id"):
         reminder_data["id"] = generate_id()
     
-    response_data = convert_datetimes_to_strings(reminder_data)
+    now = get_current_timestamp()
+    reminder_data["created_at"] = now
     
-    response = supabase.table("reminders").insert(response_data).execute()
+    response = supabase.table("reminders").insert(reminder_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create reminder")
     
     return response.data[0]
 
-#update reminder
 @app.put("/reminders/{reminder_id}", response_model=ReminderBase)
-async def update_reminder(reminder_id: str, reminder: dict):
+async def update_reminder(reminder_id: str, reminder: ReminderBase):
     # Verify the reminder exists
     check_response = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
     
-    reminder_data = reminder
-    # print("this is the reminder data", reminder_data)
+    reminder_data = reminder.dict(exclude_unset=True)
+    
     response = supabase.table("reminders").update(reminder_data).eq("id", reminder_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update reminder")
     
     return response.data[0]
 
-#delete reminder
 @app.delete("/reminders/{reminder_id}")
 async def delete_reminder(reminder_id: str):
     # Verify the reminder exists
@@ -478,21 +452,18 @@ async def delete_reminder(reminder_id: str):
     return {"message": "Reminder deleted successfully"}
 
 # Files
-#get all files
 @app.get("/files", response_model=List[FileBase])
-async def get_files(project_id: Optional[str] = None, employee_id: Optional[str] = None):
+async def get_files(project_id: Optional[str] = None):
     query = supabase.table("files").select("*")
     
     if project_id:
         query = query.eq("project_id", project_id)
-    if employee_id:
-        query = query.eq("employee_id", employee_id)
+    
     response = query.execute()
     if response.data is None:
         return []
     return response.data
 
-#get file by id
 @app.get("/files/{file_id}", response_model=FileBase)
 async def get_file(file_id: str):
     response = supabase.table("files").select("*").eq("id", file_id).execute()
@@ -500,124 +471,51 @@ async def get_file(file_id: str):
         raise HTTPException(status_code=404, detail="File not found")
     return response.data[0]
 
-#upload file
 @app.post("/files")
-async def upload_file(
-    file: UploadFile = File(...),
-    project_id: Optional[str] = Form(None)
-):
-    # Generate a unique file name
-    file_id = generate_id()
-    file_extension = os.path.splitext(file.filename)[1]
-    storage_filename = f"{file_id}{file_extension}"
-    
-    # Read file content
-    file_content = await file.read()
-    
-    # Upload file to Google Drive
-    drive_service = get_google_drive_service()
-    media = MediaIoBaseUpload(
-        io.BytesIO(file_content),
-        mimetype=file.content_type,
-        resumable=True
-    )
-    
-    file_metadata = {
-        'name': storage_filename,
-        'mimeType': file.content_type,
-        'parents': [GOOGLE_DRIVE_FOLDER_ID]  # Specify folder ID to upload to
-    }
-    
-    # Upload to Google Drive
-    drive_file = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields='id,webViewLink'
-    ).execute()
-    
-    # Set file permissions to anyone with the link can view
-    drive_service.permissions().create(
-        fileId=drive_file['id'],
-        body={'type': 'anyone', 'role': 'reader'},
-        fields='id'
-    ).execute()
-    
-    # Create file record in database
-    file_data = {
-        "id": file_id,
-        "name": file.filename,
-        "file_path": drive_file['webViewLink'],
-        "file_type": file.content_type,
-        "size": len(file_content),
-        "project_id": project_id,
-        "uploaded_at": get_current_timestamp(),
-        "drive_file_id": drive_file['id']
-    }
-    
+async def upload_file(file: FileBase):
+    file_data = file.dict()
+    file_data["id"] = generate_id()
     response = supabase.table("files").insert(file_data).execute()
-    if not response.data:
-        # Attempt to delete the uploaded file if database insert fails
-        drive_service.files().delete(fileId=drive_file['id']).execute()
-        raise HTTPException(status_code=400, detail="Failed to create file record")
-    
     return response.data[0]
 
-#delete file
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: str):
     # Get file info
-    response = supabase.table("files").select("*").eq("id", file_id).execute()
-    if not response.data:
+    check_response = supabase.table("files").delete("*").eq("id", file_id).execute()
+    if not check_response.data:
         raise HTTPException(status_code=404, detail="File not found")
-    
-    file_info = response.data[0]
-    
-    # Delete from Google Drive
-    if "drive_file_id" in file_info:
-        try:
-            drive_service = get_google_drive_service()
-            drive_service.files().delete(fileId=file_info["drive_file_id"]).execute()
-        except Exception as e:
-            # Continue with deletion even if Drive removal fails
-            pass
-    
-    # Delete from database
-    response = supabase.table("files").delete().eq("id", file_id).execute()
     return {"message": "File deleted successfully"}
 
-#get all employees
+# Employees
+# Get all employees
 @app.get("/employees", response_model=List[EmployeeBase])
 async def get_employees():
     response = supabase.table("employees").select("*").execute()
-    if response.data is None:
-        return []
     return response.data
 
-#add employee
-@app.post("/employees", response_model=EmployeeBase)
-async def add_employee(employee: EmployeeBase):
-    employee_data = employee.dict()
-    response = supabase.table("employees").insert(employee_data).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Failed to add employee")
+# Get employee by ID
+@app.get("/employees/{employee_id}", response_model=EmployeeBase)
+async def get_employee(employee_id: str):
+    response = supabase.table("employees").select("*").eq("id", employee_id).execute()
     return response.data[0]
 
-#delete employee
+# Create employee
+@app.post("/employees", response_model=EmployeeBase)
+async def create_employee(employee: EmployeeBase):
+    response = supabase.table("employees").insert(employee.dict()).execute()
+    return response.data[0]
+
+# Update employee
+@app.put("/employees/{employee_id}", response_model=EmployeeBase)
+async def update_employee(employee_id: str, employee: EmployeeBase):
+    response = supabase.table("employees").update(employee.dict()).eq("id", employee_id).execute()
+    return response.data[0]
+
+# Delete employee
 @app.delete("/employees/{employee_id}")
 async def delete_employee(employee_id: str):
     response = supabase.table("employees").delete().eq("id", employee_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Failed to delete employee")
     return {"message": "Employee deleted successfully"}
-
-#update employee
-@app.put("/employees/{employee_id}", response_model=EmployeeBase)
-async def update_employee(employee_id: str, employee: EmployeeBase):
-    employee_data = employee.dict(exclude_unset=True)
-    response = supabase.table("employees").update(employee_data).eq("id", employee_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Failed to update employee")
-    return response.data[0]
 
 # Run the application with uvicorn
 if __name__ == "__main__":

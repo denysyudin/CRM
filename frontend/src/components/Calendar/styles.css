@@ -213,4 +213,40 @@
     height: 28px;
     font-size: 0.7rem;
   }
+}
+
+.mui-calendar-container {
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.mui-calendar-container h2 {
+  color: #000000 !important;
+  margin-bottom: 12px;
+  padding-top: 12px;
+}
+
+.mui-calendar {
+  color: #000000 !important;
+}
+
+/* Make all calendar text black */
+.MuiPickersDay-root,
+.MuiTypography-root {
+  color: #000000 !important;
+}
+
+/* Day number color */
+.MuiPickersDay-root {
+  color: #000000 !important;
+}
+
+/* Month header text */
+.MuiPickersCalendarHeader-label {
+  color: #000000 !important;
+}
+
+/* Weekday labels */
+.MuiDayCalendar-weekDayLabel {
+  color: #000000 !important;
 } 

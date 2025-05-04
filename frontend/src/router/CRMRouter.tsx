@@ -1,34 +1,32 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Dashboard from '../pages/Dashboard/Dashboard';
-import Tasks from '../pages/Tasks/Tasks';
-import Notes from '../pages/Notes/Notes';
-import Reminders from '../pages/Reminders/Reminders';
-import Sidebar from '../components/Sidebar/Sidebar.jsx';
-import '../styles/Layout.css';
+import Dashboard from '../screens/Dashboard';
+import Tasks from '../screens/TaskDashboard';
+import Notes from '../screens/Notes';
+import Reminders from '../screens/Reminders';
+import FileManager from '../screens/FileManager';
+import Projects from '../screens/Projects';
+import Employees from '../screens/Employee';
+import Calendar from '../screens/Calendar';
 
-const Router: React.FC = () => {
+const CRMRouter: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
-
-  const toggleSidebar = (): void => {
-    setSidebarOpen(!sidebarOpen);
-  };
 
   return (
     <BrowserRouter>
       <div className="app-container">
-        <Sidebar 
-          isOpen={sidebarOpen} 
-          toggleSidebar={toggleSidebar} 
-          activePath={window.location.pathname}
-        />
         <main className={`main-content ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/calendar" element={<Calendar />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/reminders" element={<Reminders />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/employee" element={<Employees />} />
+            <Route path="/files" element={<FileManager />} />
+            <Route path="/settings"  />
           </Routes>
         </main>
       </div>
@@ -36,4 +34,4 @@ const Router: React.FC = () => {
   );
 };
 
-export default Router; 
+export default CRMRouter; 

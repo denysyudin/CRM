@@ -5,10 +5,12 @@ export interface Task {
   status: string;
   priority: string;
   due_date: string;
-  employee_id: string | null;
+  employee_id?: string | null;
   description?: string;
   project_id?: string;
   category?: string;
+  files?: string[];
+  next_checkin_date?: string | null;
 }
 
 // Task creation/update payload types

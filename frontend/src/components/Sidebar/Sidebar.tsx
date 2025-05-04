@@ -7,10 +7,11 @@ import './styles.css';
 
 interface Props {
   isOpen?: boolean;
-  onToggle?: () => void;
+  activePath?: string;
+  toggleSidebar?: () => void;
 }
 
-const Sidebar: React.FC<Props> = ({ isOpen = true, onToggle }) => {
+const Sidebar: React.FC<Props> = ({ isOpen = true, activePath, toggleSidebar }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
@@ -38,15 +39,15 @@ const Sidebar: React.FC<Props> = ({ isOpen = true, onToggle }) => {
     navigate('/reminders');
     
     // Close sidebar on mobile after navigation
-    if (isMobile && onToggle) {
-      onToggle();
+    if (isMobile && toggleSidebar) {
+      toggleSidebar();
     }
   };
 
   // Close sidebar when clicking on a nav item on mobile
   const handleNavClick = () => {
-    if (isMobile && onToggle) {
-      onToggle();
+    if (isMobile && toggleSidebar) {
+      toggleSidebar();
     }
   };
 
@@ -101,7 +102,7 @@ const Sidebar: React.FC<Props> = ({ isOpen = true, onToggle }) => {
           </Link>
         </li>
         <li>
-          <Link to="/settings" className={path === '/settings' ? 'active' : ''} onClick={handleNavClick}>
+          <Link to="/#" className={path === '/settings' ? 'active' : ''} onClick={handleNavClick}>
             <span className="nav-icon">⚙️</span> Settings
           </Link>
         </li>

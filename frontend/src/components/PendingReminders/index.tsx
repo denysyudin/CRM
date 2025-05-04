@@ -1,59 +1,105 @@
 import React, { useEffect, useState } from 'react';
-import './styles.css';
-
-interface Reminder {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  priority: 'High' | 'Medium' | 'Low';
-}
+import { 
+  Box, 
+  Typography, 
+  Paper, 
+  Chip, 
+  List, 
+  ListItem, 
+  Divider,
+  Stack,
+  CircularProgress
+} from '@mui/material';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import { useGetPendingRemindersQuery } from '../../redux/api/remindersApi';
 
 const PendingReminders: React.FC = () => {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [shouldFetch, setShouldFetch] = useState(false);
+  const { data = [], isLoading, isError } = useGetPendingRemindersQuery(undefined, {
+    skip: !shouldFetch
+  });
 
   useEffect(() => {
-    const fetchReminders = async () => {
-      try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/reminders');
-        const data: Reminder[] = await response.json();
-        const upcomingReminders = data.slice(0, 5).map((reminder: Reminder) => ({
-          ...reminder,
-          date: reminder.date.split('T')[0],
-          time: reminder.date.split('T')[1].slice(0, 5)
-        }));
-        setReminders(upcomingReminders);
-      } catch (error) {
-        console.error('Error fetching reminders:', error);
-      }
-    };
-    fetchReminders();
-  }, []);
+    if (data.length === 0) {
+      setShouldFetch(true);
+    }
+  }, [data]);
+  
+  const getChipColor = (priority: string) => {
+    switch(priority.toLowerCase()) {
+      case 'high': return 'error';
+      case 'medium': return 'warning';
+      case 'low': return 'success';
+      default: return 'default';
+    }
+  }
 
   return (
-    <div className="pending-reminders-container">
-      <h2>
-        <span className="icon">🔔</span>
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        maxWidth: '100%'
+      }}
+    >
+      <Typography 
+        variant="h6" 
+        sx={{ 
+          mb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1
+        }}
+      >
+        <NotificationsIcon color="primary" />
         Pending Reminders
-      </h2>
+      </Typography>
+      <Divider />
       
-      <div className="pending-reminders-list">
-        {reminders.map(reminder => (
-          <div key={reminder.id} className="pending-reminder-item">
-            <div className="pending-reminder-details">
-              <div className="pending-reminder-title">{reminder.title}</div>
-              <div className="pending-reminder-time">
-                {reminder.date}{reminder.time ? `, ${reminder.time}` : ''}
-              </div>
-            </div>
-            <div className={`pending-priority-label ${reminder.priority.toLowerCase()}`}>
-              {reminder.priority}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : isError ? (
+        <Typography variant="body2" color="error" sx={{ p: 2, textAlign: 'center' }}>
+          Failed to load reminders
+        </Typography>
+      ) : data.length === 0 ? (
+        <Typography variant="body2" sx={{ p: 2, textAlign: 'center' }}>
+          No pending reminders found
+        </Typography>
+      ) : (
+        <List sx={{ width: '100%' }}>
+          {data.map((reminder, index) => (
+            <React.Fragment key={reminder.id}>
+              <ListItem 
+                sx={{ 
+                  p: 2,
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Stack spacing={0.5}>
+                  <Typography variant="subtitle1">{reminder.title}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {reminder.due_date.split('T')[0]}
+                  </Typography>
+                </Stack>
+                <Chip 
+                  label={reminder.priority}
+                  color={getChipColor(reminder.priority) as any}
+                  size="small"
+                  sx={{ fontWeight: 500 }}
+                />
+              </ListItem>
+              {index < data.length - 1 && <Divider />}
+            </React.Fragment>
+          ))}
+        </List>
+      )}
+    </Paper>
   );
 };
 
-export default PendingReminders; 
+export default PendingReminders;

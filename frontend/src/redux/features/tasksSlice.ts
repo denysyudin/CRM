@@ -6,13 +6,12 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'todo' | 'in-progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
-  createdAt: string;
-  updatedAt: string;
+  status: string;
+  priority: string;
+  due_date: string;
+  created_at: string;
   project_id?: string; // Added to match API
-  assignee?: string; // Added to match API
+  employee_id?: string; // Added to match API
 }
 
 // Backend to frontend mapping
@@ -21,13 +20,12 @@ const mapBackendTaskToFrontend = (backendTask: any): Task => {
     id: backendTask.id,
     title: backendTask.title,
     description: backendTask.description || '',
-    status: backendTask.status as 'todo' | 'in-progress' | 'completed',
-    priority: backendTask.priority as 'low' | 'medium' | 'high',
-    dueDate: backendTask.due_date,
-    createdAt: backendTask.created_at,
-    updatedAt: backendTask.updated_at,
+    status: backendTask.status as string,
+    priority: backendTask.priority as string,
+    due_date: backendTask.due_date,
+    created_at: backendTask.created_at,
     project_id: backendTask.project_id,
-    assignee: backendTask.assignee
+    employee_id: backendTask.employee_id
   };
 };
 
@@ -38,9 +36,9 @@ const mapFrontendTaskToBackend = (frontendTask: Partial<Task>): any => {
     description: frontendTask.description,
     status: frontendTask.status,
     priority: frontendTask.priority,
-    due_date: frontendTask.dueDate,
+    due_date: frontendTask.due_date,
     project_id: frontendTask.project_id,
-    assignee: frontendTask.assignee
+    employee_id: frontendTask.employee_id
   };
   
   // Remove undefined properties
@@ -145,8 +143,7 @@ const tasksSlice = createSlice({
       const newTask: Task = {
         id: Date.now().toString(),
         ...action.payload,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       };
       state.tasks.push(newTask);
     },
@@ -158,7 +155,6 @@ const tasksSlice = createSlice({
         state.tasks[index] = {
           ...state.tasks[index],
           ...action.payload,
-          updatedAt: new Date().toISOString(),
         };
         
         // If the selected task is being updated, update it as well
@@ -166,7 +162,6 @@ const tasksSlice = createSlice({
           state.selectedTask = {
             ...state.selectedTask,
             ...action.payload,
-            updatedAt: new Date().toISOString(),
           };
         }
       }

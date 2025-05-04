@@ -109,10 +109,19 @@ const Reminders: React.FC = () => {
     
     if (reminder) {
       const status = !reminder.status;
+      const new_reminder = {
+        id,
+        title: reminder.title,
+        due_date: reminder.due_date,
+        priority: reminder.priority,
+        status: status,
+        project_id: reminder.project_id,
+        employee_id: reminder.employee_id
+      }
       // Update in Redux
       dispatch(updateReminder({
         id,
-        reminder: { status }
+        reminder: new_reminder
       }) as any);
       
       // Also update local state immediately for UI responsiveness

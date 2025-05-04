@@ -1,59 +1,89 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Paper, 
+  Typography, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  Chip, 
+  Box, 
+  Divider,
+  CircularProgress
+} from '@mui/material';
+import EventIcon from '@mui/icons-material/Event';
+import { useGetEventsQuery } from '../../redux/api/eventsApi';
 import './styles.css';
 
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  type: 'Meeting' | 'Deadline';
-}
-
 const UpcomingEvents: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [shouldFetch, setShouldFetch] = useState(false);
+  
+  // Use RTK Query with skip option to conditionally fetch
+  const { data: events = [], isLoading, isError } = useGetEventsQuery(undefined, {
+    skip: !shouldFetch
+  });
 
+  // Check if we have events data in the store
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/events');
-        const data: Event[] = await response.json();
-        const upcomingEvents = data.slice(0, 5).map((todo: Event) => ({
-          id: todo.id,
-          title: todo.title,
-          date: todo.date,
-          time: todo.time,
-          type: todo.type,
-        }));
-        setEvents(upcomingEvents);
-      } catch (error) {
-        console.error('Error fetching events:', error);
-      }
-    };
-    fetchEvents();
-  }, []);
+    if (events.length === 0) {
+      setShouldFetch(true);
+    }
+  }, [events]);
+
+  const getChipColor = (type: string) => {
+    return type === 'Meeting' ? 'primary' : 'error';
+  };
 
   return (
-    <div className="events-container">
-      <h2>
-        <span className="icon">📅</span>
-        Upcoming Events
-      </h2>
-      
-      <div className="events-list">
-        {events.map(event => (
-          <div key={event.id} className="event-item">
-            <div className="event-details">
-              <div className="event-title">{event.title}</div>
-              <div className="event-time">{event.date}{event.time ? `, ${event.time}` : ''}</div>
-            </div>
-            <div className={`event-tag ${event.type.toLowerCase()}`}>
-              {event.type}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Paper elevation={0} className="mui-events-container">
+      <Box p={2}>
+        <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={1} gutterBottom>
+          <EventIcon color="primary" /> Upcoming Events
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        
+        {isLoading ? (
+          <Box display="flex" justifyContent="center" p={3}>
+            <CircularProgress />
+          </Box>
+        ) : isError ? (
+          <Typography color="error" align="center">Error loading events</Typography>
+        ) : events.length === 0 ? (
+          <Typography align="center">No upcoming events</Typography>
+        ) : (
+          <List>
+            {events.map((event, index) => (
+              <React.Fragment key={event.id}>
+                <ListItem
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    py: 1.5
+                  }}
+                >
+                  <ListItemText
+                    primary={<Typography color="black">{event.title}</Typography>}
+                    secondary={
+                      <Typography variant="body2" color="text.secondary">
+                        {event.due_date}
+                      </Typography>
+                    }
+                    sx={{ color: 'black' }}
+                  />
+                  <Chip 
+                    label={event.type} 
+                    color={getChipColor(event.type)}
+                    size="small"
+                    sx={{ color: 'black' }}
+                  />
+                </ListItem>
+                {index < events.length - 1 && <Divider />}
+              </React.Fragment>
+            ))}
+          </List>
+        )}
+      </Box>
+    </Paper>
   );
 };
 
-export default UpcomingEvents; 
+export default UpcomingEvents;

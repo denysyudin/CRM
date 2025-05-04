@@ -1,22 +1,9 @@
 import React, { useState, useEffect } from 'react';
-// Initialize FontAwesome library
-import { library } from '@fortawesome/fontawesome-svg-core';
-import {
-  faPlus,
-  faFolder,
-  faUser,
-  faMagnifyingGlass,
-  faChevronRight,
-  faStickyNote,
-  faCalendarAlt,
-  faBuilding,
-  faPaperclip,
-  faPencilAlt,
-  faTrashAlt,
-  faTimes,
-  faBars
-} from '@fortawesome/free-solid-svg-icons';
+// Import only React Icons that are actually used
 import Sidebar from '../../components/Sidebar/Sidebar';
+import { useGetNotesQuery, useUpdateNoteMutation, useCreateNoteMutation, useDeleteNoteMutation } from '../../redux/api/notesApi';
+import { useGetProjectsQuery  } from '../../redux/api/projectsApi';
+import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
 import './styles.css';
 import {
   TextField,
@@ -30,13 +17,15 @@ import {
   InputAdornment,
   createTheme,
   ThemeProvider,
-  CircularProgress
+  Box,
+  Typography,
+  IconButton,
+  Divider,
+  Paper,
+  Grid,
+  Chip,
 } from '@mui/material';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../redux/store';
-import { fetchProjects } from '../../redux/features/projectsSlice';
-import { fetchEmployees } from '../../redux/features/employeesSlice';
-import { fetchNotes, createNote, updateNote, deleteNote, Note as ReduxNote } from '../../redux/features/notesSlice';
+import { Note } from '../../types/note.types';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
@@ -48,58 +37,18 @@ import PersonIcon from '@mui/icons-material/Person';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import BusinessIcon from '@mui/icons-material/Business';
 
-// Add the icons to the library
-library.add(
-  faPlus,
-  faFolder,
-  faUser,
-  faMagnifyingGlass,
-  faChevronRight,
-  faStickyNote,
-  faCalendarAlt,
-  faBuilding,
-  faPaperclip,
-  faPencilAlt,
-  faTrashAlt,
-  faTimes,
-  faBars
-);
-
-// Define local interfaces for UI state
-interface Note extends ReduxNote {} // Use the Redux Note type
-
-interface Project {
-  id: string;
-  name: string;
-  categories: ProjectCategory[];
-}
-
-interface ProjectCategory {
-  id: string;
-  name: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-  avatar?: string;
-}
-
 const Notes: React.FC = () => {
-  const dispatch = useDispatch();
+  // Get data from RTK Query
+  const {data: notes = [], isLoading: notesLoading, isError: notesError} = useGetNotesQuery();
+  const {data: projects = [], isLoading: projectsLoading, isError: projectsError} = useGetProjectsQuery();
+  const {data: employees = [], isLoading: employeesLoading, isError: employeesError} = useGetEmployeesQuery();
   
-  // Get data from Redux store
-  const projects = useSelector((state: RootState) => state.projects?.items || []);
-  const employees = useSelector((state: RootState) => state.employees?.items || []);
-  const notes = useSelector((state: RootState) => state.notes?.items || []);
-  const projectsStatus = useSelector((state: RootState) => state.projects?.status);
-  const employeesStatus = useSelector((state: RootState) => state.employees?.status);
-  const notesStatus = useSelector((state: RootState) => state.notes?.status);
-  const projectsError = useSelector((state: RootState) => state.projects?.error);
-  const employeesError = useSelector((state: RootState) => state.employees?.error);
-  const notesError = useSelector((state: RootState) => state.notes?.error);
+  // RTK Query mutation hooks
+  const [updateNoteMutation] = useUpdateNoteMutation();
+  const [createNoteMutation] = useCreateNoteMutation();
+  const [deleteNoteMutation] = useDeleteNoteMutation();
   
-  const isLoading = projectsStatus === 'loading' || employeesStatus === 'loading' || notesStatus === 'loading';
+  const isLoading = notesLoading || projectsLoading || employeesLoading;
 
   // State for currently selected items
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -115,7 +64,7 @@ const Notes: React.FC = () => {
     title: '',
     description: '',
     project_id: '',
-    employee_id: '', // Will be set to current user
+    employee_id: '',
     created_at: new Date().toISOString(),
     files: '',
   });
@@ -123,47 +72,18 @@ const Notes: React.FC = () => {
 
   // Fetch data from the backend when component mounts
   useEffect(() => {
-    dispatch(fetchProjects() as any);
-    dispatch(fetchEmployees() as any);
-    dispatch(fetchNotes(undefined) as any);
-  }, [dispatch]);
 
-  // Set default selections after data is loaded
-  useEffect(() => {
-    if (projects.length > 0 && selectedProject === "") {
-      setSelectedProject(projects[0].id);
-    }
-    
-    if (employees.length > 0 && selectedEmployee === "") {
-      // Find the current user (you could have a way to identify the current user)
-      const currentUser = employees.find((emp: Employee) => emp.id === 'user-1') || employees[0];
-      setSelectedEmployee(currentUser.id);
-      
-      // Also set the current user as the creator for new notes
-      setNewNote(prev => ({
-        ...prev,
-        createdBy: currentUser.id
-      }));
-    }
-  }, [projects, employees]);
-
-  // Effect to filter notes based on project when project selection changes
-  useEffect(() => {
-    if (selectedProject) {
-      dispatch(fetchNotes(selectedProject) as any);
-    } else {
-      dispatch(fetchNotes(undefined) as any);
-    }
-  }, [selectedProject, dispatch]);
+    // Removed previous get call that was causing an error
+  }, [deleteConfirm]);
 
   // Filter notes based on selections and search term
-  const filteredNotes = notes.filter(note => {
+  const filteredNotes = notes.filter((note: Note) => {
     const matchesProject = selectedProject ? note.project_id === selectedProject : true;
     const matchesCategory = selectedCategory ? note.category === selectedCategory : true;
     const matchesEmployee = selectedEmployee ? note.employee_id === selectedEmployee : true;
     const matchesSearch = searchTerm
       ? note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.description.toLowerCase().includes(searchTerm.toLowerCase())
+      (note.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
       : true;
 
     return matchesProject && matchesCategory && matchesEmployee && matchesSearch;
@@ -180,7 +100,7 @@ const Notes: React.FC = () => {
         description: '',
         project_id: selectedProject || '',
         category: selectedCategory || '',
-        employee_id: selectedEmployee || '', // Use selected employee as default creator
+        employee_id: selectedEmployee || '',
         created_at: new Date().toISOString(),
         files: ''
       });
@@ -215,22 +135,29 @@ const Notes: React.FC = () => {
     try {
       if (editMode && newNote.id) {
         // Update existing note
-        await dispatch(updateNote({
+        await updateNoteMutation({
           id: newNote.id,
-          note: newNote
-        }) as any);
+          ...newNote
+        });
         
         if (selectedNote?.id === newNote.id) {
           setSelectedNote(newNote as Note);
         }
       } else {
         // Add new note
-        await dispatch(createNote(newNote as Omit<Note, 'id'>) as any);
+        const noteData = {
+          title: newNote.title || '',
+          description: newNote.description || '',
+          project_id: newNote.project_id || '',
+          category: newNote.category,
+          employee_id: newNote.employee_id || '',
+          created_at: newNote.created_at || new Date().toISOString(),
+          files: newNote.files
+        };
+        await createNoteMutation(noteData);
       }
   
       handleCloseModal();
-      // Refresh notes list
-      dispatch(fetchNotes(selectedProject || undefined) as any);
     } catch (error) {
       console.error('Error saving note:', error);
       alert('Failed to save note. Please try again.');
@@ -241,11 +168,9 @@ const Notes: React.FC = () => {
   const handleDeleteNote = async () => {
     if (selectedNote?.id) {
       try {
-        await dispatch(deleteNote(selectedNote.id) as any);
+        await deleteNoteMutation(selectedNote.id);
         setSelectedNote(null);
         setDeleteConfirm(false);
-        // Refresh notes list
-        dispatch(fetchNotes(selectedProject || undefined) as any);
       } catch (error) {
         console.error('Error deleting note:', error);
         alert('Failed to delete note. Please try again.');
@@ -261,14 +186,14 @@ const Notes: React.FC = () => {
 
   // Find project name by ID
   const getProjectNameById = (id: string) => {
-    const project = projects.find((p: Project) => p.id === id);
-    return project ? project.name : '';
+    const project = projects.find((p) => p.id === id);
+    return project ? project.title : '';
   };
 
   // Find category name by ID
   const getCategoryNameById = (id: string) => {
     for (const project of projects) {
-      const category = project.categories.find(c => c.id === id);
+      const category = project.categories?.find((c: any) => c.id === id);
       if (category) return category.name;
     }
     return '';
@@ -281,20 +206,18 @@ const Notes: React.FC = () => {
   };
 
   // Find available categories for selected project
-  const getAvailableCategoriesForProject = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    return project ? project.categories : [];
-  };
+  // const getAvailableCategoriesForProject = (projectId: string) => {
+  //   const project = projects.find(p => p.id === projectId);
+  //   return project?.categories || [];
+  // };
 
   // Clear all filters
-  const clearAllFilters = () => {
-    setSelectedProject('');
-    setSelectedCategory('');
-    setSelectedEmployee('');
-    setSearchTerm('');
-    // Fetch all notes when filters are cleared
-    dispatch(fetchNotes(undefined) as any);
-  };
+  // const clearAllFilters = () => {
+  //   setSelectedProject('');
+  //   setSelectedCategory('');
+  //   setSelectedEmployee('');
+  //   setSearchTerm('');
+  // };
 
   // Helper functions
   const formatDate = (date: string): string => {
@@ -334,13 +257,28 @@ const Notes: React.FC = () => {
     },
   });
 
+  // Modal style
+  const modalStyle = {
+    position: 'absolute' as 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 600,
+    bgcolor: 'background.paper',
+    boxShadow: 24,
+    p: 4,
+    borderRadius: 2,
+  };
+
   // Display loading state
   if (isLoading) {
     return (
       <div className="dashboard-container">
-        <Sidebar />
+        <div className='sidebar'>
+          <Sidebar />
+        </div>
         <div className="dashboard-main-content loading-container">
-          <CircularProgress />
+          
           <p>Loading data...</p>
         </div>
       </div>
@@ -357,9 +295,8 @@ const Notes: React.FC = () => {
           <Button 
             variant="contained" 
             onClick={() => {
-              dispatch(fetchProjects() as any);
-              dispatch(fetchEmployees() as any);
-              dispatch(fetchNotes(undefined) as any);
+              // Refresh page to retry loading data
+              window.location.reload();
             }}
           >
             Retry
@@ -371,8 +308,10 @@ const Notes: React.FC = () => {
 
   return (
     <ThemeProvider theme={darkTextTheme}>
-      <div className="dashboard-container">
-        <Sidebar />
+      <div className="app-container">
+        <div className='sidebar'>
+          <Sidebar />
+        </div>
         <div className="dashboard-main-content">
           <div className="notes-layout">
             {/* Main Content */}
@@ -404,7 +343,7 @@ const Notes: React.FC = () => {
                       </MenuItem>
                       {projects.map((project) => (
                         <MenuItem key={project.id} value={project.id}>
-                          <FolderIcon className="menu-icon" /> {project.name}
+                          <FolderIcon className="menu-icon" /> {project.title}
                         </MenuItem>
                       ))}
                     </Select>
@@ -474,28 +413,37 @@ const Notes: React.FC = () => {
                 <div className="notes-list">
                   {filteredNotes.length > 0 ? (
                     filteredNotes.map(note => (
-                      <div
+                      <Paper
                         key={note.id}
                         className={`note-item ${selectedNote?.id === note.id ? 'active' : ''}`}
                         onClick={() => setSelectedNote(note)}
+                        elevation={selectedNote?.id === note.id ? 3 : 1}
+                        sx={{ p: 2, mb: 2, cursor: 'pointer' }}
                       >
-                        <h3 className="note-item-title">{note.title}</h3>
-                        <p>{note.description.substring(0, 100)}...</p>
-                        <div className="note-item-meta">
-                          <span className="note-item-date">{formatDate(note.created_at)}</span>
+                        <Typography variant="h6" className="note-item-title">{note.title}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {note.description?.substring(0, 100) || ''}...
+                        </Typography>
+                        <Box className="note-item-meta" sx={{ display: 'flex', mt: 1, justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="caption" className="note-item-date">
+                            {formatDate(note.created_at)}
+                          </Typography>
                           {note.category && (
-                            <span className="note-item-category-tag">
-                              {getCategoryNameById(note.category)}
-                            </span>
+                            <Chip 
+                              size="small"
+                              label={getCategoryNameById(note.category)}
+                              color="primary" 
+                              variant="outlined"
+                            />
                           )}
-                        </div>
-                      </div>
+                        </Box>
+                      </Paper>
                     ))
                   ) : (
-                    <div className="note-item-empty">
-                      <NoteIcon />
-                      <p>No notes found</p>
-                    </div>
+                    <Box sx={{ textAlign: 'center', mt: 4 }}>
+                      <NoteIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5 }} />
+                      <Typography color="text.secondary">No notes found</Typography>
+                    </Box>
                   )}
                 </div>
               </div>
@@ -506,129 +454,179 @@ const Notes: React.FC = () => {
               open={isModalOpen}
               onClose={handleCloseModal}
             >
-              <div className="modal-overlay">
-                <div className="modal-container">
-                  <div className="modal-header">
-                    <h2>{editMode ? 'Edit Note' : 'New Note'}</h2>
-                    <button className="close-button" onClick={handleCloseModal}>
-                      <CloseIcon />
-                    </button>
-                  </div>
+              <Box sx={modalStyle}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">{editMode ? 'Edit Note' : 'New Note'}</Typography>
+                  <IconButton onClick={handleCloseModal} size="small">
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+                
+                <Divider sx={{ mb: 3 }} />
 
-                  <div className="form-group">
-                    <label>Title <span className="required">*</span></label>
-                    <input
-                      type="text"
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Title"
                       name="title"
                       value={newNote.title || ''}
                       onChange={handleInputChange}
                       placeholder="Enter note title"
+                      variant="outlined"
+                      size="small"
                     />
-                  </div>
+                  </Grid>
 
-                  <div className="form-group">
-                    <label>Content <span className="required">*</span></label>
-                    <textarea
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Content"
                       name="description"
                       value={newNote.description || ''}
                       onChange={handleInputChange}
                       placeholder="Enter note content"
+                      variant="outlined"
+                      multiline
                       rows={8}
-                    ></textarea>
-                  </div>
+                    />
+                  </Grid>
 
-                  <div className="form-group">
-                    <label>Project <span className="required">*</span></label>
-                    <select
-                      name="project_id"
-                      value={newNote.project_id || ''}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select a project</option>
-                      {projects.map(project => (
-                        <option key={project.id} value={project.id}>
-                          {project.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {newNote.project_id && (
-                    <div className="form-group">
-                      <label>Category</label>
-                      <select
-                        name="category"
-                        value={newNote.category || ''}
+                  <Grid item xs={12}>
+                    <FormControl fullWidth required size="small">
+                      <InputLabel id="project-label">Project</InputLabel>
+                      <Select
+                        labelId="project-label"
+                        name="project_id"
+                        value={newNote.project_id || ''}
                         onChange={handleInputChange}
+                        label="Project"
                       >
-                        <option value="">Select a category</option>
-                        {getAvailableCategoriesForProject(newNote.project_id).map(category => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
+                        <MenuItem value="">
+                          <em>Select a project</em>
+                        </MenuItem>
+                        {projects.map(project => (
+                          <MenuItem key={project.id} value={project.id}>
+                            {project.title}
+                          </MenuItem>
                         ))}
-                      </select>
-                    </div>
-                  )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
 
-                  <div className="form-actions">
-                    <button
-                      className="form-button button-secondary"
-                      onClick={handleCloseModal}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="form-button button-primary"
-                      onClick={handleSaveNote}
-                    >
-                      {editMode ? 'Update Note' : 'Save Note'}
-                    </button>
-                  </div>
-                </div>
-              </div>
+                  {/* {newNote.project_id && (
+                    <Grid item xs={12}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel id="category-label">Category</InputLabel>
+                        <Select
+                          labelId="category-label"
+                          name="category"
+                          value={newNote.category || ''}
+                          onChange={handleInputChange}
+                          label="Category"
+                        >
+                          <MenuItem value="">
+                            <em>Select a category</em>
+                          </MenuItem>
+                          {getAvailableCategoriesForProject(newNote.project_id).map(category => (
+                            <MenuItem key={category.id} value={category.id}>
+                              {category.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  )} */}
+                </Grid>
+
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleCloseModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSaveNote}
+                  >
+                    {editMode ? 'Update Note' : 'Save Note'}
+                  </Button>
+                </Box>
+              </Box>
             </Modal>
 
             {/* Note Detail View */}
             {selectedNote && (
-              <div className="note-detail-panel">
-                <div className="note-view-header">
-                  <h2 className="note-view-title">{selectedNote.title}</h2>
-                  <div className="note-view-meta">
-                    <span><CalendarTodayIcon className="icon" /> {formatDate(selectedNote.created_at)}</span>
-                    <span><BusinessIcon className="icon" /> {getProjectNameById(selectedNote.project_id)}</span>
+              <Paper className="note-detail-panel" elevation={2} sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <Typography variant="h5" gutterBottom>
+                    {selectedNote.title}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <CalendarTodayIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      <Typography variant="body2">{formatDate(selectedNote.created_at)}</Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <BusinessIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      <Typography variant="body2">{getProjectNameById(selectedNote.project_id || '')}</Typography>
+                    </Box>
+                    
                     {selectedNote.category && (
-                      <span className="tag">{getCategoryNameById(selectedNote.category)}</span>
+                      <Chip 
+                        size="small" 
+                        label={getCategoryNameById(selectedNote.category)}
+                        color="primary"
+                      />
                     )}
-                    <span><PersonIcon className="icon" /> {getEmployeeNameById(selectedNote.employee_id)}</span>
-                  </div>
-                </div>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <PersonIcon fontSize="small" sx={{ mr: 0.5 }} />
+                      <Typography variant="body2">{getEmployeeNameById(selectedNote.employee_id || '')}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
 
-                <div className="note-view-body">
-                  <p>{selectedNote.description}</p>
-                </div>
+                <Divider sx={{ my: 2 }} />
+                
+                <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-wrap' }}>
+                  {selectedNote.description}
+                </Typography>
 
-                <div className="note-view-actions">
-                  <button
-                    className="action-button edit"
+                <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<EditIcon />}
                     onClick={() => handleOpenModal('edit')}
                   >
-                    <EditIcon /> Edit
-                  </button>
-                  <button
-                    className={`action-button delete ${deleteConfirm ? 'confirm' : ''}`}
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteIcon />}
                     onClick={deleteConfirm ? handleDeleteNote : () => setDeleteConfirm(true)}
                   >
-                    <DeleteIcon /> {deleteConfirm ? 'Confirm Delete' : 'Delete'}
-                  </button>
-                  <button
-                    className="action-button cancel"
-                    onClick={() => setSelectedNote(null)}
+                    {deleteConfirm ? 'Confirm Delete' : 'Delete'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<CloseIcon />}
+                    onClick={() => {
+                      setSelectedNote(null);
+                      setDeleteConfirm(false);
+                    }}
                   >
-                    <CloseIcon /> Close
-                  </button>
-                </div>
-              </div>
+                    Close
+                  </Button>
+                </Box>
+              </Paper>
             )}
           </div>
         </div>

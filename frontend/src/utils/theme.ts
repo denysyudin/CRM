@@ -12,9 +12,9 @@ const theme = createTheme({
             default: '#ffffff' // Set the background color of the whole body
         },
         text: {
-            primary: '#ffffff' // Set the overall text color to white
+            primary: '#000000' // Set the overall text color to white
         },
-        border: '#0000' // Set the border color
+        border: '#000000' // Set the border color
     } as CustomPaletteOptions // Cast the palette to the custom palette interface
 });
 

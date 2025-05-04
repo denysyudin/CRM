@@ -1,38 +1,34 @@
-import { configureStore, createSlice } from '@reduxjs/toolkit';
-import remindersReducer from './features/remindersSlice';
-import eventsReducer from './features/eventsSlice';
-import projectsReducer from './features/projectsSlice';
+import { configureStore } from '@reduxjs/toolkit';
 import employeesReducer from './features/employeesSlice';
+import tasksReducer from './features/tasksSlice';
+import eventsReducer from './features/eventsSlice';
+import remindersReducer from './features/remindersSlice';
+import projectsReducer from './features/projectsSlice';
 import notesReducer from './features/notesSlice';
+// import filesReducer from './features/fileSlice';
+import { apiSlice, apiReducer, apiReducerPath, apiMiddleware } from './api/apiSlice';
+// Import the query hooks but not the API itself since we're using injectEndpoints
+import './api/tasksApi';
+import './api/eventsApi';
 
-// Temporary stubs for the task slice until it's properly implemented
-const tasksSlice = createSlice({
-    name: 'tasks',
-    initialState: {
-        tasks: [],
-        selectedTask: null,
-        loading: false,
-        error: null
-    },
-    reducers: {}
-});
-
-const store = configureStore({
+// Configure the store with both traditional reducers and RTK Query
+export const store = configureStore({
     reducer: {
-        tasks: tasksSlice.reducer,
-        notes: notesReducer,
-        reminders: remindersReducer,
+        tasks: tasksReducer,
+        employees: employeesReducer,
         events: eventsReducer,
+        reminders: remindersReducer,
         projects: projectsReducer,
-        employees: employeesReducer
+        notes: notesReducer,
+        // files: filesReducer,
+        [apiReducerPath]: apiReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
             serializableCheck: false
         })
+        .concat(apiMiddleware)
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
-
-export default store;

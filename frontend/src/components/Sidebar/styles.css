@@ -1,12 +1,11 @@
 .sidebar-nav {
-  width: 240px;
+  width: 250px;
   background-color: var(--bg-color, #f8f9fa);
   padding: 25px 15px;
   border-right: 1px solid var(--border-color, #e9ecef);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  height: 100vh;
   position: sticky;
   top: 0;
   z-index: 100;

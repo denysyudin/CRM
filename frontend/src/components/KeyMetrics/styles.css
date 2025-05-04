@@ -9,21 +9,9 @@
 }
 
 .metrics-container h2 {
-  border-bottom: 1px solid #e9ecef;
+  color: #000000 !important;
+  margin-bottom: 12px;
   padding-bottom: 12px;
-  margin: 0 0 20px 0;
-  color: #212529;
-  font-size: 1.2rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.metrics-container h2::before {
-  content: "📊";
-  margin-right: 10px;
-  font-size: 1.3rem;
 }
 
 .metrics-list {
@@ -106,4 +94,18 @@
   .metric-label {
     font-size: 0.75rem;
   }
+}
+
+.mui-metrics-container {
+  margin-bottom: 20px;
+}
+
+/* Override any MUI styles that might use white text */
+.MuiTypography-root {
+  color: #000000 !important;
+}
+
+/* Ensure the avatar text color is preserved as specified */
+.MuiAvatar-root {
+  font-size: 1.2rem;
 } 

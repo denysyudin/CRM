@@ -9,15 +9,15 @@ import {
   selectTask,
   clearSelectedTask
 } from '../redux/features/tasksSlice';
-import { 
-  fetchNotes, 
-  fetchNoteById, 
-  createNote, 
-  updateNoteAsync,
-  deleteNoteAsync,
-  selectNote,
-  clearSelectedNote
-} from '../redux/features/notesSlice';
+// import { 
+//   fetchNotes, 
+//   createNote, 
+//   updateNote,
+//   deleteNote,
+//   selectNote,
+//   clearSelectedNote,
+//   fetchNotesByEmployeeId
+// } from '../redux/features/notesSlice';
 import { 
   selectAllTasks, 
   selectSelectedTask, 
@@ -101,62 +101,62 @@ export const useTasks = () => {
 };
 
 // Custom hooks for Notes
-export const useNotes = () => {
-  const dispatch = useAppDispatch();
-  const notes = useAppSelector(selectAllNotes);
-  const selectedNote = useAppSelector(selectSelectedNote);
-  const loading = useAppSelector(selectNotesLoading);
-  const error = useAppSelector(selectNotesError);
+// export const useNotes = () => {
+//   const dispatch = useAppDispatch();
+//   const notes = useAppSelector(selectAllNotes);
+//   const selectedNote = useAppSelector(selectSelectedNote);
+//   const loading = useAppSelector(selectNotesLoading);
+//   const error = useAppSelector(selectNotesError);
 
-  const loadNotes = (projectId?: string) => {
-    dispatch(fetchNotes(projectId));
-  };
+//   const loadNotes = (projectId?: string) => {
+//     dispatch(fetchNotes(projectId));
+//   };
 
-  const loadNote = (noteId: string) => {
-    dispatch(fetchNoteById(noteId));
-  };
+//   const loadNote = (noteId: string) => {
+//     dispatch(fetchNotesById(noteId));
+//   };
 
-  const addNote = (note: any) => {
-    dispatch(createNote(note));
-  };
+//   const addNote = (note: any) => {
+//     dispatch(createNote(note));
+//   };
 
-  const updateNote = (note: any) => {
-    dispatch(updateNoteAsync(note));
-  };
+//   const updateNote = (note: any) => {
+//     dispatch(updateNoteAsync(note));
+//   };
 
-  const deleteNote = (noteId: string) => {
-    dispatch(deleteNoteAsync(noteId));
-  };
+//   const deleteNote = (noteId: string) => {
+//     dispatch(deleteNoteAsync(noteId));
+//   };
 
-  const setSelectedNote = (noteId: string) => {
-    dispatch(selectNote(noteId));
-  };
+//   const setSelectedNote = (noteId: string) => {
+//     dispatch(selectNote(noteId));
+//   };
 
-  const clearNote = () => {
-    dispatch(clearSelectedNote());
-  };
+//   const clearNote = () => {
+//     dispatch(clearSelectedNote());
+//   };
 
-  const getNotesByProject = (projectId: string) => {
-    return useAppSelector(state => selectNotesByProject(state, projectId));
-  };
+//   const getNotesByProject = (projectId: string) => {
+//     return useAppSelector(state => selectNotesByProject(state, projectId));
+//   };
 
-  const getNotesByEmployee = (employeeId: string) => {
-    return useAppSelector(state => selectNotesByEmployee(state, employeeId));
-  };
+//   const getNotesByEmployee = (employeeId: string) => {
+//     return useAppSelector(state => selectNotesByEmployee(state, employeeId));
+//   };
 
-  return {
-    notes,
-    selectedNote,
-    loading,
-    error,
-    loadNotes,
-    loadNote,
-    addNote,
-    updateNote,
-    deleteNote,
-    setSelectedNote,
-    clearNote,
-    getNotesByProject,
-    getNotesByEmployee
-  };
-}; 
+//   return {
+//     notes,
+//     selectedNote,
+//     loading,
+//     error,
+//     loadNotes,
+//     loadNote,
+//     addNote,
+//     updateNote,
+//     deleteNote,
+//     setSelectedNote,
+//     clearNote,
+//     getNotesByProject,
+//     getNotesByEmployee
+//   };
+// }; 

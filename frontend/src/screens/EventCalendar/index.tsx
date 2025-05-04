@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../redux/store';
-import { fetchEvents, createEvent, updateEvent, deleteEvent } from '../../redux/features/eventsSlice';
-import { Event } from '../../services/api';
-import Sidebar from '../../components/Sidebar/Sidebar';
 import { useMediaQuery } from '@mui/material';
+import { Events } from '../../types/event.types';
+import Sidebar from '../../components/Sidebar/Sidebar';
+import { 
+  useGetEventsQuery, 
+  useCreateEventMutation, 
+  useUpdateEventMutation, 
+  useDeleteEventMutation 
+} from '../../redux/api/eventsApi';
+import { CircularProgress } from '@mui/material';
 import './styles.css';
-
-// Define a CalendarEvent that extends the API Event interface
-interface CalendarEvent extends Event {
-  time?: string;
-}
+import EventModal from '../../components/forms/EventModal';
 
 // Define our form data structure
 interface EventFormData {
   id?: string;
-  name: string;
-  date: string;
+  title: string;
+  due_date: string;
   type: string;
   participants?: string;
   notes?: string;
-  projectId?: string;
+  project_id?: string;
 }
 
 const EventCalendar: React.FC = () => {
@@ -36,26 +36,24 @@ const EventCalendar: React.FC = () => {
   // Event form state
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventFormData, setEventFormData] = useState<EventFormData>({
-    name: '',
-    date: new Date().toISOString().split('T')[0],
+    title: '',
+    due_date: new Date().toISOString(),
     type: 'meeting'
   });
   const [isEditing, setIsEditing] = useState(false);
   
   // Modal state
-  const [showModal, setShowModal] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Events | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>('');
   
-  // Redux
-  const dispatch = useDispatch();
-  const events = useSelector((state: RootState) => state.events?.items || []);
+  // RTK Query hooks
+  const { data: events = [], isLoading, isError, error } = useGetEventsQuery();
+  const [createEvent] = useCreateEventMutation();
+  const [updateEvent] = useUpdateEventMutation();
+  const [deleteEvent] = useDeleteEventMutation();
+  const [showModal, setShowModal] = useState(false);
   
-  // Fetch events on component mount
-  useEffect(() => {
-    dispatch(fetchEvents());
-  }, [dispatch]);
-
   // Handle sidebar toggle
   useEffect(() => {
     if (isMobile) {
@@ -70,15 +68,24 @@ const EventCalendar: React.FC = () => {
   };
 
   // Format events as calendar events
-  const getEventsForDate = (dateString: string): CalendarEvent[] => {
+  const getEventsForDate = (dateString: string): Events[] => {
     return events.filter(event => {
-      const eventDate = new Date(event.date);
+      const eventDate = new Date(event.due_date);
       const formattedDate = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
       return formattedDate === dateString;
-    }).map(event => ({
-      ...event,
-      time: 'All Day' // Default time if not specified
-    }));
+    }).map(event => {
+      const eventTime = new Date(event.due_date);
+      const formattedTime = eventTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return {
+        ...event,
+        time: formattedTime // Add formatted time
+      };
+    });
   };
   
   // Navigation handlers
@@ -112,24 +119,48 @@ const EventCalendar: React.FC = () => {
   const openAddEventModal = (date: string) => {
     setIsEditing(false);
     setSelectedDate(date);
-    setEventFormData({
-      name: '',
-      date: date,
-      type: 'meeting'
-    });
+    
+    // Create a date object with the selected date and current time
+    const selectedDate = new Date(date);
+    const now = new Date();
+    
+    // Ensure valid date before setting hours/minutes
+    if (!isNaN(selectedDate.getTime())) {
+      // Set hours and minutes from current time
+      selectedDate.setHours(now.getHours());
+      selectedDate.setMinutes(now.getMinutes());
+      
+      // Convert to ISO string for the form
+      const isoDate = selectedDate.toISOString();
+      
+      setEventFormData({
+        title: '',
+        due_date: isoDate,
+        type: 'meeting'
+      });
+    } else {
+      console.error("Invalid date format:", date);
+      // Fallback to current date/time
+      setEventFormData({
+        title: '',
+        due_date: now.toISOString(),
+        type: 'meeting'
+      });
+    }
+    
     setShowEventModal(true);
   };
 
-  const openEditEventModal = (event: CalendarEvent) => {
+  const openEditEventModal = (event: Events) => {
     setIsEditing(true);
     setEventFormData({
       id: event.id,
-      name: event.name,
-      date: event.date,
+      title: event.title,
+      due_date: event.due_date,
       type: event.type,
       participants: event.participants,
       notes: event.notes,
-      projectId: event.projectId
+      project_id: event.project_id
     });
     setShowEventModal(true);
   };
@@ -138,55 +169,65 @@ const EventCalendar: React.FC = () => {
     setShowEventModal(false);
   };
 
-  const handleEventFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    
-    setEventFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleEventFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isEditing && eventFormData.id) {
-      // Update existing event
-      dispatch(updateEvent({
-        id: eventFormData.id,
-        event: {
-          name: eventFormData.name,
-          date: eventFormData.date,
-          type: eventFormData.type,
-          participants: eventFormData.participants,
-          notes: eventFormData.notes,
-          projectId: eventFormData.projectId
-        }
-      }));
-    } else {
-      // Add new event
-      dispatch(createEvent({
-        name: eventFormData.name,
-        date: eventFormData.date,
-        type: eventFormData.type,
-        participants: eventFormData.participants,
-        notes: eventFormData.notes,
-        projectId: eventFormData.projectId
-      }));
-    }
-    
-    closeEventModal();
-  };
-
-  const handleDeleteEvent = () => {
-    if (eventFormData.id) {
-      dispatch(deleteEvent(eventFormData.id));
+  // This function matches the type expected by EventModal
+  const handleEventSubmit = async (eventData: Omit<Events, "id">) => {
+    try {
+      if (isEditing && eventFormData.id) {
+        // Update existing event
+        await updateEvent({
+          id: eventFormData.id,
+          ...eventData
+        }).unwrap();
+        console.log(`Event "${eventData.title}" was updated successfully`);
+      } else {
+        // Add new event
+        await createEvent({
+          id: '',
+          ...eventData
+        }).unwrap();
+        console.log(`Event "${eventData.title}" was created successfully`);
+      }
       closeEventModal();
+    } catch (err) {
+      console.error('Failed to save event:', err);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId?: string) => {
+    if (selectedEvent && selectedEvent.id) {
+      try {
+        await deleteEvent({ 
+          id: selectedEvent.id, 
+          title: selectedEvent.title, 
+          due_date: selectedEvent.due_date, 
+          type: selectedEvent.type 
+        }).unwrap();
+        console.log(`Event "${selectedEvent.title}" was deleted successfully`);
+        closeModal();
+      } catch (err) {
+        console.error('Failed to delete event:', err);
+      }
+    } else if (eventId) {
+      try {
+        const eventToDelete = events.find(e => e.id === eventId);
+        if (eventToDelete) {
+          await deleteEvent({ 
+            id: eventToDelete.id, 
+            title: eventToDelete.title, 
+            due_date: eventToDelete.due_date, 
+            type: eventToDelete.type 
+          }).unwrap();
+          console.log(`Event "${eventToDelete.title}" was deleted successfully`);
+        }
+        closeEventModal();
+      } catch (err) {
+        console.error('Failed to delete event:', err);
+      }
     }
   };
   
   // Event handlers
-  const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
+  const handleEventClick = (event: Events, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering day click
     setSelectedEvent(event);
     setShowModal(true);
@@ -196,6 +237,35 @@ const EventCalendar: React.FC = () => {
     setShowModal(false);
     setSelectedEvent(null);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="dashboard-container">
+        <div className="sidebar">
+          <Sidebar />
+        </div>
+        <div className="dashboard-main-content loading-container">
+          <CircularProgress />
+          <p>Loading calendar...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="dashboard-container">
+        <div className="sidebar">
+          <Sidebar />
+        </div>
+        <div className="dashboard-main-content error-container">
+          <p>Error loading events: {(error as any)?.data?.message || 'Unknown error'}</p>
+        </div>
+      </div>
+    );
+  }
 
   // Handle day click
   const handleDayClick = (date: string) => {
@@ -236,9 +306,6 @@ const EventCalendar: React.FC = () => {
     
     // Add previous month days
     prevMonthDays.forEach(day => {
-      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-      const dateStr = `${prevYear}-${(prevMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
       
       cells.push(
         <td 
@@ -273,7 +340,7 @@ const EventCalendar: React.FC = () => {
           <div className="cal-page-day-content">
             <div className="cal-page-day-number">{day}</div>
             <div className="cal-page-day-events">
-              {dayEvents.map((event, index) => (
+              {dayEvents.map((event: any, index) => (
                 <div 
                   key={index} 
                   className={`cal-page-event cal-page-event-${event.type}`}
@@ -282,7 +349,7 @@ const EventCalendar: React.FC = () => {
                     handleEventClick(event, e);
                   }}
                 >
-                  {event.name}
+                  <span className="cal-page-event-time">{event.time}</span> {event.title}
                 </div>
               ))}
             </div>
@@ -298,9 +365,6 @@ const EventCalendar: React.FC = () => {
     
     // Add next month days
     nextMonthDays.forEach(day => {
-      const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-      const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-      const dateStr = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
       
       cells.push(
         <td 
@@ -398,13 +462,36 @@ const EventCalendar: React.FC = () => {
         
         {/* Event details modal */}
         {showModal && selectedEvent && (
-          <div className="cal-page-modal-overlay" onClick={closeModal}>
-            <div className="cal-page-modal-content" onClick={e => e.stopPropagation()}>
-              <button className="cal-page-modal-close" onClick={closeModal}>&times;</button>
+          <div 
+            className="cal-page-modal-overlay" 
+            onClick={closeModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="event-details-title"
+          >
+            <div 
+              className="cal-page-modal-content" 
+              onClick={e => e.stopPropagation()}
+              tabIndex={-1} // Make container focusable but not in tab order
+            >
+              <button 
+                className="cal-page-modal-close" 
+                onClick={closeModal}
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
               <div className="cal-page-modal-details">
-                <h3>{selectedEvent.name}</h3>
-                <p><strong>Date:</strong> {new Date(selectedEvent.date).toLocaleDateString()}</p>
-                <p><strong>Time:</strong> {selectedEvent.time || 'All Day'}</p>
+                <h3 id="event-details-title">{selectedEvent.title}</h3>
+                <p><strong>Date:</strong> {
+                  new Date(selectedEvent.due_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                }</p>
                 <p>
                   <strong>Type:</strong> 
                   <span className={`cal-page-list-item-tag cal-page-event-${selectedEvent.type}`}>
@@ -414,10 +501,10 @@ const EventCalendar: React.FC = () => {
                 {selectedEvent.participants && (
                   <p><strong>Participants:</strong> {selectedEvent.participants}</p>
                 )}
-                {selectedEvent.projectId && (
+                {selectedEvent.project_id && (
                   <p>
                     <strong>Project:</strong> 
-                    <span className="cal-page-detail-tag">{selectedEvent.projectId}</span>
+                    <span className="cal-page-detail-tag">{selectedEvent.project_id}</span>
                   </p>
                 )}
                 {selectedEvent.notes && (
@@ -436,8 +523,7 @@ const EventCalendar: React.FC = () => {
                   <button 
                     className="cal-page-btn cal-page-btn-delete"
                     onClick={() => {
-                      dispatch(deleteEvent(selectedEvent.id));
-                      closeModal();
+                      handleDeleteEvent(selectedEvent?.id);
                     }}
                   >
                     Delete
@@ -450,105 +536,23 @@ const EventCalendar: React.FC = () => {
 
         {/* Event create/edit modal */}
         {showEventModal && (
-          <div className="cal-page-modal-overlay" onClick={closeEventModal}>
-            <div className="cal-page-modal-content cal-page-form-modal" onClick={e => e.stopPropagation()}>
-              <button className="cal-page-modal-close" onClick={closeEventModal}>&times;</button>
-              <h3>{isEditing ? 'Edit Event' : 'Add New Event'}</h3>
-              
-              <form onSubmit={handleEventFormSubmit}>
-                <div className="cal-page-form-group">
-                  <label htmlFor="name">Event Name</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={eventFormData.name}
-                    onChange={handleEventFormChange}
-                    required
-                  />
-                </div>
-                
-                <div className="cal-page-form-group">
-                  <label htmlFor="date">Date</label>
-                  <input
-                    type="date"
-                    id="date"
-                    name="date"
-                    value={eventFormData.date}
-                    onChange={handleEventFormChange}
-                    required
-                  />
-                </div>
-                
-                <div className="cal-page-form-group">
-                  <label htmlFor="type">Type</label>
-                  <select
-                    id="type"
-                    name="type"
-                    value={eventFormData.type}
-                    onChange={handleEventFormChange}
-                  >
-                    <option value="meeting">Meeting</option>
-                    <option value="deadline">Deadline</option>
-                    <option value="appointment">Appointment</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                
-                <div className="cal-page-form-group">
-                  <label htmlFor="participants">Participants (Optional)</label>
-                  <input
-                    type="text"
-                    id="participants"
-                    name="participants"
-                    value={eventFormData.participants || ''}
-                    onChange={handleEventFormChange}
-                    placeholder="Comma-separated list of participants"
-                  />
-                </div>
-                
-                <div className="cal-page-form-group">
-                  <label htmlFor="projectId">Project (Optional)</label>
-                  <input
-                    type="text"
-                    id="projectId"
-                    name="projectId"
-                    value={eventFormData.projectId || ''}
-                    onChange={handleEventFormChange}
-                  />
-                </div>
-                
-                <div className="cal-page-form-group">
-                  <label htmlFor="notes">Notes (Optional)</label>
-                  <textarea
-                    id="notes"
-                    name="notes"
-                    value={eventFormData.notes || ''}
-                    onChange={handleEventFormChange}
-                    rows={4}
-                  />
-                </div>
-                
-                <div className="cal-page-form-actions">
-                  <button type="button" className="cal-page-btn cal-page-btn-secondary" onClick={closeEventModal}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="cal-page-btn cal-page-btn-save">
-                    {isEditing ? 'Update' : 'Create'}
-                  </button>
-                  
-                  {isEditing && (
-                    <button
-                      type="button"
-                      className="cal-page-btn cal-page-btn-delete"
-                      onClick={handleDeleteEvent}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
+          <div className="event-modal-wrapper">
+            <EventModal
+              projectName={projectName}
+              onClose={closeEventModal}
+              onSubmit={handleEventSubmit}
+              event={isEditing && eventFormData.id ? 
+                {
+                  id: eventFormData.id,
+                  title: eventFormData.title,
+                  due_date: eventFormData.due_date,
+                  type: eventFormData.type,
+                  participants: eventFormData.participants,
+                  notes: eventFormData.notes,
+                  project_id: eventFormData.project_id
+                } : undefined
+              }
+            />
           </div>
         )}
       </div>

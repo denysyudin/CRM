@@ -115,4 +115,24 @@
     padding: 3px 6px;
     font-size: 0.7rem;
   }
+}
+
+.mui-events-container {
+  margin-bottom: 20px;
+}
+
+/* Ensure text color is black */
+.mui-events-container .MuiTypography-root {
+  color: #000000 !important;
+}
+
+/* Style the secondary text */
+.mui-events-container .MuiTypography-colorTextSecondary {
+  color: #666666 !important;
+}
+
+/* Ensure chip text is visible */
+.mui-events-container .MuiChip-label {
+  color: #000000 !important;
+  font-weight: 500;
 } 

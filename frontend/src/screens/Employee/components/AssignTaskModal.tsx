@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
-
-interface Employee {
-  id: string;
-  name: string;
-  role: string;
-}
+import { Task } from '../../../types/task.types';
+import { Employee } from '../../../types/employee.types';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Grid,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface AssignTaskModalProps {
-  employee: Employee;
-  onSave: (taskData: {
-    name: string;
-    description: string;
-    priority: string;
-    dueDate: string;
-    project: string;
-    checkInDate: string | null;
-  }) => void;
+  employee: Employee | null;
+  onSave: (taskData: Task) => void;
   onClose: () => void;
 }
 
@@ -32,130 +38,157 @@ const AssignTaskModal: React.FC<AssignTaskModalProps> = ({ employee, onSave, onC
     
     if (taskName.trim()) {
       onSave({
-        name: taskName.trim(),
+        id: '',
+        title: taskName.trim(),
         description: description.trim(),
         priority,
-        dueDate,
-        project: project.trim(),
-        checkInDate: checkInDate ? checkInDate : null
+        due_date: dueDate,
+        project_id: project.trim(),
+        next_checkin_date: checkInDate ? checkInDate : null,
+        status: 'To Do',
       });
+      console.log(taskName.trim(), description.trim(), priority, dueDate, project.trim(), checkInDate ? checkInDate : null);
       
-      // Reset form
-      setTaskName('');
-      setDescription('');
-      setPriority('Medium');
-      setDueDate('');
-      setProject('');
-      setCheckInDate('');
+      // Close the modal
+      onClose();
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button className="modal-close-button" onClick={onClose}>&times;</button>
-        <h2 className="modal-form-title">Assign New Task</h2>
-        <div className="modal-context">For: {employee.name}</div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="assign-task-name">
-              Task Name <span style={{ color: 'red' }}>*</span>
-            </label>
-            <input
-              type="text"
-              id="assign-task-name"
-              name="taskName"
-              value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
-              required
-            />
-          </div>
+    <Dialog 
+      open={true} 
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        pb: 1
+      }}>
+        <Typography variant="h6">
+          Assign New Task
+        </Typography>
+        <IconButton 
+          edge="end" 
+          onClick={onClose}
+          aria-label="close"
+          size="small"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <Box sx={{ px: 3, pb: 2 }}>
+        <Typography variant="subtitle2" color="text.secondary">
+          For: {employee?.name}
+        </Typography>
+      </Box>
+      
+      <form onSubmit={handleSubmit}>
+        <DialogContent sx={{ pt: 0 }}>
+          <TextField
+            fullWidth
+            margin="normal"
+            id="assign-task-name"
+            label="Task Name"
+            value={taskName}
+            onChange={(e) => setTaskName(e.target.value)}
+            required
+            size="small"
+          />
           
-          <div className="form-group">
-            <label htmlFor="assign-task-description">Description</label>
-            <textarea
-              id="assign-task-description"
-              name="taskDescription"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-            />
-          </div>
+          <TextField
+            fullWidth
+            margin="normal"
+            id="assign-task-description"
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            multiline
+            rows={4}
+          />
           
-          <div style={{ display: 'flex', gap: '20px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label htmlFor="assign-task-priority">Priority</label>
-              <select
-                id="assign-task-priority"
-                name="taskPriority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="priority-label">Priority</InputLabel>
+                <Select
+                  labelId="priority-label"
+                  id="assign-task-priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  label="Priority"
+                >
+                  <MenuItem value="Low">Low</MenuItem>
+                  <MenuItem value="Medium">Medium</MenuItem>
+                  <MenuItem value="High">High</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
             
-            <div className="form-group" style={{ flex: 1 }}>
-              <label htmlFor="assign-task-due-date">Due Date</label>
-              <input
-                type="date"
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 id="assign-task-due-date"
-                name="taskDueDate"
+                label="Due Date"
+                type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                size="small"
               />
-            </div>
-          </div>
+            </Grid>
+          </Grid>
           
-          <div className="form-group">
-            <label htmlFor="assign-task-project">
-              Related Project/Business (Optional)
-            </label>
-            <input
-              type="text"
-              id="assign-task-project"
-              name="taskProject"
-              value={project}
-              onChange={(e) => setProject(e.target.value)}
-              placeholder="e.g., Bravo Jewellers, Website"
-            />
-          </div>
+          <TextField
+            fullWidth
+            margin="normal"
+            id="assign-task-project"
+            label="Related Project/Business (Optional)"
+            value={project}
+            onChange={(e) => setProject(e.target.value)}
+            placeholder="e.g., Bravo Jewellers, Website"
+            size="small"
+          />
           
-          <div className="form-group">
-            <label htmlFor="assign-task-checkin">
-              Next Check-in Date (Optional)
-            </label>
-            <input
-              type="date"
-              id="assign-task-checkin"
-              name="taskCheckinDate"
-              value={checkInDate}
-              onChange={(e) => setCheckInDate(e.target.value)}
-            />
-          </div>
-          
-          <div className="form-actions">
-            <button 
-              type="button" 
-              className="form-button button-secondary"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="form-button button-primary"
-            >
-              Assign Task
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <TextField
+            fullWidth
+            margin="normal"
+            id="assign-task-checkin"
+            label="Next Check-in Date (Optional)"
+            type="date"
+            value={checkInDate}
+            onChange={(e) => setCheckInDate(e.target.value)}
+            InputLabelProps={{
+              shrink: true,
+            }}
+            size="small"
+          />
+        </DialogContent>
+        
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={onClose} 
+            variant="outlined"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            variant="contained" 
+            color="primary"
+            onClick={handleSubmit}
+          >
+            Assign Task
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 };
 
-export default AssignTaskModal; 
+export default AssignTaskModal;

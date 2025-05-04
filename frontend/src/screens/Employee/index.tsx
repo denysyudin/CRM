@@ -4,122 +4,96 @@ import AddEmployeeModal from './components/AddEmployeeModal';
 import AssignTaskModal from './components/AssignTaskModal';
 import AddNoteModal from './components/AddNoteModal';
 import Sidebar from '../../components/Sidebar/Sidebar';
-import { useSelector, useDispatch } from 'react-redux';
-import { 
-  fetchTasks 
-} from '../../redux/features/tasksSlice';
-import { 
-  fetchNotes 
-} from '../../redux/features/notesSlice';
-import { 
-  fetchReminders,
-  selectAllReminders 
-} from '../../redux/features/remindersSlice';
-import { AppDispatch, RootState } from '../../redux/store';
 import {
+  Box,
+  Typography,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Button,
-  SelectChangeEvent
+  SelectChangeEvent,
+  IconButton,
+  Paper,
+  Drawer,
+  useMediaQuery,
+  useTheme,
+  Stack,
+  AppBar,
+  Toolbar,
+  CircularProgress
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import AddIcon from '@mui/icons-material/Add';
+import MenuIcon from '@mui/icons-material/Menu';
 import './styles.css';
+import { Note } from '../../types/note.types';
+import { Employee, CreateEmployeePayload } from '../../types/employee.types';
+import { Task } from '../../types/task.types';
+import { Reminder } from '../../types/reminder.types';
 
-// Define types
-interface Employee {
-  id: string;
-  name: string;
-  role: string;
+import { useGetEmployeesQuery, useCreateEmployeeMutation } from '../../redux/api/employeesApi';
+import { useGetNotesQuery, useCreateNoteMutation } from '../../redux/api/notesApi';
+import { useGetRemindersQuery } from '../../redux/api/remindersApi';
+import { useGetTasksQuery, useCreateTaskMutation, useUpdateTaskMutation } from '../../redux/api/tasksApi';
+
+// Define local interfaces for EmployeeDetails component if needed
+interface EmployeeDetailsProps {
+  employee: Employee | null;
+  tasks: any[];
+  notes: any[];
+  reminders: any[];
+  taskFilterStatus: string;
+  taskSortBy: string;
+  onTaskFilterChange: (status: string) => void;
+  onTaskSortChange: (sortBy: string) => void;
+  onTaskStatusChange: (taskId: string, status: string) => void;
+  onAssignTask: () => void;
+  onAddNote: () => void;
 }
 
-interface Task {
-  id: string;
-  name: string;
-  status: string;
-  priority: string;
-  dueDate: string;
-  assigneeId: string;
-  projectId: string;
-  checkInDate: string | null;
-  completionDate: string | null;
-  notes: string;
-}
+const EmployeePage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-interface Note {
-  id: string;
-  title: string;
-  date: string;
-  category: string;
-  project: string;
-  employeeId: string;
-  body: string;
-}
+  // Get data using RTK Query
+  const {
+    data: employees = [],
+    isLoading: employeesLoading
+  } = useGetEmployeesQuery();
 
-interface Reminder {
-  id: string;
-  name: string;
-  dueDate: string;
-  priority: string;
-  completed?: boolean;
-  projectId?: string;
-}
+  const {
+    data: notes = [],
+    isLoading: notesLoading
+  } = useGetNotesQuery();
 
-interface EmployeesRecord {
-  [id: string]: Employee;
-}
+  const {
+    data: tasks = [],
+    isLoading: tasksLoading
+  } = useGetTasksQuery();
 
-// Mock data for employees until an Employee API is implemented
-const employeesData: EmployeesRecord = {};
+  const {
+    data: reminders = [],
+    isLoading: remindersLoading
+  } = useGetRemindersQuery();
 
-const Employee: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  
-  // Get data from Redux store
-  const reminders = useSelector(selectAllReminders);
-  const tasks = useSelector((state: RootState) => state.tasks.tasks as Task[]);
-  const notes = useSelector((state: RootState) => state.notes.notes as Note[]);
-  
-  const [employees, setEmployees] = useState<EmployeesRecord>(employeesData);
+  // Create employee mutation hook
+  const [createEmployee] = useCreateEmployeeMutation();
+  const [updateTask] = useUpdateTaskMutation();
+
+  // Local state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
-  const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
-  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [assignTaskModalOpen, setAssignTaskModalOpen] = useState(false);
+  const [addNoteModalOpen, setAddNoteModalOpen] = useState(false);
+  const [updateTaskStatus, setUpdateTaskStatus] = useState(false);
   const [taskFilterStatus, setTaskFilterStatus] = useState('all');
   const [taskSortBy, setTaskSortBy] = useState('due-date');
-  const [isMobile, setIsMobile] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Fetch data from backend when component mounts
-  useEffect(() => {
-    dispatch(fetchTasks());
-    dispatch(fetchNotes());
-    dispatch(fetchReminders());
-  }, [dispatch]);
-
-  // Check for mobile screen on mount and resize
-  useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-    
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkIsMobile);
-    };
-  }, []);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   // Adjust sidebar visibility based on screen size
   useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    } else {
-      setSidebarOpen(true);
-    }
+    setSidebarOpen(!isMobile);
   }, [isMobile]);
 
   // Toggle sidebar
@@ -127,52 +101,99 @@ const Employee: React.FC = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  const [createTask] = useCreateTaskMutation();
+  const [createNote] = useCreateNoteMutation();
+
   // Filter tasks, notes, and reminders for the selected employee
   const employeeTasks = selectedEmployeeId
-    ? tasks.filter(task => task.assigneeId === selectedEmployeeId)
+    ? tasks.filter((task: any) => task.employee_id === selectedEmployeeId)
     : [];
-    
+
   const employeeNotes = selectedEmployeeId
-    ? notes.filter(note => note.employeeId === selectedEmployeeId)
+    ? notes.filter((note: any) => note.employee_id === selectedEmployeeId)
     : [];
-    
+
   const employeeReminders = selectedEmployeeId
-    ? reminders.filter(reminder => {
-        // Check if the reminder should be associated with this employee
-        // This assumes reminders don't have an assigneeId property directly
-        return reminder.projectId === selectedEmployeeId;
-      })
+    ? reminders.filter((reminder: any) => reminder.employee_id === selectedEmployeeId)
     : [];
 
   // Handler for task status toggle
   const handleTaskStatusChange = (taskId: string, newStatus: string) => {
-    // Here we would dispatch an action to update the task in Redux
-    // For now, we'll just log it
-    console.log(`Task ${taskId} status changed to ${newStatus}`);
+    const taskWithEmployeeId = {
+      id: taskId,
+      status: newStatus
+    };
+    updateTask(taskWithEmployeeId)
+      .unwrap()
+      .then(() => {
+        setUpdateTaskStatus(true);
+        console.log(`Task ${taskId} status changed to ${newStatus}`);
+      })
+      .catch((error) => {
+        console.error('Failed to update task:', error);
+      });
   };
 
   // Handler for adding a new employee
-  const handleAddEmployee = (name: string, role: string) => {
-    const newId = `emp-${Date.now()}`;
-    setEmployees(prev => ({
-      ...prev,
-      [newId]: { id: newId, name, role }
-    }));
-    setIsAddEmployeeModalOpen(false);
+  const handleAddEmployee = async (name: string, role: string) => {
+    try {
+      // Create a payload that matches the definition in employee.types.ts
+      const newEmployee: CreateEmployeePayload = {
+        name,
+        role
+        // Don't add role as it's not part of the Employee type definition
+      };
+
+      createEmployee(newEmployee as Employee)
+        .unwrap()
+        .then(() => {
+          setIsAddEmployeeModalOpen(false);
+        })
+        .catch((error) => {
+          console.error('Failed to create employee:', error);
+        });
+    } catch (error) {
+      console.error('Failed to create employee:', error);
+    }
   };
 
-  // Handler for assigning a new task
-  const handleAssignTask = (taskData: any) => {
-    // Here we would dispatch an action to create a task in Redux
-    console.log('New task assigned:', taskData);
-    setIsAssignTaskModalOpen(false);
+  //handle assign task modal
+  const handleAssignTask = (taskData: Task) => {
+    if (selectedEmployeeId) {
+      const taskWithEmployeeId = {
+        ...taskData,
+        employee_id: selectedEmployeeId
+      };
+      console.log('Task data:', taskWithEmployeeId);
+      createTask(taskWithEmployeeId)
+        .unwrap()
+        .then(() => {
+          setAssignTaskModalOpen(true);
+          console.log('Task created:', taskWithEmployeeId);
+        })
+        .catch((error) => {
+          console.error('Failed to create task:', error);
+        });
+    }
   };
 
-  // Handler for adding a new note
-  const handleAddNote = (noteData: any) => {
-    // Here we would dispatch an action to create a note in Redux
-    console.log('New note added:', noteData);
-    setIsAddNoteModalOpen(false);
+  //handle add note modal
+  const handleAddNote = (noteData: Note) => {
+    if (selectedEmployeeId) {
+      const noteWithEmployeeId = {
+        ...noteData,
+        employee_id: selectedEmployeeId
+      };
+      createNote(noteWithEmployeeId)
+        .unwrap()
+        .then(() => {
+          setAddNoteModalOpen(true);
+          console.log('Note created:', noteWithEmployeeId);
+        })
+        .catch((error) => {
+          console.error('Failed to create note:', error);
+        });
+    }
   };
 
   // Handler for employee dropdown change
@@ -180,109 +201,216 @@ const Employee: React.FC = () => {
     setSelectedEmployeeId(event.target.value);
   };
 
-  // Get employee name by ID
-  const getEmployeeNameById = (id: string) => {
-    return employees[id]?.name || 'Unknown Employee';
+  // Get employee by ID
+  const getEmployeeById = (id: string): Employee | undefined => {
+    return employees.find((emp: Employee) => emp.id === id);
   };
+
+  // Get employee name by ID
+  const getEmployeeNameById = (id: string): string => {
+    const employee = getEmployeeById(id);
+    return employee ? employee.name : 'Select Employee';
+  };
+
+  // Calculate drawer width
+  const drawerWidth = 240;
+
+  // Check if data is loading
+  const isLoading = employeesLoading || notesLoading || tasksLoading || remindersLoading;
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <div className="app-container">
-      <div className='sidebar'>
-        <Sidebar />
+      <div className="sidebar">
+        <Sidebar isOpen={true} toggleSidebar={() => { }} activePath="/employee" />
       </div>
-      
       <div className="main-content">
-        <div className="employee-container">
-          <div className="employee-header">
-            <button
-              onClick={toggleSidebar}
-              className="sidebar-toggle"
-            >
-              ☰
-            </button>
-            <h1 className="page-title">Employee Management</h1>
-            
-            <div className="employee-actions">
-              {/* Employee Dropdown */}
-              <FormControl variant="outlined" size="small" className="filter-dropdown">
-                <InputLabel id="employee-select-label" shrink={true}>Employee</InputLabel>
-                <Select
-                  labelId="employee-select-label"
-                  id="employee-select"
-                  value={selectedEmployeeId || ''}
-                  onChange={handleEmployeeChange}
-                  label="Employee"
-                  displayEmpty
-                  renderValue={(value) => {
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <PersonIcon style={{ marginRight: '8px' }} />
-                        {value === "" ? "Select Employee" : getEmployeeNameById(value as string)}
-                      </div>
-                    );
-                  }}
+        <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Main content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          height: '100%',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          width: { md: `calc(100% - ${sidebarOpen ? drawerWidth : 0}px)` },
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
+      >
+        {/* Sticky Header */}
+        <AppBar
+          position="sticky"
+          color="default"
+          elevation={0}
+          sx={{
+            backgroundColor: theme.palette.grey[100],
+            px: 3,
+            width: '100%',
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 2
+            }}
+          >
+            <Toolbar>
+              <Box sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                justifyContent: 'space-between',
+                width: '100%',
+                py: 1,
+                zIndex: 1
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 2, sm: 0 } }}>
+                  <IconButton
+                    edge="start"
+                    color="inherit"
+                    aria-label="menu"
+                    onClick={toggleSidebar}
+                    sx={{ mr: 2, display: { md: 'none' } }}
+                  >
+                    <MenuIcon />
+                  </IconButton>
+                  <Typography variant="h5" component="h1" sx={{ color: 'white', ml: 2 }}>
+                    Employee Management
+                  </Typography>
+                </Box>
+
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={2}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  width={{ xs: '100%', sm: 'auto' }}
                 >
-                  {Object.values(employees).map((employee) => (
-                    <MenuItem key={employee.id} value={employee.id}>
-                      <PersonIcon style={{ marginRight: '8px', color: 'black' }} /> <span style={{ color: 'black' }}>{employee.name}</span>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<AddIcon />}
-                onClick={() => setIsAddEmployeeModalOpen(true)}
-              >
-                Add Employee
-              </Button>
-            </div>
-          </div>
-          
-          <div className="employee-content">
-            <EmployeeDetails
-              employee={selectedEmployeeId && employees[selectedEmployeeId] ? employees[selectedEmployeeId] : null}
-              tasks={employeeTasks}
-              notes={employeeNotes}
-              reminders={employeeReminders}
-              taskFilterStatus={taskFilterStatus}
-              taskSortBy={taskSortBy}
-              onTaskFilterChange={setTaskFilterStatus}
-              onTaskSortChange={setTaskSortBy}
-              onTaskStatusChange={handleTaskStatusChange}
-              onAssignTask={() => setIsAssignTaskModalOpen(true)}
-              onAddNote={() => setIsAddNoteModalOpen(true)}
-            />
-          </div>
+                  {/* Employee Dropdown */}
+                  <FormControl
+                    variant="outlined"
+                    size="small"
+                    sx={{ minWidth: 200 }}
+                  >
+                    <InputLabel id="employee-select-label" shrink={true}>Employee</InputLabel>
+                    <Select
+                      labelId="employee-select-label"
+                      id="employee-select"
+                      value={selectedEmployeeId || ''}
+                      onChange={handleEmployeeChange}
+                      label="Employee"
+                      displayEmpty
+                      renderValue={(value) => (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <PersonIcon sx={{ mr: 1 }} />
+                          {value === selectedEmployeeId ? getEmployeeNameById(value as string) : "Select Employee"}
+                        </Box>
+                      )}
+                    >
+                      {employees.map((employee: Employee) => (
+                        <MenuItem key={employee.id} value={employee.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <PersonIcon sx={{ mr: 1 }} />
+                            {employee.name}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-          {isAddEmployeeModalOpen && (
-            <AddEmployeeModal 
-              onSave={handleAddEmployee}
-              onClose={() => setIsAddEmployeeModalOpen(false)}
-            />
-          )}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AddIcon />}
+                    onClick={() => setIsAddEmployeeModalOpen(true)}
+                    fullWidth={isMobile}
+                  >
+                    Add Employee
+                  </Button>
+                </Stack>
+              </Box>
+            </Toolbar>
+          </Paper>
+        </AppBar>
 
-          {isAssignTaskModalOpen && selectedEmployeeId && employees[selectedEmployeeId] && (
-            <AssignTaskModal
-              employee={employees[selectedEmployeeId]}
-              onSave={handleAssignTask}
-              onClose={() => setIsAssignTaskModalOpen(false)}
-            />
-          )}
+        {/* Scrollable Content Area */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            p: 3,
+            overflow: 'auto',
+            backgroundColor: theme.palette.grey[100]
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 2
+            }}
+          >
+            <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+              {/* Cast to any to avoid type issues with component props */}
+              <EmployeeDetails
+                employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
+                tasks={employeeTasks as Task[]}
+                notes={employeeNotes as Note[]}
+                reminders={employeeReminders as Reminder[]}
+                taskFilterStatus={taskFilterStatus}
+                taskSortBy={taskSortBy}
+                onTaskFilterChange={setTaskFilterStatus}
+                onTaskSortChange={setTaskSortBy}
+                onTaskStatusChange={handleTaskStatusChange}
+                onAssignTask={() => setAssignTaskModalOpen(true)}
+                onAddNote={() => setAddNoteModalOpen(true)}
+              />
+            </Box>
+          </Paper>
+        </Box>
+      </Box>
 
-          {isAddNoteModalOpen && selectedEmployeeId && employees[selectedEmployeeId] && (
-            <AddNoteModal
-              employee={employees[selectedEmployeeId]}
-              onSave={handleAddNote}
-              onClose={() => setIsAddNoteModalOpen(false)}
-            />
-          )}
-        </div>
-      </div>
+      {/* Modals */}
+      {isAddEmployeeModalOpen && (
+        <AddEmployeeModal
+          onSave={handleAddEmployee}
+          onClose={() => setIsAddEmployeeModalOpen(false)}
+        />
+      )}
+      {assignTaskModalOpen && (
+        <AssignTaskModal
+          employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
+          onSave={handleAssignTask}
+          onClose={() => setAssignTaskModalOpen(false)}
+        />
+      )}
+      {addNoteModalOpen && (
+        <AddNoteModal
+          employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
+          onSave={handleAddNote}
+          onClose={() => setAddNoteModalOpen(false)}
+        />
+      )}
+    </Box>
+    </div>
     </div>
   );
 };
 
-export default Employee; 
+export default EmployeePage; 

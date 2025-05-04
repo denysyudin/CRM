@@ -55,10 +55,7 @@ export const createEvent = createAsyncThunk(
       // Format the date as 'YYYY-MM-DD' string instead of a full ISO string
       // that would trigger datetime conversion in the backend
       const eventData = {
-        ...event,
-        due_date: typeof event.due_date === 'string' ? 
-          event.due_date.split('T')[0] : // Extract just the date part
-          event.due_date
+        ...event
       };
       
       console.log('Creating event with formatted data:', eventData);

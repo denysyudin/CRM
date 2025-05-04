@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Event } from '../services/api';
-import '../screens/Projects/styles.css';
+
+import { useCreateEventMutation, useUpdateEventMutation, useDeleteEventMutation, useGetEventsQuery } from '../redux/api/eventsApi';
 
 interface EventModalProps {
   projectName: string;
@@ -10,8 +11,8 @@ interface EventModalProps {
 }
 
 const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit, event }) => {
-  const [name, setName] = useState(event?.name || '');
-  const [date, setDate] = useState(event?.date || '');
+  const [title, setTitle] = useState(event?.title || '');
+  const [due_date, setDueDate] = useState(event?.due_date || '');
   const [type, setType] = useState(event?.type || 'meeting');
   const [participants, setParticipants] = useState(event?.participants || '');
   const [notes, setNotes] = useState(event?.notes || '');
@@ -19,12 +20,12 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      name,
-      date,
+      title,
+      due_date,
       type,
       participants,
       notes,
-      projectId: event?.projectId || ''
+      project_id: event?.project_id || ''
     });
   };
 
@@ -40,12 +41,12 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Event Name</label>
+            <label htmlFor="title">Event Title</label>
             <input
-              id="name"
+              id="title"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
               required
             />
           </div>
@@ -65,10 +66,10 @@ const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit,
           <div className="form-group">
             <label htmlFor="date">Date</label>
             <input
-              id="date"
+              id="due_date"
               type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              value={due_date}
+              onChange={(e) => setDueDate(e.target.value)}
               required
             />
           </div>

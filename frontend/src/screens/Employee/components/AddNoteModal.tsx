@@ -1,118 +1,172 @@
 import React, { useState } from 'react';
-
-interface Employee {
-  id: string;
-  name: string;
-  role: string;
-}
-
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+  SelectChangeEvent
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { Employee } from '../../../types/employee.types';
 interface AddNoteModalProps {
-  employee: Employee;
-  onSave: (noteData: {
-    title: string;
-    category: string;
-    body: string;
-  }) => void;
+  employee: Employee | null;
+  onSave: (noteData: any) => void;
   onClose: () => void;
 }
 
 const AddNoteModal: React.FC<AddNoteModalProps> = ({ employee, onSave, onClose }) => {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
   const [body, setBody] = useState('');
+  const [category, setCategory] = useState('General');
+  const [project, setProject] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (title.trim() && body.trim()) {
-      onSave({
-        title: title.trim(),
-        category: category.trim(),
-        body: body.trim()
-      });
-      
-      // Reset form
-      setTitle('');
-      setCategory('');
-      setBody('');
-    }
+    onSave({
+      title,
+      body,
+      category,
+      project,
+      employeeId: employee?.id,
+      date: new Date().toISOString()
+    });
+  };
+
+  const handleCategoryChange = (event: SelectChangeEvent) => {
+    setCategory(event.target.value);
+  };
+
+  const handleProjectChange = (event: SelectChangeEvent) => {
+    setProject(event.target.value);
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <button className="modal-close-button" onClick={onClose}>&times;</button>
-        <h2 className="modal-form-title">Add Note</h2>
-        <div className="modal-context">For: {employee.name}</div>
-        
+    <Dialog
+      open={true}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        pb: 1
+      }}>
+        <Typography variant="h6">
+          Add Note for Employee
+        </Typography>
+        <IconButton 
+          edge="end" 
+          onClick={onClose}
+          aria-label="close"
+          size="small"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      
+      <Box sx={{ px: 3, pb: 2 }}>
+        <Typography variant="subtitle2" color="text.secondary">
+          Employee: {employee?.name} ({employee?.role})
+        </Typography>
+      </Box>
+      
+      <DialogContent sx={{ pt: 0 }}>
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="add-note-title">
-              Title <span style={{ color: 'red' }}>*</span>
-            </label>
-            <input
-              type="text"
-              id="add-note-title"
-              name="noteTitle"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
+          <TextField
+            fullWidth
+            margin="normal"
+            id="title"
+            label="Note Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            size="small"
+          />
           
-          <div className="form-group">
-            <label htmlFor="add-note-category">
-              Category (Optional)
-            </label>
-            <input
-              type="text"
-              id="add-note-category"
-              name="noteCategory"
+          <FormControl 
+            fullWidth 
+            margin="normal"
+            size="small"
+          >
+            <InputLabel id="category-label">Category</InputLabel>
+            <Select
+              labelId="category-label"
+              id="category"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g., FYI, Feedback, Instructions"
-            />
-          </div>
+              label="Category"
+              onChange={handleCategoryChange}
+            >
+              <MenuItem value="Meeting">Meeting</MenuItem>
+              <MenuItem value="Performance">Performance</MenuItem>
+              <MenuItem value="Training">Training</MenuItem>
+              <MenuItem value="Feedback">Feedback</MenuItem>
+              <MenuItem value="General">General</MenuItem>
+            </Select>
+          </FormControl>
           
-          <div className="form-group">
-            <label htmlFor="add-note-body">
-              Note Content <span style={{ color: 'red' }}>*</span>
-            </label>
-            <textarea
-              id="add-note-body"
-              name="noteBody"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={6}
-              required
-            />
-          </div>
+          {/* <FormControl 
+            fullWidth 
+            margin="normal"
+            size="small"
+          >
+            <InputLabel id="project-label">Related Project</InputLabel>
+            <Select
+              labelId="project-label"
+              id="project"
+              value={project}
+              label="Related Project"
+              onChange={handleProjectChange}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              <MenuItem value="project-1"></MenuItem>
+              <MenuItem value="project-2">Mobile App</MenuItem>
+              <MenuItem value="project-3">CRM System</MenuItem>
+            </Select>
+          </FormControl> */}
           
-          <div className="form-group">
-            <label>Attachment (Optional)</label>
-            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-              Simulate attaching a file here...
-            </p>
-          </div>
+          <TextField
+            fullWidth
+            margin="normal"
+            id="body"
+            label="Note Content"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            multiline
+            rows={4}
+            required
+          />
           
-          <div className="form-actions">
-            <button 
-              type="button" 
-              className="form-button button-secondary"
-              onClick={onClose}
+          <DialogActions sx={{ px: 0, pt: 2 }}>
+            <Button 
+              onClick={onClose} 
+              variant="outlined"
             >
               Cancel
-            </button>
-            <button 
+            </Button>
+            <Button 
               type="submit" 
-              className="form-button button-primary"
+              variant="contained" 
+              color="primary"
             >
               Save Note
-            </button>
-          </div>
+            </Button>
+          </DialogActions>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -2,14 +2,14 @@
 export interface Note {
   id: string;
   title: string;
+  description: string;
+  project_id: string;
+  employee_id: string;
   category?: string;
-  project_id?: string;
-  employee_id?: string;
-  description?: string;
-  files?: string;
   created_at: string;
+  files?: string;
 }
 
 // Note creation/update payload types
 export type CreateNotePayload = Omit<Note, 'id'>;
-export type UpdateNotePayload = Partial<Note>; 
+export type UpdateNotePayload = Partial<Note>;

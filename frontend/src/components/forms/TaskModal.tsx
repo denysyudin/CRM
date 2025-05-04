@@ -1,11 +1,30 @@
 import React, { useState } from 'react';
 import { Task } from '../../types';
-import '../../screens/Projects/styles.css';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+  Box,
+  IconButton,
+  Divider,
+  Grid,
+  FormHelperText,
+  CircularProgress
+} from '@mui/material';
+import { Close, CloudUpload } from '@mui/icons-material';
 
 interface TaskModalProps {
   projectName: string;
   onClose: () => void;
-  onSubmit: (taskData: Omit<Task, 'id'>) => void;
+  onSubmit: (taskData: Omit<Task, 'id'>, fileData?: FormData) => void;
   task?: Task;
 }
 
@@ -16,10 +35,15 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
   const [due_date, setDueDate] = useState(task?.due_date || '');
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [category, setCategory] = useState(task?.category || 'General');
+  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
+    setIsUploading(true);
+    
+    const taskData = {
       title,
       description,
       status,
@@ -27,105 +51,235 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       priority,
       category,
       project_id: task?.project_id || '',
-      employee_id: task?.employee_id || ''
-    });
+      employee_id: task?.employee_id || '',
+      // Convert file array to string to match interface
+      files: file ? fileName : ''
+    };
+    
+    // If there's a file, prepare FormData for file upload
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', fileName);
+      formData.append('taskId', task?.id || '');
+      formData.append('projectId', task?.project_id || '');
+      
+      // Pass both task data and file data to parent component
+      onSubmit(taskData, formData);
+    } else {
+      // Just submit the task data without file
+      onSubmit(taskData);
+    }
+    
+    setIsUploading(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      setFileName(selectedFile.name);
+    }
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>{task ? 'Edit Task' : 'Add New Task'}</h2>
-          <button className="close-button" onClick={onClose}>&times;</button>
-        </div>
-        <div className="modal-subheader">
+    <Dialog 
+      open={true} 
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+    >
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">
+            {task ? 'Edit Task' : 'Add New Task'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <Close />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      
+      <Box px={3} pb={2}>
+        <Typography variant="subtitle2" color="text.secondary">
           Project: {projectName}
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="name">Task Name</label>
-            <input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="category">Category</label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="To Buy">To Buy</option>
-              <option value="To Pay">To Pay</option>
-              <option value="To Fix">To Fix</option>
-              <option value="To Contact">To Contact</option>
-              <option value="To Follow Up">To Follow Up</option>
-              <option value="To Research">To Research</option>
-              <option value="To Prepare/Make">To Prepare/Make</option>
-              <option value="To Review">To Review</option>
-              <option value="General">General</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="status">Status</label>
-            <select
-              id="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="To Do">To Do</option>
-              <option value="In Progress">In Progress</option>
-              <option value="On Hold">On Hold</option>
-              <option value="Done">Done</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="priority">Priority</label>
-            <select
-              id="priority"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="dueDate">Due Date</label>
-            <input
-              id="due_date"
-              type="date"
-              value={due_date}
-              onChange={(e) => setDueDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="form-button button-secondary" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="form-button button-primary">
-              {task ? 'Update Task' : 'Create Task'}
-            </button>
-          </div>
+        </Typography>
+      </Box>
+      
+      <Divider />
+      
+      <DialogContent sx={{ pt: 2 }}>
+        <form id="task-form" onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Task Name"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                variant="outlined"
+                margin="normal"
+                size="small"
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" size="small">
+                <InputLabel id="category-label">Category</InputLabel>
+                <Select
+                  labelId="category-label"
+                  value={category}
+                  label="Category"
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <MenuItem value="To Buy">To Buy</MenuItem>
+                  <MenuItem value="To Pay">To Pay</MenuItem>
+                  <MenuItem value="To Fix">To Fix</MenuItem>
+                  <MenuItem value="To Contact">To Contact</MenuItem>
+                  <MenuItem value="To Follow Up">To Follow Up</MenuItem>
+                  <MenuItem value="To Research">To Research</MenuItem>
+                  <MenuItem value="To Prepare/Make">To Prepare/Make</MenuItem>
+                  <MenuItem value="To Review">To Review</MenuItem>
+                  <MenuItem value="General">General</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" size="small">
+                <InputLabel id="status-label">Status</InputLabel>
+                <Select
+                  labelId="status-label"
+                  value={status}
+                  label="Status"
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <MenuItem value="To Do">To Do</MenuItem>
+                  <MenuItem value="In Progress">In Progress</MenuItem>
+                  <MenuItem value="On Hold">On Hold</MenuItem>
+                  <MenuItem value="Done">Done</MenuItem>
+                  <MenuItem value="Cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                multiline
+                rows={3}
+                variant="outlined"
+                margin="normal"
+                size="small"
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" size="small">
+                <InputLabel id="priority-label">Priority</InputLabel>
+                <Select
+                  labelId="priority-label"
+                  value={priority}
+                  label="Priority"
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <MenuItem value="Low">Low</MenuItem>
+                  <MenuItem value="Medium">Medium</MenuItem>
+                  <MenuItem value="High">High</MenuItem>
+                  <MenuItem value="Urgent">Urgent</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Due Date"
+                type="date"
+                value={due_date}
+                onChange={(e) => setDueDate(e.target.value)}
+                required
+                InputLabelProps={{ shrink: true }}
+                variant="outlined"
+                margin="normal"
+                size="small"
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Box 
+                sx={{ 
+                  border: '1px dashed', 
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  p: 2,
+                  mt: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'background.default'
+                }}
+              >
+                <input
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  id="file-upload"
+                  type="file"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="file-upload">
+                  <Button
+                    component="span"
+                    variant="outlined"
+                    startIcon={<CloudUpload />}
+                    sx={{ mb: 1 }}
+                  >
+                    Upload File
+                  </Button>
+                </label>
+                {fileName && (
+                  <Box sx={{ mt: 1, textAlign: 'center' }}>
+                    <Typography variant="body2">
+                      Selected: {fileName}
+                    </Typography>
+                  </Box>
+                )}
+                <FormHelperText>
+                  Supported formats: Images, PDF, Word, Excel, and Text files
+                </FormHelperText>
+              </Box>
+            </Grid>
+          </Grid>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+      
+      <Divider />
+      
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button 
+          onClick={onClose} 
+          variant="outlined"
+          disabled={isUploading}
+        >
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          form="task-form" 
+          variant="contained" 
+          color="primary"
+          disabled={isUploading}
+          startIcon={isUploading ? <CircularProgress size={20} /> : null}
+        >
+          {isUploading ? 'Uploading...' : (task ? 'Update Task' : 'Create Task')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

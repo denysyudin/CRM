@@ -21,8 +21,7 @@ export interface BackendTask {
   priority: string;
   due_date?: string;
   created_at: string;
-  updated_at: string;
-  assignee?: string;
+  employee_id?: string;
 }
 
 // Frontend to backend mapping
@@ -34,8 +33,8 @@ export const mapTaskToBackend = (task: Partial<Task>): Partial<BackendTask> => {
     project_id: task.project_id,
     status: task.status,
     priority: task.priority,
-    due_date: task.dueDate,
-    assignee: task.assignee
+    due_date: task.due_date || '',
+    employee_id: task.employee_id
   };
 };
 
@@ -45,13 +44,12 @@ export const mapTaskFromBackend = (backendTask: BackendTask): Task => {
     id: backendTask.id,
     title: backendTask.title,
     description: backendTask.description,
-    status: backendTask.status as 'todo' | 'in-progress' | 'completed',
-    priority: backendTask.priority as 'low' | 'medium' | 'high',
-    dueDate: backendTask.due_date,
-    createdAt: backendTask.created_at,
-    updatedAt: backendTask.updated_at,
+    status: backendTask.status as string,
+    priority: backendTask.priority as string,
+    due_date: backendTask.due_date || '',
     project_id: backendTask.project_id,
-    assignee: backendTask.assignee
+    employee_id: backendTask.employee_id,
+    created_at: backendTask.created_at,
   };
 };
 

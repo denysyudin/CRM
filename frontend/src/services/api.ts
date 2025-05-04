@@ -211,15 +211,9 @@ export const eventsApi = {
   
   create: async (event: Omit<Event, 'id'>): Promise<Event> => {
     try {
-      // Create a special string representation that won't be parsed as a datetime
-      // but will be accepted by FastAPI's validation
+
       const modifiedEvent = {
         ...event,
-        // Send date as simple string, exactly as it would appear in database
-        due_date: event.due_date ? event.due_date.replace(/T.*$/, '') : event.due_date,
-        
-        // Include a field that will tell backend this should be treated as a string
-        due_date_is_string: true
       };
       
       console.log('API: Creating event with modified data:', modifiedEvent);
@@ -234,8 +228,6 @@ export const eventsApi = {
   
   update: async (id: string, event: Partial<Event>): Promise<Event> => {
     try {
-      // Create a special string representation that won't be parsed as a datetime
-      // but will be accepted by FastAPI's validation
       const modifiedEvent = {
         ...event,      
       };
@@ -341,6 +333,25 @@ export const filesApi = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/files/${id}`);
   },
+  
+  // New methods for uploading files related to tasks and notes
+  uploadTaskFile: async (fileData: FormData): Promise<File> => {
+    const response = await api.post('/files/task', fileData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  },
+  
+  uploadNoteFile: async (fileData: FormData): Promise<File> => {
+    const response = await api.post('/files/note', fileData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  }
 };
 
 export default {
