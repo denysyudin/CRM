@@ -43,6 +43,7 @@ import {
   DeleteOutline,
   Menu
 } from '@mui/icons-material';
+import './styles.css';
 
 // Define our form data structure to match Event API interface
 interface EventFormData {
