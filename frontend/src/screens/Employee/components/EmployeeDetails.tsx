@@ -332,38 +332,6 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
           }
         />
         <CardContent sx={{ pt: 2 }}>
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel id="task-filter-label">Status</InputLabel>
-              <Select
-                labelId="task-filter-label"
-                id="task-filter-status"
-                value={taskFilterStatus}
-                label="Status"
-                onChange={(e: SelectChangeEvent) => onTaskFilterChange(e.target.value)}
-              >
-                <MenuItem value="all">All</MenuItem>
-                <MenuItem value="pending">Not Started</MenuItem>
-                <MenuItem value="inprogress">In Progress</MenuItem>
-                <MenuItem value="completed">Completed</MenuItem>
-              </Select>
-            </FormControl>
-            
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel id="task-sort-label">Sort By</InputLabel>
-              <Select
-                labelId="task-sort-label"
-                id="task-sort-by"
-                value={taskSortBy}
-                label="Sort By"
-                onChange={(e: SelectChangeEvent) => onTaskSortChange(e.target.value)}
-              >
-                <MenuItem value="due-date">Due Date</MenuItem>
-                <MenuItem value="priority">Priority</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-          
           {filteredTasks.length === 0 ? (
             <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
               No tasks match the current filter.

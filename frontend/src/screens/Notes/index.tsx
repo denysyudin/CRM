@@ -187,100 +187,58 @@ const Notes: React.FC = () => {
 
     try {
       let response;
-      // Check if files are present
+      // Create FormData for both scenarios (with or without files)
+      const formData = new FormData();
+      
+      // Add basic note data to FormData
+      formData.append('title', noteData.title);
+      formData.append('description', noteData.description || '');
+      formData.append('project_id', noteData.project_id || '');
+      formData.append('employee_id', noteData.employee_id || '');
+      formData.append('created_at', noteData.created_at || new Date().toISOString());
+      
+      // Check if files are present and add them to FormData
       if (noteData.files && noteData.files.length > 0) {
         setIsUploading(true);
         setUploadProgress(0);
         
         // Get the first file to upload (API currently supports single file)
         const fileToUpload = noteData.files[0];
+        formData.append('file', fileToUpload); // Use 'file' as the backend expects
+      }
+      
+      if (editMode && noteData.id) {
+        // Update existing note with FormData
+        response = await updateNoteMutation({
+          id: noteData.id,
+          formData
+        }).unwrap();
         
-        if (editMode && noteData.id) {
-          // Update existing note with file
-          response = await updateNoteMutation({
-            id: noteData.id,
-            title: noteData.title,
-            description: noteData.description || '',
-            project_id: noteData.project_id || '',
-            employee_id: noteData.employee_id || '',
-            created_at: noteData.created_at || new Date().toISOString(),
-            fileData: fileToUpload
-          }).unwrap();
-          if (response) {
-            if (selectedNote?.id === noteData.id) {
-              setSelectedNote(response as Note);
-            }
-            showNotification('Note updated successfully');
-          } else {
-            showNotification('Failed to update note', 'error');
+        if (response) {
+          if (selectedNote?.id === noteData.id) {
+            setSelectedNote(response as Note);
           }
+          showNotification('Note updated successfully');
         } else {
-          // Add new note with file
-          response = await createNoteMutation({
-            title: noteData.title || '',
-            description: noteData.description || '',
-            project_id: noteData.project_id || '',
-            employee_id: noteData.employee_id || '',
-            created_at: noteData.created_at || new Date().toISOString(),
-            fileData: fileToUpload
-          }).unwrap();
-          
-          if (response && response.id) {
-            showNotification('Note created successfully');
-          } else {
-            showNotification('Failed to create note', 'error');
-          }
+          showNotification('Failed to update note', 'error');
         }
-        
-        setIsUploading(false);
       } else {
-        // No files, but still use FormData for consistency with the backend
-        if (editMode && noteData.id) {
-          // Update existing note with FormData
-          const { id, files, existingFile, ...noteDataWithoutId } = noteData;
-          response = await updateNoteMutation({
-            id,
-            title: noteData.title,
-            description: noteData.description || '',
-            project_id: noteData.project_id || '',
-            employee_id: noteData.employee_id || '',
-            created_at: noteData.created_at || new Date().toISOString()
-          }).unwrap();
-          
-          if (response) {
-            if (selectedNote?.id === noteData.id) {
-              setSelectedNote(response as Note);
-            }
-            showNotification('Note updated successfully');
-          } else {
-            showNotification('Failed to update note', 'error');
-          }
+        // Add new note with FormData
+        response = await createNoteMutation(formData).unwrap();
+        
+        if (response && response.id) {
+          showNotification('Note created successfully');
         } else {
-          // Add new note with FormData
-          const newNoteData = {
-            title: noteData.title || '',
-            description: noteData.description || '',
-            project_id: noteData.project_id || '',
-            employee_id: noteData.employee_id || '',
-            created_at: noteData.created_at || new Date().toISOString()
-          };
-          
-          response = await createNoteMutation(newNoteData).unwrap();
-          
-          if (response && response.id) {
-            showNotification('Note created successfully');
-          } else {
-            showNotification('Failed to create note', 'error');
-          }
+          showNotification('Failed to create note', 'error');
         }
       }
-  
+      
+      setIsUploading(false);
       handleCloseModal();
     } catch (error) {
       console.error('Error saving note:', error);
       if (editMode) {
         console.error('Failed to update note with ID:', noteData.id);
-        console.error('Note data being sent:', noteData);
       }
       showNotification('Failed to save note. Please try again.', 'error');
       setIsUploading(false);

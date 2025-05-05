@@ -55,22 +55,17 @@ export const notesApi = apiSlice.injectEndpoints({
     
 
     // Create a new note
-    createNote: builder.mutation<Note, Omit<Note, 'id'> & { fileData?: File }>({
-      query: (newNote) => {
-        const { fileData, ...noteData } = newNote;
-        
-        // Always use FormData - backend expects Form data
+    createNote: builder.mutation<Note, FormData | (Omit<Note, 'id'> & { fileData?: File })>({
+      query: (data) => {
+        const { fileData, ...noteData } = data as (Omit<Note, 'id'> & { fileData?: File });
         const formData = new FormData();
         
-        // Append all note data to form
         Object.entries(noteData).forEach(([key, value]) => {
-          // Skip undefined values and files array which is handled separately
           if (value !== undefined && key !== 'files') {
             formData.append(key, value.toString());
           }
         });
         
-        // Append file if exists
         if (fileData) {
           formData.append('file', fileData);
         }
@@ -79,7 +74,6 @@ export const notesApi = apiSlice.injectEndpoints({
           url: '/notes',
           method: 'POST',
           body: formData,
-          // Don't set Content-Type header, browser will set it with boundary
           formData: true,
         };
       },
@@ -87,15 +81,31 @@ export const notesApi = apiSlice.injectEndpoints({
     }),
     
     // Update an existing note
-    updateNote: builder.mutation<Note, Partial<Note> & { id: string; fileData?: File }>({
-      query: ({ id, fileData, ...patch }) => {
+    updateNote: builder.mutation<Note, { id: string; formData?: FormData } | (Partial<Note> & { id: string; fileData?: File })>({
+      query: (data) => {
+        // Extract the ID
+        const id = data.id;
+        
+        // Check if formData is provided directly
+        if ('formData' in data && data.formData instanceof FormData) {
+          return {
+            url: `/notes/${id}`,
+            method: 'PUT',
+            body: data.formData,
+            formData: true
+          };
+        }
+        
+        // Otherwise, convert to FormData
+        const { fileData, ...patch } = data as (Partial<Note> & { id: string; fileData?: File });
+        
         // Always use FormData - backend expects Form data
         const formData = new FormData();
         
         // Append all note data to form
         Object.entries(patch).forEach(([key, value]) => {
-          // Skip undefined values and files array which is handled separately
-          if (value !== undefined && key !== 'files') {
+          // Skip undefined values, id (already extracted), and files array
+          if (value !== undefined && key !== 'files' && key !== 'id') {
             formData.append(key, value.toString());
           }
         });

@@ -39,7 +39,11 @@ import {
   Delete,
   AccountTree,
   Menu,
-  Add
+  Add,
+  CheckCircle as CheckCircleIcon,
+  CircleSharp as CircleSharpIcon,
+  RadioButtonUnchecked as RadioButtonUncheckedIcon,
+  Alarm as AlarmIcon
 } from '@mui/icons-material';
 import { 
   Project,
@@ -59,7 +63,8 @@ import {
 
 import { 
   useGetTaskByProjectIdQuery, 
-  useCreateTaskMutation 
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
 } from '../../redux/api/tasksApi';
 
 import { 
@@ -139,13 +144,15 @@ const ModalFallback: React.FC = () => (
 );
 
 // Format functions for each type of linked item
-const formatTask = (task: Task) => {
+const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: string) => void) => {
   const statusColors: Record<string, string> = {
-    'todo': 'default',
+    'not-started': 'default',
     'inprogress': 'primary',
+    'in-progress': 'primary',
     'completed': 'success',
     'blocked': 'error',
-    'deferred': 'warning'
+    'deferred': 'warning',
+    'todo': 'default'
   };
   
   const priorityColors: Record<string, string> = {
@@ -158,33 +165,97 @@ const formatTask = (task: Task) => {
   const statusKey = task.status.replace('-', '').toLowerCase();
   const priorityKey = task.priority ? task.priority.toLowerCase() : 'none';
   
+  // Format date more nicely
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+  
+  // Status icon based on task status
+  const getStatusIcon = () => {
+    switch (task.status.toLowerCase()) {
+      case 'completed':
+        return <CheckCircleIcon fontSize="small" color="success" />;
+      case 'in-progress':
+      case 'inprogress':
+        return <CircleSharpIcon fontSize="small" color="primary" />;
+      default:
+        return <RadioButtonUncheckedIcon fontSize="small" color="action" />;
+    }
+  };
+  
+  // Handle status toggle
+  const handleStatusToggle = () => {
+    if (!onStatusChange) return;
+    
+    let nextStatus = 'not-started';
+    
+    if (task.status === 'not-started') {
+      nextStatus = 'in-progress';
+    } else if (task.status === 'in-progress') {
+      nextStatus = 'completed';
+    } else if (task.status === 'completed') {
+      nextStatus = 'not-started';
+    }
+    
+    onStatusChange(task.id, nextStatus);
+  };
+  
   return (
-    <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
-      <Box display="flex" alignItems="center">
-        <ListAlt fontSize="small" sx={{ mr: 1 }} />
-        <Typography variant="body1">{task.title}</Typography>
-      </Box>
-      <Box display="flex" alignItems="center">
-        <Chip 
-          size="small" 
-          label={task.status}
-          color={statusColors[statusKey] as any || 'default'}
-          sx={{ mr: 1 }}
-        />
-        {task.due_date && (
-          <Typography variant="caption" sx={{ mr: 1 }}>
-            Due: {task.due_date}
-          </Typography>
-        )}
-        {task.priority && (
+    <Paper elevation={0} sx={{ p: 1, width: '100%', borderRadius: 1, borderLeft: 3, borderColor: priorityColors[priorityKey] }}>
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between" width="100%">
+        <Box display="flex" alignItems="flex-start">
+          <Box 
+            sx={{ 
+              mr: 1, 
+              mt: 0.5,
+              cursor: onStatusChange ? 'pointer' : 'default',
+              '&:hover': {
+                opacity: onStatusChange ? 0.8 : 1
+              }
+            }} 
+            onClick={onStatusChange ? handleStatusToggle : undefined}
+            title={onStatusChange ? "Click to change status" : ""}
+          >
+            {getStatusIcon()}
+          </Box>
+          <Box>
+            <Typography variant="body1" sx={{ fontWeight: 'medium' }}>{task.title}</Typography>
+            {task.description && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {task.description.length > 120 ? `${task.description.substring(0, 120)}...` : task.description}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+        <Box display="flex" flexDirection="column" alignItems="flex-end">
           <Chip 
             size="small" 
-            label={task.priority}
-            color={priorityColors[priorityKey] as any || 'default'}
+            label={task.status.replace('-', ' ')}
+            color={statusColors[statusKey] as any || 'default'}
+            sx={{ mb: 1, textTransform: 'capitalize' }}
           />
-        )}
+          {task.due_date && (
+            <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center' }}>
+              <AlarmIcon fontSize="inherit" sx={{ mr: 0.5 }} />
+              Due: {formatDate(task.due_date)}
+            </Typography>
+          )}
+          {task.priority && (
+            <Chip 
+              size="small" 
+              label={task.priority}
+              color={priorityColors[priorityKey] as any || 'default'}
+              sx={{ mt: 1 }}
+            />
+          )}
+        </Box>
       </Box>
-    </Box>
+    </Paper>
   );
 };
 
@@ -306,6 +377,24 @@ const LinkedItemsList = React.memo(({
         // @ts-ignore - Handling the ID inconsistency that was causing TS errors
         const id = item?.id;
         if (!item) return null;
+        
+        // For tasks, we need to handle the Paper layout differently
+        if ('status' in item && 'priority' in item) {
+          return (
+            <ListItem 
+              key={id} 
+              sx={{
+                padding: '0.5rem 0',
+                display: 'block',
+                width: '100%'
+              }}
+            >
+              {formatter(item)}
+            </ListItem>
+          );
+        }
+        
+        // For other item types, use the original formatting
         return (
           <ListItem 
             key={id} 
@@ -401,6 +490,57 @@ const ProjectDetailSection = React.memo(({
   onAddItem: () => void,
   showaddbutton?: boolean
 }) => {
+  // Task filtering and sorting state
+  const [taskFilterStatus, setTaskFilterStatus] = useState('all');
+  const [taskSortBy, setTaskSortBy] = useState('due-date');
+  
+  // Filter and sort tasks if this is the task section
+  const processedItems = useMemo(() => {
+    // Only apply to task section
+    if (!title.includes('Task') || !items.length) {
+      return items;
+    }
+    
+    // Create a copy of the tasks array
+    let filtered = [...items];
+    
+    // Apply status filter
+    if (taskFilterStatus !== 'all') {
+      if (taskFilterStatus === 'pending') {
+        filtered = filtered.filter((task: any) => 
+          task.status === 'not-started' || task.status === 'in-progress'
+        );
+      } else if (taskFilterStatus === 'inprogress') {
+        filtered = filtered.filter((task: any) => 
+          task.status === 'in-progress'
+        );
+      } else if (taskFilterStatus === 'completed') {
+        filtered = filtered.filter((task: any) => 
+          task.status === 'completed'
+        );
+      }
+    }
+    
+    // Apply sorting
+    filtered.sort((a: any, b: any) => {
+      if (taskSortBy === 'due-date') {
+        const dateA = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
+        const dateB = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
+        return dateA.getTime() - dateB.getTime();
+      } else if (taskSortBy === 'priority') {
+        const priorityOrder: { [key: string]: number } = { 
+          'high': 1, 
+          'medium': 2, 
+          'low': 3 
+        };
+        return (priorityOrder[a.priority?.toLowerCase()] || 4) - (priorityOrder[b.priority?.toLowerCase()] || 4);
+      }
+      return 0;
+    });
+    
+    return filtered;
+  }, [items, title, taskFilterStatus, taskSortBy]);
+
   // Determine the icon based on the title
   const getIcon = () => {
     if (title.includes('Task')) return <ListAlt />;
@@ -418,17 +558,19 @@ const ProjectDetailSection = React.memo(({
           {getIcon()}
           <Typography variant="h6" sx={{ ml: 1 }}>{title}</Typography>
         </Box>
-        <IconButton
-          size="small"
-          onClick={onAddItem}
-          title={`Add New ${title.replace('Related ', '')}`}
-        >
-          {showaddbutton && <AddCircleOutline />}
-        </IconButton>
+        <Box display="flex" alignItems="center">
+          <IconButton
+            size="small"
+            onClick={onAddItem}
+            title={`Add New ${title.replace('Related ', '')}`}
+          >
+            {showaddbutton && <AddCircleOutline />}
+          </IconButton>
+        </Box>
       </Box>
       <List sx={{ width: '100%' }}>
         <LinkedItemsList
-          items={items}
+          items={processedItems}
           itemsData={itemsData}
           formatter={formatter}
         />
@@ -504,6 +646,7 @@ const Projects: React.FC = () => {
   const [createEvent, { isLoading: isCreatingEvent }] = useCreateEventMutation();
   const [createReminder, { isLoading: isCreatingReminder }] = useCreateReminderMutation();
   const [createFile, { isLoading: isCreatingFile }] = useCreateFileMutation();
+  const [updateTask, { isLoading: isUpdatingTask }] = useUpdateTaskMutation();
   
   // Initialize empty states for modal forms
   const [newTask, setNewTask] = useState<Partial<Task>>({});
@@ -650,33 +793,48 @@ const Projects: React.FC = () => {
     setShowAddProjectModal(true);
   };
 
-  const handleTaskSubmit = async (taskData: Omit<Task, 'id'>, fileData?: FormData) => {
+  const handleTaskSubmit = async (taskData: FormData, fileData?: FormData) => {
     if (!selectedProject) return;
     
     try {
-      // Prepare task data with proper types
-      const taskPayload: TaskPayload = {
-        ...taskData,
-        project_id: selectedProject.id,
-        employee_id: taskData.employee_id ? String(taskData.employee_id) : undefined
-      };
+      // Ensure we're using FormData properly
+      const formData = new FormData();
       
-      // Use createTask mutation from RTK Query
-      const newTask = await createTask(taskPayload as any).unwrap();
+      // Copy all fields from taskData to new FormData
+      for (const [key, value] of taskData.entries()) {
+        formData.append(key, value);
+      }
+      
+      // Add project_id to FormData
+      formData.append('project_id', selectedProject.id.toString());
+      
+      // Handle employee_id properly
+      const employeeId = taskData.get('employee_id');
+      if (employeeId) {
+        formData.set('employee_id', String(employeeId));
+      }
+      
+      // Use createTask mutation with FormData directly
+      const newTask = await createTask(formData as any).unwrap();
       
       // If there's file data, handle file upload separately
       if (fileData && newTask.id) {
         try {
-          // Create a proper File object for the API
-          const filePayload: FilePayload = {
-            title: fileData.get('fileName') as string || 'Untitled File',
-            type: 'task-attachment',
-            project_id: selectedProject.id,
-            task_id: newTask.id,
-            file_data: fileData
-          };
+          // Create a new FormData for file upload
+          const fileFormData = new FormData();
+          fileFormData.append('title', fileData.get('fileName') as string || 'Untitled File');
+          fileFormData.append('type', 'task-attachment');
+          fileFormData.append('project_id', selectedProject.id.toString());
+          fileFormData.append('task_id', newTask.id.toString());
           
-          await createFile(filePayload as any).unwrap();
+          // Append the actual file data
+          for (const [key, value] of fileData.entries()) {
+            if (key !== 'fileName') {
+              fileFormData.append(key, value);
+            }
+          }
+          
+          await createFile(fileFormData as any).unwrap();
           console.log('File uploaded successfully');
         } catch (fileError) {
           console.error('Error uploading file:', fileError);
@@ -765,12 +923,18 @@ const Projects: React.FC = () => {
         // Handle event update logic here
         console.log('Update event with data:', newEvent);
       } else {
+        // Combine date and time into a single timestamp
+        const dateStr = newEvent.date;
+        const hours = newEvent.hours || '00';
+        const minutes = newEvent.minutes || '00';
+        const fullDateTime = `${dateStr}T${hours}:${minutes}:00`;
+        
         // Map the form event data to the API expected format
         const eventPayload: EventPayload = {
           id: '',  // This will be assigned by the server
           title: newEvent.title,
           type: newEvent.type,
-          due_date: newEvent.date, // Map date to due_date
+          due_date: fullDateTime, // Use combined date and time
           project_id: selectedProject.id,
           description: newEvent.description,
           participants: newEvent.participants
@@ -844,6 +1008,24 @@ const Projects: React.FC = () => {
   const handleProjectDropdownChange = (event: SelectChangeEvent) => {
     if (event.target.value) {
       selectProject(event.target.value);
+    }
+  };
+
+  // Handle task status change
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      // Create the payload for updating the task
+      const updatePayload = {
+        id: taskId,
+        status: newStatus
+      };
+      
+      // Call the updateTask mutation
+      await updateTask(updatePayload).unwrap();
+      console.log(`Task ${taskId} status updated to ${newStatus}`);
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      alert('Failed to update task status. Please try again.');
     }
   };
 
@@ -1001,7 +1183,7 @@ const Projects: React.FC = () => {
                 title="Related Tasks"
                 items={tasks}
                 itemsData={tasks}
-                formatter={formatTask}
+                formatter={(task) => formatTask(task, handleTaskStatusChange)}
                 onAddItem={() => handleAddLinkedItem('Task')}
                 showaddbutton={true}
               />
@@ -1138,7 +1320,7 @@ const Projects: React.FC = () => {
             onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleInputChange(e, setNewReminder)}
             onSelectChange={(e: SelectChangeEvent) => handleSelectChange(e, setNewReminder)}
             onStatusChange={(status: boolean) => handleStatusChange(status.toString(), setNewReminder)}
-            onSubmit={handleReminderSubmit}
+            onSubmit={() => handleReminderSubmit(newReminder as any)}
           />
         </Suspense>
       )}

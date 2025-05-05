@@ -188,17 +188,6 @@ const EventModal: React.FC<EventModalProps> = ({
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Project (Optional)"
-                name="project_id"
-                value={eventFormData.project_id || ''}
-                onChange={onFormChange}
-                margin="normal"
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
                 label="Notes (Optional)"
                 name="description"
                 value={eventFormData.description || ''}

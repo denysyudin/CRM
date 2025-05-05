@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Events } from '../../types/event.types';
 import { useCreateEventMutation, useUpdateEventMutation, useDeleteEventMutation, useGetEventsQuery } from '../../redux/api/eventsApi';
+import { useGetProjectsQuery } from '../../redux/api/projectsApi';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import EventModal, { EventFormData } from '../../components/forms/EventModal';
 import {
@@ -13,13 +14,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
   Grid,
   IconButton,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   SelectChangeEvent,
   Snackbar,
   Alert,
@@ -29,7 +26,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
   useMediaQuery,
   useTheme
@@ -45,6 +41,7 @@ import {
   Menu
 } from '@mui/icons-material';
 import './styles.css';
+import { Project } from '../../types/project.types';
 
 const Calendar: React.FC = () => {
   const theme = useTheme();
@@ -83,7 +80,8 @@ const Calendar: React.FC = () => {
   const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
   const [updateEvent, { isLoading: isUpdating }] = useUpdateEventMutation();
   const [deleteEvent, { isLoading: isDeleting }] = useDeleteEventMutation();
-  
+  const { data: projects = [] } = useGetProjectsQuery();
+
   const [formError, setFormError] = useState<string | null>(null);
   
   // Notification state
@@ -722,7 +720,7 @@ const Calendar: React.FC = () => {
                         <Grid item xs={12}>
                           <Typography variant="subtitle2" color="text.secondary">Project</Typography>
                           <Chip
-                            label={selectedEvent.project_id}
+                            label={projects.find((project: Project) => project.id === selectedEvent.project_id)?.title}
                             size="small"
                             variant="outlined"
                           />

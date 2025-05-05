@@ -24,7 +24,7 @@ import { Close, CloudUpload } from '@mui/icons-material';
 interface TaskModalProps {
   projectName: string;
   onClose: () => void;
-  onSubmit: (taskData: Omit<Task, 'id'>, fileData?: FormData) => void;
+  onSubmit: (taskData: FormData) => void;
   task?: Task;
   projectId: string;
 }
@@ -56,20 +56,23 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       // Convert file to array to match interface
       files: file ? [fileName] : []
     };
-    
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('status', status);
+    formData.append('due_date', due_date);
+    formData.append('priority', priority);
+    formData.append('category', category);
+    formData.append('project_id', projectId);
+    formData.append('employee_id', '');
+    console.log(formData);
     // If there's a file, prepare FormData for file upload
     if (file) {
-      const formData = new FormData();
       formData.append('file', file);
-      formData.append('fileName', fileName);
-      formData.append('taskId', task?.id || '');
-      formData.append('projectId', task?.project_id || projectId);
-      
-      // Pass both task data and file data to parent component
-      onSubmit(taskData, formData);
+      onSubmit(formData);
     } else {
       // Just submit the task data without file
-      onSubmit(taskData);
+      onSubmit(formData);
     }
     
     setIsUploading(false);
