@@ -26,9 +26,10 @@ interface TaskModalProps {
   onClose: () => void;
   onSubmit: (taskData: Omit<Task, 'id'>, fileData?: FormData) => void;
   task?: Task;
+  projectId: string;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, task }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, task, projectId }) => {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [status, setStatus] = useState(task?.status || 'To Do');
@@ -50,10 +51,10 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       due_date,
       priority,
       category,
-      project_id: task?.project_id || '',
+      project_id: task?.project_id || projectId,
       employee_id: task?.employee_id || '',
-      // Convert file array to string to match interface
-      files: file ? fileName : ''
+      // Convert file to array to match interface
+      files: file ? [fileName] : []
     };
     
     // If there's a file, prepare FormData for file upload
@@ -62,7 +63,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       formData.append('file', file);
       formData.append('fileName', fileName);
       formData.append('taskId', task?.id || '');
-      formData.append('projectId', task?.project_id || '');
+      formData.append('projectId', task?.project_id || projectId);
       
       // Pass both task data and file data to parent component
       onSubmit(taskData, formData);

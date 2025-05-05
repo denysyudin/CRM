@@ -384,7 +384,7 @@ const EmployeePage: React.FC = () => {
       )}
       {addNoteModalOpen && (
         <AddNoteModal
-          employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
+          employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}  
           onSave={handleAddNote}
           onClose={() => setAddNoteModalOpen(false)}
         />

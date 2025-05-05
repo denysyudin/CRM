@@ -4,6 +4,7 @@ import Sidebar from '../../components/Sidebar/Sidebar';
 import { useGetNotesQuery, useUpdateNoteMutation, useCreateNoteMutation, useDeleteNoteMutation } from '../../redux/api/notesApi';
 import { useGetProjectsQuery  } from '../../redux/api/projectsApi';
 import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
+import { Note } from '../../types/note.types';
 import './styles.css';
 import {
   TextField,
@@ -30,7 +31,6 @@ import {
   ListItem,
   ListItemText,
 } from '@mui/material';
-import { Note } from '../../types/note.types';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
@@ -41,6 +41,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PersonIcon from '@mui/icons-material/Person';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import BusinessIcon from '@mui/icons-material/Business';
+import { NoteModal } from '../../components/forms';
 
 const Notes: React.FC = () => {
   // Get data from RTK Query
@@ -68,6 +69,10 @@ const Notes: React.FC = () => {
     severity: 'success' as AlertColor
   });
 
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,7 +83,7 @@ const Notes: React.FC = () => {
     project_id: '',
     employee_id: '',
     created_at: new Date().toISOString(),
-    files: '',
+    files: [],
   });
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
@@ -121,17 +126,32 @@ const Notes: React.FC = () => {
   // Handle opening the modal for creating or editing a note
   const handleOpenModal = (mode: 'add' | 'edit', noteToEdit?: Note) => {
     if (mode === 'edit' && noteToEdit) {
-      setNewNote({ ...noteToEdit });
+      // Create a copy of the note to edit
+      const noteWithFiles = { ...noteToEdit };
+      
+      // If the note has a file_url, create a temporary file representation
+      if (noteToEdit.file_url) {
+        // Extract the filename from the URL
+        const fileName = noteToEdit.file_url.split('/').pop() || 'attached-file';
+        
+        // Create a placeholder for the existing file to display in UI
+        noteWithFiles.existingFile = {
+          name: fileName,
+          url: noteToEdit.file_url
+        };
+      }
+      
+      setNewNote(noteWithFiles);
       setEditMode(true);
     } else {
+      // For new notes, start with a clean slate
       setNewNote({
         title: '',
         description: '',
         project_id: selectedProject || '',
-        category: selectedCategory || '',
         employee_id: selectedEmployee || '',
         created_at: new Date().toISOString(),
-        files: ''
+        files: []
       });
       setEditMode(false);
     }
@@ -141,58 +161,129 @@ const Notes: React.FC = () => {
   // Handle closing the modal
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    // Reset form state completely
     setNewNote({
       title: '',
       description: '',
-      project_id: selectedProject || '',
-      category: selectedCategory || '',
-      employee_id: selectedEmployee || '',
+      project_id: '',
+      employee_id: '',
       created_at: new Date().toISOString(),
-      files: ''
+      files: [],
+      existingFile: undefined
     });
     setEditMode(false);
     setDeleteConfirmModalOpen(false);
     setNoteToDelete(null);
+    setUploadProgress(0);
+    setIsUploading(false);
   };
 
   // Handle saving a new or edited note
-  const handleSaveNote = async () => {
-    if (!newNote.title || !newNote.description || !newNote.project_id) {
+  const handleSaveNote = async (noteData: Note) => {
+    if (!noteData.title || !noteData.description || !noteData.project_id) {
       showNotification('Please fill in all required fields', 'error');
       return;
     }
 
     try {
-      if (editMode && newNote.id) {
-        // Update existing note
-        await updateNoteMutation({
-          id: newNote.id,
-          ...newNote
-        });
+      let response;
+      // Check if files are present
+      if (noteData.files && noteData.files.length > 0) {
+        setIsUploading(true);
+        setUploadProgress(0);
         
-        if (selectedNote?.id === newNote.id) {
-          setSelectedNote(newNote as Note);
+        // Get the first file to upload (API currently supports single file)
+        const fileToUpload = noteData.files[0];
+        
+        if (editMode && noteData.id) {
+          // Update existing note with file
+          response = await updateNoteMutation({
+            id: noteData.id,
+            title: noteData.title,
+            description: noteData.description || '',
+            project_id: noteData.project_id || '',
+            employee_id: noteData.employee_id || '',
+            created_at: noteData.created_at || new Date().toISOString(),
+            fileData: fileToUpload
+          }).unwrap();
+          if (response) {
+            if (selectedNote?.id === noteData.id) {
+              setSelectedNote(response as Note);
+            }
+            showNotification('Note updated successfully');
+          } else {
+            showNotification('Failed to update note', 'error');
+          }
+        } else {
+          // Add new note with file
+          response = await createNoteMutation({
+            title: noteData.title || '',
+            description: noteData.description || '',
+            project_id: noteData.project_id || '',
+            employee_id: noteData.employee_id || '',
+            created_at: noteData.created_at || new Date().toISOString(),
+            fileData: fileToUpload
+          }).unwrap();
+          
+          if (response && response.id) {
+            showNotification('Note created successfully');
+          } else {
+            showNotification('Failed to create note', 'error');
+          }
         }
-        showNotification('Note updated successfully');
+        
+        setIsUploading(false);
       } else {
-        // Add new note
-        const noteData = {
-          title: newNote.title || '',
-          description: newNote.description || '',
-          project_id: newNote.project_id || '',
-          category: newNote.category,
-          employee_id: newNote.employee_id || '',
-          created_at: newNote.created_at || new Date().toISOString(),
-          files: newNote.files
-        };
-        await createNoteMutation(noteData);
-        showNotification('Note created successfully');
+        // No files, but still use FormData for consistency with the backend
+        if (editMode && noteData.id) {
+          // Update existing note with FormData
+          const { id, files, existingFile, ...noteDataWithoutId } = noteData;
+          response = await updateNoteMutation({
+            id,
+            title: noteData.title,
+            description: noteData.description || '',
+            project_id: noteData.project_id || '',
+            employee_id: noteData.employee_id || '',
+            created_at: noteData.created_at || new Date().toISOString()
+          }).unwrap();
+          
+          if (response) {
+            if (selectedNote?.id === noteData.id) {
+              setSelectedNote(response as Note);
+            }
+            showNotification('Note updated successfully');
+          } else {
+            showNotification('Failed to update note', 'error');
+          }
+        } else {
+          // Add new note with FormData
+          const newNoteData = {
+            title: noteData.title || '',
+            description: noteData.description || '',
+            project_id: noteData.project_id || '',
+            employee_id: noteData.employee_id || '',
+            created_at: noteData.created_at || new Date().toISOString()
+          };
+          
+          response = await createNoteMutation(newNoteData).unwrap();
+          
+          if (response && response.id) {
+            showNotification('Note created successfully');
+          } else {
+            showNotification('Failed to create note', 'error');
+          }
+        }
       }
   
       handleCloseModal();
     } catch (error) {
       console.error('Error saving note:', error);
+      if (editMode) {
+        console.error('Failed to update note with ID:', noteData.id);
+        console.error('Note data being sent:', noteData);
+      }
       showNotification('Failed to save note. Please try again.', 'error');
+      setIsUploading(false);
     }
   };
 
@@ -419,13 +510,14 @@ const Notes: React.FC = () => {
               <div className="notes-list-container">
                 <div className="notes-list">
                   {filteredNotes.length > 0 ? (
-                    <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
+                    <List sx={{ width: '100%', bgcolor: 'inherit' }}>
                       {filteredNotes.map(note => (
                         <React.Fragment key={note.id}>
                           <ListItem
                             sx={{
                               borderLeft: 3,
                               borderColor: 'primary.main',
+                              backgroundColor: 'background.paper',
                               mb: 1,
                               cursor: 'pointer',
                             }}
@@ -526,121 +618,16 @@ const Notes: React.FC = () => {
             </div>
 
             {/* Note Modal */}
-            <Modal
+            <NoteModal
               open={isModalOpen}
               onClose={handleCloseModal}
-            >
-              <Box sx={modalStyle}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">{editMode ? 'Edit Note' : 'New Note'}</Typography>
-                  <IconButton onClick={handleCloseModal} size="small">
-                    <CloseIcon />
-                  </IconButton>
-                </Box>
-                
-                <Divider sx={{ mb: 3 }} />
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      required
-                      label="Title"
-                      name="title"
-                      value={newNote.title || ''}
-                      onChange={handleInputChange}
-                      placeholder="Enter note title"
-                      variant="outlined"
-                      size="small"
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      required
-                      label="Content"
-                      name="description"
-                      value={newNote.description || ''}
-                      onChange={handleInputChange}
-                      placeholder="Enter note content"
-                      variant="outlined"
-                      multiline
-                      rows={8}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <FormControl fullWidth required size="small">
-                      <InputLabel id="project-label">Project</InputLabel>
-                      <Select
-                        labelId="project-label"
-                        name="project_id"
-                        value={newNote.project_id || ''}
-                        onChange={handleInputChange}
-                        label="Project"
-                      >
-                        <MenuItem value="">
-                          <em>Select a project</em>
-                        </MenuItem>
-                        {projects.map(project => (
-                          <MenuItem key={project.id} value={project.id}>
-                            {project.title}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Button
-                      component="label"
-                      variant="outlined"
-                      startIcon={<AddIcon />}
-                      sx={{ mb: 1 }}
-                    >
-                      Attach File
-                      <input
-                        type="file"
-                        hidden
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files.length > 0) {
-                            const fileName = e.target.files[0].name;
-                            setNewNote(prev => ({ ...prev, files: fileName }));
-                          }
-                        }}
-                      />
-                    </Button>
-                    {newNote.files && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                        <Typography variant="body2">{newNote.files}</Typography>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => setNewNote(prev => ({ ...prev, files: '' }))}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    )}
-                  </Grid>
-                </Grid>
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleCloseModal}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleSaveNote}
-                  >
-                    {editMode ? 'Update Note' : 'Save Note'}
-                  </Button>
-                </Box>
-              </Box>
-            </Modal>
+              onSave={handleSaveNote}
+              editMode={editMode}
+              initialData={newNote as Note}
+              projects={projects}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
 
             {/* Note Detail View */}
             {selectedNote && (
@@ -687,6 +674,26 @@ const Notes: React.FC = () => {
                 <Typography variant="body1" sx={{ mb: 3, whiteSpace: 'pre-wrap' }}>
                   {selectedNote.description}
                 </Typography>
+                
+                {/* Display attached file if any */}
+                {selectedNote.file_url && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>
+                      Attached File:
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <NoteIcon fontSize="small" sx={{ mr: 1 }} />
+                      <a 
+                        href={selectedNote.file_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ textDecoration: 'underline' }}
+                      >
+                        {selectedNote.file_url.split('/').pop() || 'Download File'}
+                      </a>
+                    </Box>
+                  </Box>
+                )}
               </Paper>
             )}
 

@@ -24,6 +24,28 @@ export const tasksApi = apiSlice.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'Tasks', id }],
     }),
     
+    getTaskByProjectId: builder.query<Task[], string>({
+      query: (projectId) => `/tasks?project_id=${projectId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Tasks' as const, id })),
+              { type: 'Tasks', id: 'LIST' },
+            ]
+          : [{ type: 'Tasks', id: 'LIST' }],
+    }),
+    
+    getTaskByEmployeeId: builder.query<Task[], string>({
+      query: (employeeId) => `/tasks?employee_id=${employeeId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Tasks' as const, id })),
+              { type: 'Tasks', id: 'LIST' },
+            ]
+          : [{ type: 'Tasks', id: 'LIST' }],
+    }),
+
     // Create a new task
     createTask: builder.mutation<Task, Partial<Task>>({
       query: (newTask) => ({
@@ -37,7 +59,7 @@ export const tasksApi = apiSlice.injectEndpoints({
     // Update an existing task
     updateTask: builder.mutation<Task, Partial<Task> & { id: string }>({
       query: ({ id, ...patch }) => ({
-        url: `/tasks/${id}`,
+        url: `/tasks/${id}/status`,
         method: 'PUT',
         body: patch,
       }),
@@ -59,6 +81,8 @@ export const tasksApi = apiSlice.injectEndpoints({
 export const {
   useGetTasksQuery,
   useGetTaskByIdQuery,
+  useGetTaskByProjectIdQuery,
+  useGetTaskByEmployeeIdQuery,
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,

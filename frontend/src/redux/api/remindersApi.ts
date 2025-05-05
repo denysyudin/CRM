@@ -24,6 +24,28 @@ export const remindersApi = apiSlice.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'Reminders', id }],
     }),
     
+    getReminderByProjectId: builder.query<Reminder[], string>({
+      query: (projectId) => `/reminders?project_id=${projectId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Reminders' as const, id })),
+              { type: 'Reminders', id: 'LIST' },
+            ]
+          : [{ type: 'Reminders', id: 'LIST' }],
+    }),
+    
+    getReminderByEmployeeId: builder.query<Reminder[], string>({
+      query: (employeeId) => `/reminders?employee_id=${employeeId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Reminders' as const, id })),
+              { type: 'Reminders', id: 'LIST' },
+            ]
+          : [{ type: 'Reminders', id: 'LIST' }],
+    }),
+
     // Get pending reminders
     getPendingReminders: builder.query<Reminder[], void>({
       query: () => '/reminders?status=false',
@@ -93,4 +115,6 @@ export const {
   useUpdateReminderMutation,
   useCompleteReminderMutation,
   useDeleteReminderMutation,
+  useGetReminderByProjectIdQuery,
+  useGetReminderByEmployeeIdQuery,
 } = remindersApi; 

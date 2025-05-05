@@ -1,165 +1,244 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Events } from '../../types/event.types';
-import '../../screens/Projects/styles.css';
+import React from 'react';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  Grid,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
+  TextField,
+  Typography
+} from '@mui/material';
+import { Close, DeleteOutline } from '@mui/icons-material';
 
-interface EventModalProps {
-  projectName: string;
-  onClose: () => void;
-  onSubmit: (eventData: Omit<Events, 'id'>) => void;
-  event?: Events;
+// Event form data interface
+export interface EventFormData {
+  id?: string;
+  title: string;
+  date: string;
+  hours?: string;
+  minutes?: string;
+  type: string;
+  participants?: string;
+  notes?: string;
+  project_id?: string;
+  employee_id?: string;
+  description?: string;
 }
 
-const EventModal: React.FC<EventModalProps> = ({ projectName, onClose, onSubmit, event }) => {
-  const [title, setTitle] = useState(event?.title || '');
-  const [due_date, setDueDate] = useState(event?.due_date || '');
-  const [type, setType] = useState(event?.type || 'meeting');
-  const [participants, setParticipants] = useState(event?.participants || '');
-  const [notes, setNotes] = useState(event?.notes || '');
-  const [description, setDescription] = useState(event?.description || '');
-  
-  // Reference for initial focus
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  
-  // Focus the title input when modal opens
-  useEffect(() => {
-    if (titleInputRef.current) {
-      setTimeout(() => {
-        titleInputRef.current?.focus();
-      }, 100);
-    }
-    
-    // Save the active element to restore focus when modal closes
-    const activeElement = document.activeElement;
-    
-    return () => {
-      // Cast to HTMLElement to access focus method
-      if (activeElement instanceof HTMLElement) {
-        activeElement.focus();
-      }
-    };
-  }, []);
+interface EventModalProps {
+  open: boolean;
+  onClose: () => void;
+  eventFormData: EventFormData;
+  isEditing: boolean;
+  formError: string | null;
+  isCreating: boolean;
+  isUpdating: boolean;
+  isDeleting: boolean;
+  onFormChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onSelectChange: (e: SelectChangeEvent) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onDelete: (id: string) => void;
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      title,
-      due_date,
-      type,
-      participants,
-      notes,
-      description,
-      project_id: event?.project_id || '',
-      employee_id: event?.employee_id || ''
-    });
-  };
-  
-  // Handle ESC key press
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
-  };
-
+const EventModal: React.FC<EventModalProps> = ({
+  open,
+  onClose,
+  eventFormData,
+  isEditing,
+  formError,
+  isCreating,
+  isUpdating,
+  isDeleting,
+  onFormChange,
+  onSelectChange,
+  onSubmit,
+  onDelete
+}) => {
   return (
-    <div 
-      className="modal-backdrop" 
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="event-modal-title"
-      onKeyDown={handleKeyDown}
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
     >
-      <div 
-        className="modal-content"
-        tabIndex={-1}
-      >
-        <div className="modal-header">
-          <h2 id="event-modal-title">{event ? 'Edit Event' : 'Add New Event'}</h2>
-          <button 
-            className="close-button" 
-            onClick={onClose}
-            aria-label="Close modal"
+      <DialogTitle>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">
+            {isEditing ? 'Edit Event' : 'Add New Event'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <Close />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+
+      <form onSubmit={onSubmit}>
+        <DialogContent dividers>
+          {formError && (
+            <Typography color="error" paragraph>
+              {formError}
+            </Typography>
+          )}
+
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Event Name"
+                name="title"
+                value={eventFormData.title}
+                onChange={onFormChange}
+                required
+                margin="normal"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Date"
+                type="date"
+                name="date"
+                value={eventFormData.date}
+                onChange={onFormChange}
+                required
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Box display="flex" alignItems="center" gap={1} mt={2}>
+                <FormControl sx={{ flex: 1 }}>
+                  <InputLabel id="hours-label">Hours</InputLabel>
+                  <Select
+                    labelId="hours-label"
+                    label="Hours"
+                    name="hours"
+                    value={eventFormData.hours || '00'}
+                    onChange={onSelectChange}
+                  >
+                    {[...Array(24)].map((_, i) => (
+                      <MenuItem key={i} value={String(i).padStart(2, '0')}>
+                        {String(i).padStart(2, '0')}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <Typography variant="h5">:</Typography>
+
+                <FormControl sx={{ flex: 1 }}>
+                  <InputLabel id="minutes-label">Minutes</InputLabel>
+                  <Select
+                    labelId="minutes-label"
+                    label="Minutes"
+                    name="minutes"
+                    value={eventFormData.minutes || '00'}
+                    onChange={onSelectChange}
+                  >
+                    {[...Array(60)].map((_, i) => (
+                      <MenuItem key={i} value={String(i).padStart(2, '0')}>
+                        {String(i).padStart(2, '0')}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth margin="normal">
+                <InputLabel id="event-type-label">Type</InputLabel>
+                <Select
+                  labelId="event-type-label"
+                  label="Type"
+                  name="type"
+                  value={eventFormData.type}
+                  onChange={onSelectChange}
+                >
+                  <MenuItem value="meeting">Meeting</MenuItem>
+                  <MenuItem value="deadline">Deadline</MenuItem>
+                  <MenuItem value="appointment">Appointment</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Participants (Optional)"
+                name="participants"
+                value={eventFormData.participants || ''}
+                onChange={onFormChange}
+                placeholder="Comma-separated list of participants"
+                margin="normal"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Project (Optional)"
+                name="project_id"
+                value={eventFormData.project_id || ''}
+                onChange={onFormChange}
+                margin="normal"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes (Optional)"
+                name="description"
+                value={eventFormData.description || ''}
+                onChange={onFormChange}
+                multiline
+                rows={4}
+                margin="normal"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={isCreating || isUpdating}
           >
-            &times;
-          </button>
-        </div>
-        <div className="modal-subheader">
-          Project: {projectName}
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="title">Event Title</label>
-            <input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              ref={titleInputRef}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="type">Event Type</label>
-            <select
-              id="type"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
+            {isEditing ?
+              (isUpdating ? 'Updating...' : 'Update Event') :
+              (isCreating ? 'Creating...' : 'Create Event')}
+          </Button>
+
+          {isEditing && eventFormData.id && (
+            <Button
+              color="error"
+              startIcon={<DeleteOutline />}
+              disabled={isDeleting}
+              onClick={() => onDelete(eventFormData.id!)}
             >
-              <option value="meeting">Meeting</option>
-              <option value="deadline">Deadline</option>
-              <option value="conference">Conference</option>
-              <option value="call">Call</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="due_date">Date and Time</label>
-            <input
-              id="due_date"
-              type="datetime-local"
-              value={due_date ? due_date.substring(0, 16) : ''}
-              onChange={(e) => setDueDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="participants">Participants</label>
-            <input
-              id="participants"
-              type="text"
-              value={participants}
-              onChange={(e) => setParticipants(e.target.value)}
-              placeholder="e.g. John Doe, Jane Smith"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="notes">Notes</label>
-            <textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="form-button button-secondary" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="form-button button-primary">
-              {event ? 'Update Event' : 'Create Event'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          )}
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 };
 

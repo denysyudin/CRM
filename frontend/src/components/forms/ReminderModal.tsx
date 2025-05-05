@@ -1,107 +1,196 @@
-import React, { useState } from 'react';
-import { Reminder } from '../../types';
-import '../../screens/Projects/styles.css';
+import React from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+  Box,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  SelectChangeEvent,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { Reminder } from '../../types/reminder.types';
+import { Project } from '../../types/project.types';
+import { Employee } from '../../types/employee.types';
 
 interface ReminderModalProps {
-  projectName: string;
+  open: boolean;
   onClose: () => void;
-  onSubmit: (reminderData: Omit<Reminder, 'id'>) => void;
-  reminder?: Reminder;
+  reminder: Reminder;
+  isEditing: boolean;
+  projects: Project[];
+  employees: Employee[];
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onSelectChange: (e: SelectChangeEvent) => void;
+  onStatusChange: (checked: boolean) => void;
+  onSubmit: (e?: React.FormEvent) => void;
 }
 
-const ReminderModal: React.FC<ReminderModalProps> = ({ projectName, onClose, onSubmit, reminder }) => {
-  const [title, setTitle] = useState(reminder?.title || '');
-  const [due_date, setDueDate] = useState(reminder?.due_date || '');
-  const [priority, setPriority] = useState(reminder?.priority || 'Medium');
-  const [description, setDescription] = useState(reminder?.description || '');
-  const [status, setStatus] = useState(reminder?.status || false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      title,
-      due_date,
-      priority,
-      description,
-      status,
-      project_id: reminder?.project_id || '',
-      employee_id: reminder?.employee_id || ''
-    });
-  };
-
+const ReminderModal: React.FC<ReminderModalProps> = ({
+  open,
+  onClose,
+  reminder,
+  isEditing,
+  projects,
+  employees,
+  onChange,
+  onSelectChange,
+  onStatusChange,
+  onSubmit,
+}) => {
   return (
-    <div className="modal-backdrop">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>{reminder ? 'Edit Reminder' : 'Add New Reminder'}</h2>
-          <button className="close-button" onClick={onClose}>&times;</button>
-        </div>
-        <div className="modal-subheader">
-          Project: {projectName}
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="title">Reminder Title</label>
-            <input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="due_date">Due Date</label>
-            <input
-              id="due_date"
-              type="date"
-              value={due_date}
-              onChange={(e) => setDueDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="priority">Priority</label>
-            <select
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle>
+        {isEditing ? 'Edit Reminder' : 'New Reminder'}
+        <IconButton
+          aria-label="close"
+          onClick={onClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent>
+        <Box component="form" onSubmit={(e) => { e.preventDefault(); onSubmit(); }} sx={{ mt: 1 }}>
+          <TextField
+            margin="normal"
+            fullWidth
+            id="name"
+            label="Reminder Name"
+            name="name"
+            value={reminder.title}
+            onChange={onChange}
+            required
+          />
+          
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+              <TextField
+                type="date"
+                label="Due Date"
+                name="dueDate"
+                value={reminder.due_date}
+                onChange={onChange}
+                fullWidth
+                required
+                InputLabelProps={{ shrink: true }}
+              />
+              
+              <TextField
+                type="time"
+                label="Due Time"
+                name="dueTime"
+                value={reminder.due_date}
+                onChange={onChange}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Box>
+          </LocalizationProvider>
+          
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="priority-label">Priority</InputLabel>
+            <Select
+              labelId="priority-label"
               id="priority"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
+              name="priority"
+              value={reminder.priority}
+              onChange={onSelectChange}
+              label="Priority"
             >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+            </Select>
+          </FormControl>
+          
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="project-label">Project</InputLabel>
+            <Select
+              labelId="project-label"
+              id="project_id"
+              name="project_id"
+              value={reminder.project_id}
+              onChange={onSelectChange}
+              label="Project"
+            >
+              <MenuItem value="">-- None --</MenuItem>
+              {projects.map(project => (
+                <MenuItem key={project.id} value={project.id}>
+                  {project.title || project.id}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <FormControl fullWidth margin="normal">
+            <InputLabel id="employee-label">Assignee</InputLabel>
+            <Select
+              labelId="employee-label"
+              id="employee_id"
+              name="employee_id"
+              value={reminder.employee_id}
+              onChange={onSelectChange}
+              label="Assignee"
+            >
+              <MenuItem value="">-- None --</MenuItem>
+              {employees.map(employee => (
+                <MenuItem key={employee.id} value={employee.id}>
+                  {employee.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          {isEditing && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={reminder.status}
+                  onChange={(e) => onStatusChange(e.target.checked)}
+                  name="status"
+                />
+              }
+              label="Mark as completed"
+              sx={{ mt: 1 }}
             />
-          </div>
-          <div className="form-group checkbox-group">
-            <input
-              id="status"
-              type="checkbox"
-              checked={status}
-              onChange={(e) => setStatus(e.target.checked)}
-            />
-            <label htmlFor="status">Completed</label>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="form-button button-secondary" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="form-button button-primary">
-              {reminder ? 'Update Reminder' : 'Create Reminder'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          )}
+        </Box>
+      </DialogContent>
+      
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button onClick={onClose}>
+          Cancel
+        </Button>
+        <Button 
+          variant="contained" 
+          color="primary"
+          onClick={onSubmit}
+        >
+          {isEditing ? 'Update' : 'Create'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

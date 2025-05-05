@@ -9,6 +9,13 @@ from dotenv import load_dotenv
 import uuid
 from supabase import create_client, Client
 from fastapi.responses import JSONResponse
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from google_auth_oauthlib.flow import InstalledAppFlow
+import io
+import pickle
 
 # Load environment variables
 load_dotenv()
@@ -116,6 +123,105 @@ def convert_datetime_to_string(data: dict) -> dict:
             data[key] = value.isoformat()
     return data
 
+def upload_file(file: UploadFile, project_id: Optional[str] = None):
+    # Setup Google Drive API
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    creds = None
+    # Load saved credentials if they exist
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    # If credentials don't exist or are invalid, get new ones
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            request = GoogleAuthRequest()
+            creds.refresh(request)
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save credentials for future use
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+    # Build the Drive API client
+    drive_service = build('drive', 'v3', credentials=creds)
+    
+    # Get project information
+    project_name = "General"  # Default folder name if no project_id is found
+
+    if project_id:
+        project_query = supabase.table("projects").select("*").eq("id", project_id).execute()
+        if project_query.data:
+            project_data = project_query.data[0]
+            project_name = project_data["title"]
+    
+    # Check if directory exists
+    folder_id = None
+    query = f"name='{project_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    response = drive_service.files().list(q=query).execute()
+    
+    if response.get('files'):
+        # Directory exists
+        folder_id = response['files'][0]['id']
+    else:
+        # Create directory
+        folder_metadata = {
+            'name': project_name,
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+        folder_id = folder.get('id')
+    # Upload file to the directory
+    file_content = io.BytesIO(file.file.read())
+    
+    # Create file metadata
+    file_metadata = {
+        'name': file.filename,
+        'parents': [folder_id]
+    }
+    # Upload the file
+    media = MediaIoBaseUpload(file_content, mimetype=file.content_type, resumable=True)
+    uploaded_file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id'
+    ).execute()
+    print('uploaded_file')
+    file_id = uploaded_file.get('id')
+    file_url = f"https://drive.google.com/file/d/{file_id}/view"
+    
+    return {
+        "message": "File uploaded successfully", 
+        "file_id": file_id,
+        "file_url": file_url,
+        "project_name": project_name
+    }
+
+def delete_file_from_drive(file_id: str):
+    # Setup Google Drive API
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    creds = None
+    
+    # Load saved credentials if they exist
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    
+    # If credentials don't exist or are invalid, get new ones
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            request = GoogleAuthRequest()
+            creds.refresh(request)
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open('token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+    drive_service = build('drive', 'v3', credentials=creds)
+    drive_service.files().delete(fileId=file_id).execute()
+    return {"message": "File deleted successfully"}
+
 # API Routes
 @app.get("/")
 def read_root():
@@ -205,47 +311,120 @@ async def get_task(task_id: str):
     return response.data[0]
 
 @app.post("/tasks", response_model=TaskBase)
-async def create_task(task: TaskBase):
-    task_data = task.dict()
+async def create_task(
+    title: str = Form(...),
+    status: str = Form(...),
+    category: Optional[str] = Form(None),
+    priority: str = Form(...),
+    due_date: str = Form(...),
+    project_id: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    employee_id: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None)
+):
+    task_data = {
+        "id": generate_id(),
+        "title": title,
+        "status": status,
+        "category": category,
+        "priority": priority,
+        "due_date": due_date,
+        "project_id": project_id,
+        "description": description,
+        "employee_id": employee_id,
+        "created_at": get_current_timestamp(),
+        "file": None
+    }
     
-    if not task_data.get("id"):
-        task_data["id"] = generate_id()
-    
-    now = get_current_timestamp()
-    task_data["created_at"] = now
-    
+    # Insert task first to get the task_id
     response = supabase.table("tasks").insert(task_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create task")
     
-    return response.data[0]
+    created_task = response.data[0]
+    
+    # Handle file upload if provided
+    if file and file.filename:
+        try:
+            upload_result = upload_file(file, project_id=project_id)
+            # Update the task with the file URL
+            supabase.table("tasks").update({"file": upload_result["file_url"]}).eq("id", created_task["id"]).execute()
+            created_task["file"] = upload_result["file_url"]
+        except Exception as e:
+            # Log the error but don't fail the request
+            print(f"File upload failed: {str(e)}")
+            # Update the error message in the response
+            created_task["file_upload_error"] = str(e)
+    
+    return created_task
 
 @app.put("/tasks/{task_id}")
-async def update_task(task_id: str, task: Union[TaskBase, TaskStatusUpdate]):
+async def update_task(
+    task_id: str,
+    title: Optional[str] = Form(None),
+    status: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    priority: Optional[str] = Form(None),
+    due_date: Optional[str] = Form(None),
+    project_id: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    employee_id: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None)
+):
     # Verify the task exists
     check_response = supabase.table("tasks").select("*").eq("id", task_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    task_data = task.dict(exclude_unset=True)
+    # Build update data from form fields
+    task_data = {}
+    if title is not None:
+        task_data["title"] = title
+    if status is not None:
+        task_data["status"] = status
+    if category is not None:
+        task_data["category"] = category
+    if priority is not None:
+        task_data["priority"] = priority
+    if due_date is not None:
+        task_data["due_date"] = due_date
+    if project_id is not None:
+        task_data["project_id"] = project_id
+    if description is not None:
+        task_data["description"] = description
+    if employee_id is not None:
+        task_data["employee_id"] = employee_id
+    
+    # Handle file upload if provided
+    if file and file.filename:
+        try:
+            upload_result = upload_file(file, project_id=project_id)
+            task_data["file"] = upload_result["file_url"]
+        except Exception as e:
+            print(f"File upload failed: {str(e)}")
     
     response = supabase.table("tasks").update(task_data).eq("id", task_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update task")
     
-    return response.data[0]
+    updated_task = response.data[0]
+    
+    # If file upload failed, add error message to response
+    if file and file.filename and "file" not in task_data:
+        updated_task["file_upload_error"] = "File upload failed"
+    
+    return updated_task
 
 @app.put("/tasks/{task_id}/status")
-async def update_task_status(task_id: str, status: str):
+async def update_task_status(task_id: str, task_status: TaskStatusUpdate):
     # Verify the task exists
     check_response = supabase.table("tasks").select("*").eq("id", task_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Task not found")
     
     update_data = {
-        "status": status,
+        "status": task_status.status,
     }
-    
     response = supabase.table("tasks").update(update_data).eq("id", task_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update task status")
@@ -269,6 +448,8 @@ async def get_notes(project_id: Optional[str] = None, employee_id: Optional[str]
     
     if project_id:
         query = query.eq("project_id", project_id)
+    if employee_id:
+        query = query.eq("employee_id", employee_id)
     
     response = query.execute()
     if response.data is None:
@@ -283,35 +464,148 @@ async def get_note(note_id: str):
     return response.data[0]
 
 @app.post("/notes", response_model=NoteBase)
-async def create_note(note: NoteBase):
-    note_data = note.dict()
+async def create_note(
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    employee_id: Optional[str] = Form(None),
+    project_id: Optional[str] = Form(None),
+    created_at: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None)
+):
+    note_data = {
+        "id": generate_id(),
+        "title": title,
+        "description": description,
+        "employee_id": employee_id,
+        "project_id": project_id,
+        "created_at": created_at or get_current_timestamp(),
+        "file_id": None
+    }
     
-    if not note_data.get("id"):
-        note_data["id"] = generate_id()
+    # Handle file upload if provided
+    if file and file.filename:
+        try:
+            upload_result = upload_file(file=file, project_id=project_id)
+            
+            file_data = {
+                "id": upload_result['file_id'],
+                "title": file.filename,
+                "file_path": upload_result['file_url'],
+                "file_type": file.content_type,
+                "file_size": file.size,
+                "task_id": None,
+                "note_id": note_data["id"],
+                "project_id": project_id if project_id else None,
+                "created_at": get_current_timestamp()
+            }
+            
+            # Update the note with the file URL
+            if upload_result['file_url']:
+                note_data['file_id'] = upload_result['file_id']
+                response = supabase.table("notes").insert(note_data).execute()
+                if not response.data:
+                    raise HTTPException(status_code=400, detail="Failed to create note")
+                
+                response_file = supabase.table("files").insert(file_data).execute()
+                if not response_file.data:
+                    raise HTTPException(status_code=400, detail="Failed to create file")
+        except Exception as e:
+            # Log the error but don't fail the request
+            print(f"File upload failed: {str(e)}")
+            # Update the error message in the response
+            note_data["file_upload_error"] = str(e)
+            raise HTTPException(status_code=400, detail="Failed to create note")
+    else:
+        # No file upload, just create the note
+        response = supabase.table("notes").insert(note_data).execute()
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Failed to create note")
+        note_data = response.data[0]  # Get the full note data from the database
     
-    now = get_current_timestamp()
-    note_data["created_at"] = now
-    
-    response = supabase.table("notes").insert(note_data).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Failed to create note")
-    
-    return response.data[0]
+    return note_data
 
 @app.put("/notes/{note_id}", response_model=NoteBase)
-async def update_note(note_id: str, note: NoteBase):
+async def update_note(
+    note_id: str,
+    title: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    employee_id: Optional[str] = Form(None),
+    project_id: Optional[str] = Form(None),
+    created_at: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None)
+):
     # Verify the note exists
     check_response = supabase.table("notes").select("*").eq("id", note_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Note not found")
     
-    note_data = note.dict(exclude_unset=True)
+    # Build update data from form fields
+    note_data = {}
+    if title is not None:
+        note_data["title"] = title
+    if category is not None:
+        note_data["category"] = category
+    if description is not None:
+        note_data["description"] = description
+    if employee_id is not None:
+        note_data["employee_id"] = employee_id
+    if project_id is not None:
+        note_data["project_id"] = project_id
+    if created_at is not None:
+        note_data["created_at"] = created_at
     
-    response = supabase.table("notes").update(note_data).eq("id", note_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Failed to update note")
+    # Handle file upload if provided
+    if file and file.filename:
+        try:
+            upload_result = upload_file(file, project_id=project_id)
+            note_data["file_id"] = upload_result["file_id"]
+            
+            # Create a file record in the database
+            file_data = {
+                "id": upload_result['file_id'],
+                "title": file.filename,
+                "file_path": upload_result['file_url'],
+                "file_type": file.content_type,
+                "file_size": file.size,
+                "task_id": None,
+                "note_id": note_id,
+                "project_id": project_id if project_id else None,
+                "created_at": get_current_timestamp()
+            }
+            
+            response_file = supabase.table("files").insert(file_data).execute()
+            if not response_file.data:
+                raise HTTPException(status_code=400, detail="Failed to create file")
+                
+        except Exception as e:
+            print(f"File upload failed: {str(e)}")
+            # Don't update the file field if upload failed
     
-    return response.data[0]
+    # Only update if there are fields to update
+    if note_data:
+        #delete the file from drive
+        try:
+            file_id = note_data["file_id"]
+            try:
+                delete_file_from_drive(file_id)
+                response_file = supabase.table("files").delete().eq("id", file_id).execute()
+                if not response_file.data:
+                    raise HTTPException(status_code=400, detail="Failed to delete file")
+            except Exception as e:
+                print(f"File deletion failed: {str(e)}")
+                print(f"File deletion failed: {str(e)}")
+        except Exception as e:  #delete the file from supabase
+            print(f"File deletion failed: {str(e)}")
+        response = supabase.table("notes").update(note_data).eq("id", note_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Failed to update note")
+        updated_note = response.data[0]
+    else:
+        # No changes to make
+        updated_note = check_response.data[0]
+    
+    return updated_note
 
 @app.delete("/notes/{note_id}")
 async def delete_note(note_id: str):
@@ -320,6 +614,14 @@ async def delete_note(note_id: str):
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Note not found")
     
+    # Delete the file from Google Drive
+    file_id = check_response.data[0]["file_id"]
+    delete_file_from_drive(file_id)
+    #delete the file from supabase
+    response_file = supabase.table("files").delete().eq("id", file_id).execute()
+    if not response_file.data:
+        raise HTTPException(status_code=400, detail="Failed to delete file")
+    #delete the note from supabase
     response = supabase.table("notes").delete().eq("id", note_id).execute()
     return {"message": "Note deleted successfully"}
 
@@ -470,15 +772,10 @@ async def get_file(file_id: str):
     return response.data[0]
 
 @app.post("/files")
-async def upload_file(file: FileBase):
-    file_data = file.dict()
-    file_data["id"] = generate_id()
-    response = supabase.table("files").insert(file_data).execute()
-    return response.data[0]
-
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: str):
     # Get file info
+    delete_file_from_drive(file_id)
     check_response = supabase.table("files").delete("*").eq("id", file_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="File not found")

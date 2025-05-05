@@ -7,9 +7,14 @@ export interface Note {
   employee_id: string;
   category?: string;
   created_at: string;
-  files?: string;
+  files?: File[];
+  file_url?: string;
+  existingFile?: {
+    name: string;
+    url: string;
+  };
 }
 
 // Note creation/update payload types
-export type CreateNotePayload = Omit<Note, 'id'>;
-export type UpdateNotePayload = Partial<Note>;
+export type CreateNotePayload = Omit<Note, 'id'> | FormData;
+export type UpdateNotePayload = Partial<Note> | FormData;

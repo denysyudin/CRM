@@ -41,7 +41,6 @@ import {
   Menu,
   Add
 } from '@mui/icons-material';
-import { useApi } from '../../hooks/useApi';
 import { 
   Project,
   Task,
@@ -50,19 +49,86 @@ import {
   Reminder,
   File
 } from '../../types';
-import {
-  projectsApi,
-  tasksApi,
-  notesApi,
-  eventsApi,
-  remindersApi,
-  filesApi
-} from '../../services/api';
+
+import { 
+  useGetActiveProjectsQuery, 
+  useUpdateProjectMutation,
+  useCreateProjectMutation,
+  useDeleteProjectMutation
+} from '../../redux/api/projectsApi';
+
+import { 
+  useGetTaskByProjectIdQuery, 
+  useCreateTaskMutation 
+} from '../../redux/api/tasksApi';
+
+import { 
+  useGetNoteByProjectIdQuery, 
+  useCreateNoteMutation 
+} from '../../redux/api/notesApi';
+
+import { 
+  useGetEventByProjectIdQuery, 
+  useCreateEventMutation 
+} from '../../redux/api/eventsApi';
+
+import { 
+  useGetReminderByProjectIdQuery, 
+  useCreateReminderMutation 
+} from '../../redux/api/remindersApi';
+
+import { 
+  useGetFileByProjectIdQuery,
+  useCreateFileMutation
+} from '../../redux/api/filesApi';
 
 // Dictionary type for collections of items by ID
 type ItemDict<T> = {
   [key: string]: T;
 };
+
+// Define custom API types to match the backend expectations
+interface TaskPayload extends Omit<Task, 'id' | 'employee_id'> {
+  id?: string;
+  employee_id?: string; // Make employee_id optional string (not null)
+}
+
+interface FilePayload {
+  id?: string;
+  title: string;
+  type: string;
+  project_id: string;
+  task_id?: string;
+  note_id?: string;
+  file_data?: FormData;
+}
+
+interface EventPayload {
+  id: string;
+  title: string;
+  type: string;
+  due_date: string;
+  project_id: string;
+  description?: string;
+  employee_id?: string;
+  participants?: string;
+  notes?: string;
+}
+
+// For EventModal component
+interface EventFormData {
+  id?: string;
+  title: string;
+  date: string;
+  hours?: string;
+  minutes?: string;
+  type: string;
+  participants?: string;
+  notes?: string;
+  project_id?: string;
+  employee_id?: string;
+  description?: string;
+}
 
 // Placeholder component for modals when lazy loading
 const ModalFallback: React.FC = () => (
@@ -206,8 +272,8 @@ const LinkedItemsList = React.memo(({
   formatter, 
   emptyMessage = "No related items found." 
 }: { 
-  items: (Task | Note | Event | Reminder | File)[], 
-  itemsData: ItemDict<any> | (Task | Note | Event | Reminder | File)[], 
+  items: (Task | Note | Events | Reminder | File)[], 
+  itemsData: ItemDict<any> | (Task | Note | Events | Reminder | File)[], 
   formatter: (item: any) => React.ReactNode,
   emptyMessage?: string 
 }) => {
@@ -319,7 +385,7 @@ const ProjectListItem = React.memo(({
   );
 });
 
-// Project details section component with updated type
+// Project details section component with corrected props
 const ProjectDetailSection = React.memo(({
   title,
   items,
@@ -329,36 +395,47 @@ const ProjectDetailSection = React.memo(({
   showaddbutton = true
 }: {
   title: string,
-  icon: React.ReactNode,
-  items: (Task | Note | Event | Reminder | File)[],
-  itemsData: ItemDict<any> | (Task | Note | Event | Reminder | File)[],
+  items: (Task | Note | Events | Reminder | File)[],
+  itemsData: ItemDict<any> | (Task | Note | Events | Reminder | File)[],
   formatter: (item: any) => React.ReactNode,
   onAddItem: () => void,
-  showaddbutton: boolean
-}) => (
-  <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-      <Box display="flex" alignItems="center">
-        <AccountTree sx={{ mr: 1 }} />
-        <Typography variant="h6">{title}</Typography>
+  showaddbutton?: boolean
+}) => {
+  // Determine the icon based on the title
+  const getIcon = () => {
+    if (title.includes('Task')) return <ListAlt />;
+    if (title.includes('Note')) return <NoteAlt />;
+    if (title.includes('Event')) return <Event />;
+    if (title.includes('Reminder')) return <Notifications />;
+    if (title.includes('File')) return <AttachFile />;
+    return <AccountTree />;
+  };
+
+  return (
+    <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box display="flex" alignItems="center">
+          {getIcon()}
+          <Typography variant="h6" sx={{ ml: 1 }}>{title}</Typography>
+        </Box>
+        <IconButton
+          size="small"
+          onClick={onAddItem}
+          title={`Add New ${title.replace('Related ', '')}`}
+        >
+          {showaddbutton && <AddCircleOutline />}
+        </IconButton>
       </Box>
-      <IconButton
-        size="small"
-        onClick={onAddItem}
-        title={`Add New ${title.replace('Related ', '')}`}
-      >
-        {showaddbutton && <AddCircleOutline />}
-      </IconButton>
-    </Box>
-    <List sx={{ width: '100%' }}>
-      <LinkedItemsList
-        items={items}
-        itemsData={itemsData}
-        formatter={formatter}
-      />
-    </List>
-  </Paper>
-));
+      <List sx={{ width: '100%' }}>
+        <LinkedItemsList
+          items={items}
+          itemsData={itemsData}
+          formatter={formatter}
+        />
+      </List>
+    </Paper>
+  );
+});
 
 const Projects: React.FC = () => {
   // Theme and media query
@@ -375,21 +452,80 @@ const Projects: React.FC = () => {
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
-
-  // State for linked items
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
   
-  // Data fetching hook - only fetch projects
+  // Form error state
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // RTK Query hooks
   const {
     data: projects,
     isLoading: isLoadingProjects,
     error: projectsError,
-    refetch: refetchProjects
-  } = useApi<Project[]>(() => projectsApi.getAll());
+  } = useGetActiveProjectsQuery();
+  
+  const [updateProject] = useUpdateProjectMutation();
+  const [createProject] = useCreateProjectMutation();
+  const [deleteProject] = useDeleteProjectMutation();
+  
+  // Query hooks for project items - these will only fetch when selectedProjectId is available
+  const { 
+    data: tasks = [] 
+  } = useGetTaskByProjectIdQuery(selectedProjectId as string, { 
+    skip: !selectedProjectId 
+  });
+  
+  const { 
+    data: notes = [] 
+  } = useGetNoteByProjectIdQuery(selectedProjectId as string, { 
+    skip: !selectedProjectId 
+  });
+  
+  const { 
+    data: events = [] 
+  } = useGetEventByProjectIdQuery(selectedProjectId as string, { 
+    skip: !selectedProjectId 
+  });
+  
+  const { 
+    data: reminders = [] 
+  } = useGetReminderByProjectIdQuery(selectedProjectId as string, { 
+    skip: !selectedProjectId 
+  });
+  
+  const { 
+    data: files = [] 
+  } = useGetFileByProjectIdQuery(selectedProjectId as string, { 
+    skip: !selectedProjectId 
+  });
+  
+  // Mutation hooks for adding items
+  const [createTask, { isLoading: isCreatingTask }] = useCreateTaskMutation();
+  const [createNote, { isLoading: isCreatingNote }] = useCreateNoteMutation();
+  const [createEvent, { isLoading: isCreatingEvent }] = useCreateEventMutation();
+  const [createReminder, { isLoading: isCreatingReminder }] = useCreateReminderMutation();
+  const [createFile, { isLoading: isCreatingFile }] = useCreateFileMutation();
+  
+  // Initialize empty states for modal forms
+  const [newTask, setNewTask] = useState<Partial<Task>>({});
+  const [newNote, setNewNote] = useState<Partial<Note>>({});
+  const [newEvent, setNewEvent] = useState<EventFormData>({
+    id: '',
+    title: '',
+    date: new Date().toISOString().split('T')[0], // Initialize with today's date
+    type: 'meeting',
+    hours: '09',
+    minutes: '00'
+  });
+  const [newReminder, setNewReminder] = useState<Partial<Reminder>>({
+    title: '',
+    priority: 'medium',
+    status: false
+  });
+  
+  // States for editing items
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Events | null>(null);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   
   // Convert projects to dictionary for easier access - memoized
   const projectsDict = useMemo(() => {
@@ -399,42 +535,17 @@ const Projects: React.FC = () => {
     }, {}) : {};
   }, [projects]);
 
-  // When selectedProjectId changes, fetch the project
+  // When selectedProjectId changes, update selected project from the dictionary
   useEffect(() => {
-    const fetchProjectData = async () => {
-      if (selectedProjectId && projects) {
-        const project = projectsDict[selectedProjectId];
-        if (project) {
-          setSelectedProject(project);
-          const fetchedTasks = await tasksApi.getByProjectId(project.id);
-          const fetchedNotes = await notesApi.getByProjectId(project.id);
-          const fetchedEvents = await eventsApi.getByProjectId(project.id);
-          const fetchedReminders = await remindersApi.getByProjectId(project.id);
-          const fetchedFiles = await filesApi.getByProjectId(project.id);
-          
-          // @ts-ignore - Working around type issues in the original code
-          setTasks(fetchedTasks);
-          // @ts-ignore
-          setNotes(fetchedNotes);
-          // @ts-ignore
-          setEvents(fetchedEvents);
-          // @ts-ignore
-          setReminders(fetchedReminders);
-          // @ts-ignore
-          setFiles(fetchedFiles);
-        }
-      } else {
-        setSelectedProject(null);
-        // Clear linked items when no project is selected
-        setTasks([]);
-        setNotes([]);
-        setEvents([]);
-        setReminders([]);
-        setFiles([]);
+    if (selectedProjectId && projects) {
+      const project = projectsDict[selectedProjectId];
+      if (project) {
+        setSelectedProject(project);
       }
-    };
-    fetchProjectData();
-  }, [selectedProjectId, projects, projectsDict]);
+    } else {
+      setSelectedProject(null);
+    }
+  }, [selectedProjectId, projectsDict, projects]);
 
   // Set sidebar state based on screen size
   useEffect(() => {
@@ -451,6 +562,40 @@ const Projects: React.FC = () => {
       setSidebarOpen(false);
     }
   }, [isMobile]);
+
+  // Generic form change handlers
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    setter: React.Dispatch<React.SetStateAction<any>>
+  ) => {
+    const { name, value } = e.target;
+    setter((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (
+    e: SelectChangeEvent<string>,
+    setter: React.Dispatch<React.SetStateAction<any>>
+  ) => {
+    const { name, value } = e.target;
+    setter((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleStatusChange = (
+    status: string,
+    setter: React.Dispatch<React.SetStateAction<any>>
+  ) => {
+    setter((prev: any) => ({ ...prev, status }));
+  };
+
+  // Event form change handlers
+  const handleEventFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    handleInputChange(e, setNewEvent);
+  };
+
+  // Task form handler
+  const handleTaskFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    handleInputChange(e, setNewTask);
+  };
 
   // Modal handlers
   const handleAddLinkedItem = (type: string) => {
@@ -480,16 +625,15 @@ const Projects: React.FC = () => {
   const handleProjectSubmit = async (projectData: Omit<Project, 'id'>) => {
     try {
       if (isEditingProject && selectedProject) {
-        // Update existing project
-        const updatedProject = await projectsApi.update(selectedProject.id, projectData);
-        
-        // Refresh the projects list
-        await refetchProjects();
-        setSelectedProject(updatedProject);
+        // Update existing project using RTK Query mutation
+        await updateProject({
+          id: selectedProject.id,
+          ...projectData
+        }).unwrap();
       } else {
-        // Create new project
-        const newProject = await projectsApi.create(projectData);
-        setSelectedProject(newProject);
+        // Create new project using RTK Query mutation
+        const result = await createProject(projectData).unwrap();
+        setSelectedProjectId(result.id);
       }
       
       // Reset state
@@ -510,24 +654,29 @@ const Projects: React.FC = () => {
     if (!selectedProject) return;
     
     try {
-      // @ts-ignore - Working around type issues in the original code
-      const newTask = await tasksApi.create({
+      // Prepare task data with proper types
+      const taskPayload: TaskPayload = {
         ...taskData,
-        project_id: selectedProject.id
-      });
+        project_id: selectedProject.id,
+        employee_id: taskData.employee_id ? String(taskData.employee_id) : undefined
+      };
       
-      // Update local tasks state
-      setTasks(prevTasks => [...prevTasks, newTask]);
+      // Use createTask mutation from RTK Query
+      const newTask = await createTask(taskPayload as any).unwrap();
       
-      // If there's file data, upload the file
-      if (fileData) {
-        // Ensure the new task ID is in the form data
-        fileData.set('taskId', newTask.id);
-        fileData.set('projectId', selectedProject.id);
-        
-        // Call the file upload API
+      // If there's file data, handle file upload separately
+      if (fileData && newTask.id) {
         try {
-          await filesApi.uploadTaskFile(fileData);
+          // Create a proper File object for the API
+          const filePayload: FilePayload = {
+            title: fileData.get('fileName') as string || 'Untitled File',
+            type: 'task-attachment',
+            project_id: selectedProject.id,
+            task_id: newTask.id,
+            file_data: fileData
+          };
+          
+          await createFile(filePayload as any).unwrap();
           console.log('File uploaded successfully');
         } catch (fileError) {
           console.error('Error uploading file:', fileError);
@@ -536,55 +685,47 @@ const Projects: React.FC = () => {
         }
       }
       
-      await refetchProjects();
-      
-      if (projects) {
-        const updatedProject = projects.find(p => p.id === selectedProject.id);
-        if (updatedProject) setSelectedProject(updatedProject);
-      }
-      
       setShowAddTaskModal(false);
     } catch (error) {
       console.error('Failed to add task:', error);
       alert('Failed to add task. Please try again.');
+      setFormError('Failed to add task. Please try again.');
     }
   };
 
-  const handleNoteSubmit = async (noteData: Omit<Note, 'id'>, fileData?: FormData) => {
+  const handleNoteSubmit = async (noteData: Note, fileData?: FormData) => {
     if (!selectedProject) return;
     
     try {
-      const newNote = await notesApi.create({
+      // Ensure the correct project_id is set and add any required fields
+      const notePayload = {
         ...noteData,
-        project_id: selectedProject.id
-      });
+        project_id: selectedProject.id,
+        employee_id: noteData.employee_id || '' // Ensure employee_id is set
+      };
       
-      // Update local notes state
-      // @ts-ignore - Working around type issues in the original code
-      setNotes(prevNotes => [...prevNotes, newNote]);
+      // Use createNote mutation from RTK Query
+      const newNote = await createNote(notePayload).unwrap();
       
-      // If there's file data, upload the file
-      if (fileData) {
-        // Ensure the new note ID is in the form data
-        fileData.set('noteId', newNote.id);
-        fileData.set('projectId', selectedProject.id);
-        
-        // Call the file upload API
+      // If there's file data, handle file upload separately
+      if (fileData && newNote.id) {
         try {
-          await filesApi.uploadNoteFile(fileData);
+          // Create a proper File object for the API
+          const filePayload: FilePayload = {
+            title: fileData.get('fileName') as string || 'Untitled File',
+            type: 'note-attachment',
+            project_id: selectedProject.id,
+            note_id: newNote.id,
+            file_data: fileData
+          };
+          
+          await createFile(filePayload as any).unwrap();
           console.log('File uploaded successfully');
         } catch (fileError) {
           console.error('Error uploading file:', fileError);
           // The note was created, just the file upload failed
           alert('Note created but file upload failed. Please try attaching the file again.');
         }
-      }
-      
-      await refetchProjects();
-      
-      if (projects) {
-        const updatedProject = projects.find(p => p.id === selectedProject.id);
-        if (updatedProject) setSelectedProject(updatedProject);
       }
       
       setShowAddNoteModal(false);
@@ -598,22 +739,15 @@ const Projects: React.FC = () => {
     if (!selectedProject) return;
     
     try {
-      // @ts-ignore - Working around type issues in the original code
-      const newEvent = await eventsApi.create({
-        ...eventData,
+      // Create event with required id field
+      const eventPayload: EventPayload = {
+        id: '',  // This will be assigned by the server
+        ...eventData as any,
         project_id: selectedProject.id
-      });
+      };
       
-      // Update local events state
-      // @ts-ignore - Working around type issues in the original code
-      setEvents(prevEvents => [...prevEvents, newEvent]);
-      
-      await refetchProjects();
-      
-      if (projects) {
-        const updatedProject = projects.find(p => p.id === selectedProject.id);
-        if (updatedProject) setSelectedProject(updatedProject);
-      }
+      // Use createEvent mutation from RTK Query
+      await createEvent(eventPayload as any).unwrap();
       
       setShowAddEventModal(false);
     } catch (error) {
@@ -622,24 +756,55 @@ const Projects: React.FC = () => {
     }
   };
 
+  const handleEventFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject) return;
+    
+    try {
+      if (editingEvent && editingEvent.id) {
+        // Handle event update logic here
+        console.log('Update event with data:', newEvent);
+      } else {
+        // Map the form event data to the API expected format
+        const eventPayload: EventPayload = {
+          id: '',  // This will be assigned by the server
+          title: newEvent.title,
+          type: newEvent.type,
+          due_date: newEvent.date, // Map date to due_date
+          project_id: selectedProject.id,
+          description: newEvent.description,
+          participants: newEvent.participants
+        };
+        
+        await createEvent(eventPayload as any).unwrap();
+      }
+      
+      // Reset the form with the proper EventFormData structure
+      setNewEvent({
+        id: '',
+        title: '',
+        date: new Date().toISOString().split('T')[0],
+        type: 'meeting',
+        hours: '09',
+        minutes: '00'
+      });
+      setEditingEvent(null);
+      setShowAddEventModal(false);
+    } catch (error) {
+      console.error('Failed to handle event:', error);
+      setFormError('Failed to handle event. Please try again.');
+    }
+  };
+
   const handleReminderSubmit = async (reminderData: Omit<Reminder, 'id'>) => {
     if (!selectedProject) return;
     
     try {
-      const newReminder = await remindersApi.create({
+      // Use createReminder mutation from RTK Query
+      await createReminder({
         ...reminderData,
         project_id: selectedProject.id
-      });
-      
-      // Update local reminders state
-      setReminders(prevReminders => [...prevReminders, newReminder]);
-      
-      await refetchProjects();
-      
-      if (projects) {
-        const updatedProject = projects.find(p => p.id === selectedProject.id);
-        if (updatedProject) setSelectedProject(updatedProject);
-      }
+      }).unwrap();
       
       setShowAddReminderModal(false);
     } catch (error) {
@@ -652,11 +817,26 @@ const Projects: React.FC = () => {
     if (!confirm('Are you sure you want to delete this project?')) return;
     
     try {
-      await projectsApi.delete(projectId);
-      await refetchProjects();
-      setSelectedProject(null);
+      // Use deleteProject mutation from RTK Query
+      await deleteProject(projectId).unwrap();
+      setSelectedProjectId(null);
     } catch (error) {
       console.error('Failed to delete project:', error);
+    }
+  };
+
+  // Handlers for delete operations
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    
+    try {
+      // Event deletion logic would go here
+      console.log('Deleting event with ID:', eventId);
+      // Reset states
+      setEditingEvent(null);
+      setShowAddEventModal(false);
+    } catch (error) {
+      console.error('Failed to delete event:', error);
     }
   };
 
@@ -819,7 +999,6 @@ const Projects: React.FC = () => {
               {/* Related Tasks */}
               <ProjectDetailSection
                 title="Related Tasks"
-                icon={<ListAlt />}
                 items={tasks}
                 itemsData={tasks}
                 formatter={formatTask}
@@ -830,7 +1009,6 @@ const Projects: React.FC = () => {
               {/* Related Notes */}
               <ProjectDetailSection
                 title="Related Notes"
-                icon={<NoteAlt />}
                 items={notes}
                 itemsData={notes}
                 formatter={formatNote}
@@ -841,7 +1019,6 @@ const Projects: React.FC = () => {
               {/* Related Events */}
               <ProjectDetailSection
                 title="Related Events"
-                icon={<Event />}
                 items={events}
                 itemsData={events}
                 formatter={formatEvent}
@@ -852,7 +1029,6 @@ const Projects: React.FC = () => {
               {/* Related Reminders */}
               <ProjectDetailSection
                 title="Related Reminders"
-                icon={<Notifications />}
                 items={reminders}
                 itemsData={reminders}
                 formatter={formatReminder}
@@ -863,7 +1039,6 @@ const Projects: React.FC = () => {
               {/* Related Files */}
               <ProjectDetailSection
                 title="Related Files"
-                icon={<AttachFile />}
                 items={files}
                 itemsData={files}
                 formatter={formatFile}
@@ -893,8 +1068,10 @@ const Projects: React.FC = () => {
         <Suspense fallback={<ModalFallback />}>
           <TaskModal 
             projectName={selectedProject.title}
+            projectId={selectedProject.id}
             onClose={() => setShowAddTaskModal(false)}
             onSubmit={handleTaskSubmit}
+            task={editingTask || undefined}
           />
         </Suspense>
       )}
@@ -902,9 +1079,21 @@ const Projects: React.FC = () => {
       {showAddNoteModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
           <NoteModal 
-            projectName={selectedProject.title}
+            open={showAddNoteModal}
             onClose={() => setShowAddNoteModal(false)}
-            onSubmit={handleNoteSubmit}
+            onSave={handleNoteSubmit}
+            editMode={false}
+            initialData={{
+              id: '',
+              title: '',
+              description: '',
+              project_id: selectedProject.id,
+              created_at: new Date().toISOString(),
+              employee_id: '' // Required field
+            }}
+            projects={projects || []}
+            isUploading={false}
+            uploadProgress={0}
           />
         </Suspense>
       )}
@@ -912,9 +1101,27 @@ const Projects: React.FC = () => {
       {showAddEventModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
           <EventModal 
-            projectName={selectedProject.title}
+            open={showAddEventModal}
             onClose={() => setShowAddEventModal(false)}
-            onSubmit={handleEventSubmit}
+            eventFormData={{
+              id: newEvent.id,
+              title: newEvent.title,
+              date: newEvent.date,
+              type: newEvent.type,
+              description: newEvent.description,
+              participants: newEvent.participants,
+              hours: newEvent.hours,
+              minutes: newEvent.minutes
+            }}
+            isEditing={!!editingEvent}
+            formError={formError}
+            isCreating={isCreatingEvent}
+            isUpdating={false}
+            isDeleting={false}
+            onFormChange={handleEventFormChange}
+            onSelectChange={(e: SelectChangeEvent) => handleSelectChange(e, setNewEvent)}
+            onSubmit={handleEventFormSubmit}
+            onDelete={handleDeleteEvent}
           />
         </Suspense>
       )}
@@ -922,8 +1129,15 @@ const Projects: React.FC = () => {
       {showAddReminderModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
           <ReminderModal 
-            projectName={selectedProject.title}
+            open={showAddReminderModal}
             onClose={() => setShowAddReminderModal(false)}
+            reminder={newReminder as any}
+            isEditing={!!editingReminder}
+            employees={[]} // Add actual employee data here if available
+            projects={projects || []}
+            onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleInputChange(e, setNewReminder)}
+            onSelectChange={(e: SelectChangeEvent) => handleSelectChange(e, setNewReminder)}
+            onStatusChange={(status: boolean) => handleStatusChange(status.toString(), setNewReminder)}
             onSubmit={handleReminderSubmit}
           />
         </Suspense>

@@ -7,6 +7,18 @@ export const filesApi = apiSlice.injectEndpoints({
       query: () => '/files',
       providesTags: [{ type: 'Files', id: 'LIST' }],
     }),
+
+    getFileByProjectId: builder.query<File[], string>({
+      query: (projectId) => `/files?project_id=${projectId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Files' as const, id })),
+              { type: 'Files', id: 'LIST' },
+            ]
+          : [{ type: 'Files', id: 'LIST' }],
+    }),
+    
     createFile: builder.mutation<File, File>({
       query: (file) => ({
         url: '/files',
@@ -15,6 +27,7 @@ export const filesApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Files', id: 'LIST' }],
     }),
+
     deleteFile: builder.mutation<File, File>({
       query: (file) => ({
         url: `/files/${file.id}`,
@@ -25,4 +38,9 @@ export const filesApi = apiSlice.injectEndpoints({
   }),
 });
 
-export const { useGetFilesQuery, useCreateFileMutation, useDeleteFileMutation } = filesApi;
+export const { 
+  useGetFilesQuery, 
+  useGetFileByProjectIdQuery,
+  useCreateFileMutation, 
+  useDeleteFileMutation 
+} = filesApi;

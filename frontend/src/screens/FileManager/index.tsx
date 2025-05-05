@@ -6,7 +6,6 @@ import {
   Button,
   CircularProgress,
   IconButton,
-  InputAdornment,
   List,
   ListItem,
   ListItemButton,
@@ -16,14 +15,11 @@ import {
   MenuItem,
   Modal,
   Paper,
-  TextField,
-  Toolbar,
   Typography,
   useTheme
 } from '@mui/material';
 
 // Icons
-import SearchIcon from '@mui/icons-material/Search';
 import FolderIcon from '@mui/icons-material/Folder';
 import DescriptionIcon from '@mui/icons-material/Description';
 import ImageIcon from '@mui/icons-material/Image';
@@ -43,189 +39,12 @@ const FileManager: React.FC = () => {
   const [files, setFiles] = useState<File[]>([]);
   const [allFiles, setAllFiles] = useState<File[]>([]); // Store all files for the tree
   const [loading, setLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentFolder, setCurrentFolder] = useState<string>('root');
   const [folderPath, setFolderPath] = useState<{id: string, name: string}[]>([{id: 'root', name: 'My Drive'}]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
-  
-  // This would be implemented with real API calls in production
-  useEffect(() => {
-    // Mock data for demonstration with directory structure
-    // const { data: mockFiles = [] } = useGetFilesQuery();
-    
-    // Create mock data locally with directory structure
-    const mockFiles: File[] = [
-      // Root level files and folders
-      {
-        id: 'folder1',
-        title: 'Documents',
-        type: 'application/vnd.google-apps.folder',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'root'
-      },
-      {
-        id: 'folder2',
-        title: 'Images',
-        type: 'application/vnd.google-apps.folder',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'root'
-      },
-      {
-        id: 'folder3',
-        title: 'Videos',
-        type: 'application/vnd.google-apps.folder',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'root'
-      },
-      {
-        id: 'file1',
-        title: 'Important Note.txt',
-        type: 'text/plain',
-        size: '12500',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'root'
-      },
-      
-      // Files inside 'Documents' folder
-      {
-        id: 'folder4',
-        title: 'Work Documents',
-        type: 'application/vnd.google-apps.folder',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder1'
-      },
-      {
-        id: 'folder5',
-        title: 'Personal Documents',
-        type: 'application/vnd.google-apps.folder',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder1'
-      },
-      {
-        id: 'file2',
-        title: 'Resume.docx',
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        size: '125000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder1'
-      },
-      {
-        id: 'file3',
-        title: 'Annual Report.pdf',
-        type: 'application/pdf',
-        size: '350000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder1'
-      },
-      
-      // Files inside 'Images' folder
-      {
-        id: 'file4',
-        title: 'Vacation Photo.jpg',
-        type: 'image/jpeg',
-        size: '500000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder2'
-      },
-      {
-        id: 'file5',
-        title: 'Profile Picture.png',
-        type: 'image/png',
-        size: '750000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder2'
-      },
-      
-      // Files inside 'Work Documents' folder
-      {
-        id: 'file6',
-        title: 'Project Plan.xlsx',
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        size: '220000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder4'
-      },
-      {
-        id: 'file7',
-        title: 'Meeting Notes.docx',
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        size: '90000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder4'
-      },
-      
-      // Files inside 'Personal Documents' folder
-      {
-        id: 'file8',
-        title: 'Taxes 2023.pdf',
-        type: 'application/pdf',
-        size: '420000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder5'
-      },
-      
-      // Files inside 'Videos' folder
-      {
-        id: 'file9',
-        title: 'Presentation.mp4',
-        type: 'video/mp4',
-        size: '15000000',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: 'folder3'
-      }
-    ];
-
-    setTimeout(() => {
-      setLoading(false);
-      setAllFiles(mockFiles); // Store all files for the tree view
-      
-      // Filter files based on current directory for display
-      const filteredFiles = mockFiles.filter(file => 
-        file.parent_id === currentFolder || 
-        (currentFolder === 'root' && file.parent_id === 'root')
-      );
-      setFiles(filteredFiles);
-    }, 1000);
-  }, [currentFolder]);
-
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const searchValue = event.target.value;
-    setSearchTerm(searchValue);
-    
-    // Filter files based on search term and current folder
-    if (searchValue) {
-      const searchResults = allFiles.filter(file => 
-        file.title.toLowerCase().includes(searchValue.toLowerCase()) &&
-        (file.parent_id === currentFolder || 
-         (currentFolder === 'root' && file.parent_id === 'root'))
-      );
-      setFiles(searchResults);
-    } else {
-      // Reset to current folder files when search is cleared
-      const currentFolderFiles = allFiles.filter(file => 
-        file.parent_id === currentFolder || 
-        (currentFolder === 'root' && file.parent_id === 'root')
-      );
-      setFiles(currentFolderFiles);
-    }
-  };
 
   const navigateToFolder = (folderId: string, folderName: string) => {
     setCurrentFolder(folderId);
@@ -352,43 +171,6 @@ const FileManager: React.FC = () => {
           <Typography variant="h5" component="h1" gutterBottom>
             Google Drive Files
           </Typography>
-          
-          {/* Search and Actions Toolbar */}
-          <Toolbar disableGutters sx={{ mb: 2 }}>
-            <TextField
-              placeholder="Search files..."
-              variant="outlined"
-              size="small"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              sx={{ mr: 2, flexGrow: 1 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Toolbar>
-          
-          {/* Folder Path Navigation */}
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
-            {folderPath.map((folder, index) => (
-              <React.Fragment key={folder.id}>
-                <Button 
-                  variant="text" 
-                  size="small"
-                  onClick={() => navigateToFolder(folder.id, folder.name)}
-                >
-                  {folder.name}
-                </Button>
-                {index < folderPath.length - 1 && (
-                  <Typography variant="body2" sx={{ mx: 1 }}>/</Typography>
-                )}
-              </React.Fragment>
-            ))}
-          </Box>
         </Paper>
         
         {/* Files Explorer with Directory Tree */}

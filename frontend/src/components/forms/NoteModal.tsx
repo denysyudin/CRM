@@ -1,231 +1,242 @@
-import React, { useState } from 'react';
-import { Note } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Note } from '../../types/note.types';
+import { Project } from '../../types/project.types';
+
 import {
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControl,
-  FormHelperText,
   Grid,
   IconButton,
   InputLabel,
   MenuItem,
+  Modal,
   Select,
+  SelectChangeEvent,
   TextField,
   Typography,
-  SelectChangeEvent,
   CircularProgress
 } from '@mui/material';
-import { Close as CloseIcon, CloudUpload } from '@mui/icons-material';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+
+const modalStyle = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: 600,
+  maxWidth: '90%',
+  bgcolor: 'background.paper',
+  borderRadius: 1,
+  boxShadow: 24,
+  p: 4,
+};
 
 interface NoteModalProps {
-  projectName: string;
+  open: boolean;
   onClose: () => void;
-  onSubmit: (noteData: Omit<Note, 'id'>, fileData?: FormData) => void;
-  note?: Note;
+  onSave: (note: Note) => Promise<void>;
+  editMode: boolean;
+  initialData: Note;
+  projects: Project[];
+  isUploading?: boolean;
+  uploadProgress?: number;
 }
 
-const NoteModal: React.FC<NoteModalProps> = ({ projectName, onClose, onSubmit, note }) => {
-  const [title, setTitle] = useState(note?.title || '');
-  const [description, setDescription] = useState(note?.description || '');
-  const [category, setCategory] = useState(note?.category || 'General');
-  const [file, setFile] = useState<File | null>(null);
-  const [fileName, setFileName] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
+const NoteModal: React.FC<NoteModalProps> = ({
+  open,
+  onClose,
+  onSave,
+  editMode,
+  initialData,
+  projects,
+  isUploading = false,
+  uploadProgress = 0
+}) => {
+  const [noteData, setNoteData] = useState<Note>(initialData);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsUploading(true);
-    
-    // Create note data object
-    const noteData = {
-      title,
-      description,
-      category,
-      project_id: note?.project_id || '',
-      employee_id: note?.employee_id || '',
-      created_at: new Date().toISOString(),
-      files: file ? fileName : ''
-    };
-    
-    // If there's a file, prepare FormData for file upload
-    if (file) {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileName', fileName);
-      formData.append('noteId', note?.id || '');
-      formData.append('projectId', note?.project_id || '');
-      
-      // Pass both note data and file data to parent component
-      onSubmit(noteData, formData);
-    } else {
-      // Just submit the note data without file
-      onSubmit(noteData);
+  // Update noteData when initialData changes or modal opens
+  useEffect(() => {
+    setNoteData(initialData);
+  }, [initialData, open]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent) => {
+    const { name, value } = e.target;
+    if (name) {
+      setNoteData(prev => ({ ...prev, [name]: value }));
     }
-    
-    setIsUploading(false);
   };
 
-  const handleCategoryChange = (event: SelectChangeEvent) => {
-    setCategory(event.target.value);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
-      setFileName(selectedFile.name);
-    }
+  const handleSaveNote = async () => {
+    await onSave(noteData);
   };
 
   return (
-    <Dialog 
-      open={true} 
-      onClose={onClose}
-      fullWidth
-      maxWidth="sm"
-    >
-      <DialogTitle sx={{ pb: 1 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
-            {note ? 'Edit Note' : 'Add New Note'}
-          </Typography>
-          <IconButton onClick={onClose} size="small">
+    <Modal open={open} onClose={isUploading ? undefined : onClose}>
+      <Box sx={modalStyle}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">{editMode ? 'Edit Note' : 'New Note'}</Typography>
+          <IconButton onClick={onClose} size="small" disabled={isUploading}>
             <CloseIcon />
           </IconButton>
         </Box>
-      </DialogTitle>
-      
-      <Box px={3} pb={2}>
-        <Typography variant="subtitle2" color="text.secondary">
-          Project: {projectName}
-        </Typography>
-      </Box>
-      
-      <Divider />
-      
-      <DialogContent sx={{ pt: 2 }}>
-        <form id="note-form" onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Note Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                variant="outlined"
-                margin="normal"
-                size="small"
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <FormControl fullWidth margin="normal" size="small">
-                <InputLabel id="note-category-label">Category</InputLabel>
-                <Select
-                  labelId="note-category-label"
-                  value={category}
-                  label="Category"
-                  onChange={handleCategoryChange}
-                >
-                  <MenuItem value="Meeting">Meeting</MenuItem>
-                  <MenuItem value="Client">Client</MenuItem>
-                  <MenuItem value="Task">Task</MenuItem>
-                  <MenuItem value="Idea">Idea</MenuItem>
-                  <MenuItem value="General">General</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Content"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                multiline
-                rows={5}
-                variant="outlined"
-                margin="normal"
-                required
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Box 
-                sx={{ 
-                  border: '1px dashed', 
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  p: 2,
-                  mt: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: 'background.default'
-                }}
-              >
-                <input
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                  id="note-file-upload"
-                  type="file"
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
-                <label htmlFor="note-file-upload">
-                  <Button
-                    component="span"
-                    variant="outlined"
-                    startIcon={<CloudUpload />}
-                    sx={{ mb: 1 }}
-                  >
-                    Upload Attachment
-                  </Button>
-                </label>
-                {fileName && (
-                  <Box sx={{ mt: 1, textAlign: 'center' }}>
-                    <Typography variant="body2">
-                      Selected: {fileName}
-                    </Typography>
-                  </Box>
-                )}
-                <FormHelperText>
-                  Attach documents, images, or other files to this note
-                </FormHelperText>
-              </Box>
-            </Grid>
+        
+        <Divider sx={{ mb: 3 }} />
+
+        {isUploading && (
+          <Box sx={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center', 
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+            zIndex: 1
+          }}>
+            <CircularProgress />
+            <Typography variant="body1" sx={{ mt: 2 }}>Uploading file...</Typography>
+          </Box>
+        )}
+
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              required
+              label="Title"
+              name="title"
+              value={noteData.title || ''}
+              onChange={handleInputChange}
+              placeholder="Enter note title"
+              variant="outlined"
+              size="small"
+              disabled={isUploading}
+            />
           </Grid>
-        </form>
-      </DialogContent>
-      
-      <Divider />
-      
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button 
-          onClick={onClose} 
-          variant="outlined"
-          disabled={isUploading}
-        >
-          Cancel
-        </Button>
-        <Button 
-          type="submit" 
-          form="note-form" 
-          variant="contained" 
-          color="primary"
-          disabled={isUploading}
-          startIcon={isUploading ? <CircularProgress size={20} /> : null}
-        >
-          {isUploading ? 'Uploading...' : (note ? 'Update Note' : 'Create Note')}
-        </Button>
-      </DialogActions>
-    </Dialog>
+
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              required
+              label="Content"
+              name="description"
+              value={noteData.description || ''}
+              onChange={handleInputChange}
+              placeholder="Enter note content"
+              variant="outlined"
+              multiline
+              rows={8}
+              disabled={isUploading}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <FormControl fullWidth required size="small" disabled={isUploading}>
+              <InputLabel id="project-label">Project</InputLabel>
+              <Select
+                labelId="project-label"
+                name="project_id"
+                value={noteData.project_id || ''}
+                onChange={handleInputChange}
+                label="Project"
+                disabled={isUploading}
+              >
+                <MenuItem value="">
+                  <em>Select a project</em>
+                </MenuItem>
+                {projects.map(project => (
+                  <MenuItem key={project.id} value={project.id}>
+                    {project.title}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12}>
+            <Button
+              component="label"
+              variant="outlined"
+              startIcon={<AddIcon />}
+              sx={{ mb: 1 }}
+              disabled={isUploading}
+            >
+              Attach File
+              <input
+                type="file"
+                hidden
+                multiple
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    const newFiles = Array.from(e.target.files);
+                    setNoteData(prev => ({ 
+                      ...prev, 
+                      files: [...(prev.files || []), ...newFiles] 
+                    }));
+                  }
+                }}
+                disabled={isUploading}
+              />
+            </Button>
+            
+            {/* Display existing file if editing a note with an attached file */}
+            {editMode && noteData.existingFile && (
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                <Typography variant="body2">
+                  Currently attached: 
+                  <a 
+                    href={noteData.existingFile.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ marginLeft: '4px', textDecoration: 'underline' }}
+                  >
+                    {noteData.existingFile.name}
+                  </a>
+                </Typography>
+              </Box>
+            )}
+            
+            {noteData.files && noteData.files.length > 0 && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', mt: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2">{noteData.files.map(file => file.name).join(', ')}</Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => setNoteData(prev => ({ ...prev, files: [] }))}
+                    disabled={isUploading}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+            )}
+          </Grid>
+        </Grid>
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={onClose}
+            disabled={isUploading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSaveNote}
+            disabled={isUploading}
+          >
+            {isUploading ? 'Uploading...' : (editMode ? 'Update Note' : 'Create Note')}
+          </Button>
+        </Box>
+      </Box>
+    </Modal>
   );
 };
 

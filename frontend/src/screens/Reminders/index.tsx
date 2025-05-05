@@ -23,6 +23,7 @@ import {
 import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import { ReminderModal, ReminderData } from '../../components/common';
 import './styles.css';
 import { Reminder } from '../../types/reminder.types';
 
@@ -74,11 +75,11 @@ const Reminders: React.FC = () => {
   });
 
   // Form state for new reminder
-  const [newReminder, setNewReminder] = useState({
+  const [newReminder, setNewReminder] = useState<ReminderData>({
     name: '',
     dueDate: '',
     dueTime: '',
-    priority: 'medium' as 'high' | 'medium' | 'low',
+    priority: 'medium',
     project_id: '',
     employee_id: '',
     status: false
@@ -232,7 +233,7 @@ const Reminders: React.FC = () => {
   };
   
   // Handle input changes for the new reminder form
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setNewReminder(prev => ({
       ...prev,
@@ -247,10 +248,17 @@ const Reminders: React.FC = () => {
       [name]: value
     }));
   };
+
+  const handleStatusChange = (checked: boolean) => {
+    setNewReminder(prev => ({
+      ...prev,
+      status: checked
+    }));
+  };
   
   // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     console.log('Reminders: Creating/updating reminder', newReminder);
     
     if (newReminder.name && newReminder.dueDate) {
@@ -336,7 +344,7 @@ const Reminders: React.FC = () => {
     setReminderToDelete(null);
   };
 
-  // Filter reminders based on status
+  // Filter reminders
   const filteredReminders = reminders.filter(reminder => {
     if (filter === 'all') return true;
     if (filter === 'pending') return !reminder.status;
@@ -677,149 +685,19 @@ const Reminders: React.FC = () => {
         </Alert>
       </Snackbar>
       
-      {/* Reminder Modal */}
-      <Dialog
+      {/* Reminder modal */}
+      <ReminderModal
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          {editingReminder ? 'Edit Reminder' : 'New Reminder'}
-          <IconButton
-            aria-label="close"
-            onClick={() => setIsModalOpen(false)}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        
-        <DialogContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              fullWidth
-              id="name"
-              label="Reminder Name"
-              name="name"
-              value={newReminder.name}
-              onChange={handleInputChange}
-              required
-            />
-            
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <TextField
-                  type="date"
-                  label="Due Date"
-                  name="dueDate"
-                  value={newReminder.dueDate}
-                  onChange={handleInputChange}
-                  fullWidth
-                  required
-                  InputLabelProps={{ shrink: true }}
-                />
-                
-                <TextField
-                  type="time"
-                  label="Due Time"
-                  name="dueTime"
-                  value={newReminder.dueTime}
-                  onChange={handleInputChange}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
-            </LocalizationProvider>
-            
-            <FormControl fullWidth margin="normal">
-              <InputLabel id="priority-label">Priority</InputLabel>
-              <Select
-                labelId="priority-label"
-                id="priority"
-                name="priority"
-                value={newReminder.priority}
-                onChange={handleSelectChange}
-                label="Priority"
-              >
-                <MenuItem value="high">High</MenuItem>
-                <MenuItem value="medium">Medium</MenuItem>
-                <MenuItem value="low">Low</MenuItem>
-              </Select>
-            </FormControl>
-            
-            <FormControl fullWidth margin="normal">
-              <InputLabel id="project-label">Project</InputLabel>
-              <Select
-                labelId="project-label"
-                id="project_id"
-                name="project_id"
-                value={newReminder.project_id}
-                onChange={handleSelectChange}
-                label="Project"
-              >
-                <MenuItem value="">-- None --</MenuItem>
-                {projects.map(project => (
-                  <MenuItem key={project.id} value={project.id}>
-                    {project.title || project.id}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <FormControl fullWidth margin="normal">
-              <InputLabel id="employee-label">Assignee</InputLabel>
-              <Select
-                labelId="employee-label"
-                id="employee_id"
-                name="employee_id"
-                value={newReminder.employee_id}
-                onChange={handleSelectChange}
-                label="Assignee"
-              >
-                <MenuItem value="">-- None --</MenuItem>
-                {employees.map(employee => (
-                  <MenuItem key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            {editingReminder && (
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={newReminder.status}
-                    onChange={(e) => setNewReminder(prev => ({ ...prev, status: e.target.checked }))}
-                    name="status"
-                  />
-                }
-                label="Mark as completed"
-                sx={{ mt: 1 }}
-              />
-            )}
-          </Box>
-        </DialogContent>
-        
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setIsModalOpen(false)}>
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            color="primary"
-            onClick={handleSubmit}
-          >
-            {editingReminder ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        reminder={newReminder}
+        isEditing={!!editingReminder}
+        projects={projects}
+        employees={employees}
+        onChange={handleInputChange}
+        onSelectChange={handleSelectChange}
+        onStatusChange={handleStatusChange}
+        onSubmit={handleSubmit}
+      />
     </Box>
   );
 };

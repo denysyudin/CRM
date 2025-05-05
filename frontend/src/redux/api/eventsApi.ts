@@ -10,6 +10,34 @@ export const eventsApi = apiSlice.injectEndpoints({
       },
       providesTags: [{ type: 'Events', id: 'LIST' }],
     }),
+
+    getEventByProjectId: builder.query<Events[], string>({
+      query: (projectId) => `/events?project_id=${projectId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Events' as const, id })),
+              { type: 'Events', id: 'LIST' },
+            ]
+          : [{ type: 'Events', id: 'LIST' }],
+    }),
+
+    getEventByEmployeeId: builder.query<Events[], string>({
+      query: (employeeId) => `/events?employee_id=${employeeId}`,
+      providesTags: (result) => 
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Events' as const, id })), 
+              { type: 'Events', id: 'LIST' },
+            ]
+          : [{ type: 'Events', id: 'LIST' }],
+    }),
+
+    getEventById: builder.query<Events, string>({
+      query: (id) => `/events/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Events', id }],
+    }),
+    
     createEvent: builder.mutation<Events, Events>({
       query: (event) => ({
         url: '/events',
@@ -36,4 +64,11 @@ export const eventsApi = apiSlice.injectEndpoints({
   }),
 });
 
-export const { useGetEventsQuery, useCreateEventMutation, useUpdateEventMutation, useDeleteEventMutation } = eventsApi;
+export const { 
+  useGetEventsQuery, 
+  useGetEventByProjectIdQuery,
+  useGetEventByEmployeeIdQuery,
+  useGetEventByIdQuery,
+  useCreateEventMutation, 
+  useUpdateEventMutation, 
+  useDeleteEventMutation } = eventsApi;
