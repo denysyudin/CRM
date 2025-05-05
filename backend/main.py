@@ -333,7 +333,7 @@ async def create_task(
         "description": description,
         "employee_id": employee_id,
         "created_at": get_current_timestamp(),
-        "file": None
+        "file_id": None
     }
     
     # Insert task first to get the task_id
@@ -348,8 +348,16 @@ async def create_task(
         try:
             upload_result = upload_file(file, project_id=project_id)
             # Update the task with the file URL
-            supabase.table("tasks").update({"file": upload_result["file_url"]}).eq("id", created_task["id"]).execute()
-            created_task["file"] = upload_result["file_url"]
+            supabase.table("tasks").update({"file_id": upload_result["file_id"]}).eq("id", created_task["id"]).execute()
+            file_data = {
+                "id": upload_result['file_id'],
+                "title": file.filename,
+                "file_path": upload_result['file_url'],
+                "file_type": file.content_type,
+                "file_size": file.size,
+                "task_id": created_task["id"],
+                "created_at": get_current_timestamp()
+            }
         except Exception as e:
             # Log the error but don't fail the request
             print(f"File upload failed: {str(e)}")
@@ -410,7 +418,7 @@ async def update_task(
     updated_task = response.data[0]
     
     # If file upload failed, add error message to response
-    if file and file.filename and "file" not in task_data:
+    if file and file.filename and "file_id" not in task_data:
         updated_task["file_upload_error"] = "File upload failed"
     
     return updated_task
