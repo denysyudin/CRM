@@ -314,7 +314,7 @@ async def get_task(task_id: str):
 async def create_task(
     title: str = Form(...),
     status: str = Form(...),
-    category: Optional[str] = Form(None),
+    category:str = Form(None),
     priority: str = Form(...),
     due_date: str = Form(...),
     project_id: Optional[str] = Form(None),
