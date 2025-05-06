@@ -9,7 +9,7 @@ export interface Task {
   description?: string;
   project_id?: string;
   category?: string;
-  files?: string[];
+  files?: File[];
   next_checkin_date?: string | null;
 }
 

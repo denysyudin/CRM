@@ -1,5 +1,5 @@
 import { apiSlice } from './apiSlice';
-import { Task } from '../features/tasksSlice';
+import { Task } from '../../types/task.types';
 
 export const tasksApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({

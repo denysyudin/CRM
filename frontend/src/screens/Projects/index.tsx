@@ -563,6 +563,7 @@ const ProjectDetailSection = React.memo(({
             size="small"
             onClick={onAddItem}
             title={`Add New ${title.replace('Related ', '')}`}
+            color="primary"
           >
             {showaddbutton && <AddCircleOutline />}
           </IconButton>

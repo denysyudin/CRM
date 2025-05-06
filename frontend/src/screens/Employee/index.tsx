@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import EmployeeDetails from './components/EmployeeDetails';
 import AddEmployeeModal from './components/AddEmployeeModal';
-import AssignTaskModal from './components/AssignTaskModal';
-import AddNoteModal from './components/AddNoteModal';
+import TaskModal from '../../components/forms/TaskModal';
+import NoteModal from '../../components/forms/NoteModal';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import {
   Box,
@@ -30,11 +30,14 @@ import { Note } from '../../types/note.types';
 import { Employee, CreateEmployeePayload } from '../../types/employee.types';
 import { Task } from '../../types/task.types';
 import { Reminder } from '../../types/reminder.types';
+import { Project } from '../../types/project.types';
 
 import { useGetEmployeesQuery, useCreateEmployeeMutation } from '../../redux/api/employeesApi';
 import { useGetNotesQuery, useCreateNoteMutation } from '../../redux/api/notesApi';
-import { useGetRemindersQuery } from '../../redux/api/remindersApi';
+import { useGetRemindersQuery, useCreateReminderMutation } from '../../redux/api/remindersApi';
 import { useGetTasksQuery, useCreateTaskMutation, useUpdateTaskMutation } from '../../redux/api/tasksApi';
+import { useGetProjectsQuery } from '../../redux/api/projectsApi';
+import ReminderModal from '../../components/forms/ReminderModal';
 
 const EmployeePage: React.FC = () => {
   const theme = useTheme();
@@ -61,19 +64,38 @@ const EmployeePage: React.FC = () => {
     isLoading: remindersLoading
   } = useGetRemindersQuery();
 
+  const {
+    data: projects = [],
+    isLoading: projectsLoading
+  } = useGetProjectsQuery();
+
   // Create employee mutation hook
   const [createEmployee] = useCreateEmployeeMutation();
   const [updateTask] = useUpdateTaskMutation();
+  const [createReminder] = useCreateReminderMutation();
 
   // Local state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
   const [assignTaskModalOpen, setAssignTaskModalOpen] = useState(false);
   const [addNoteModalOpen, setAddNoteModalOpen] = useState(false);
+  const [addReminderModalOpen, setAddReminderModalOpen] = useState(false);
   const [updateTaskStatus, setUpdateTaskStatus] = useState(false);
   const [taskFilterStatus, setTaskFilterStatus] = useState('all');
   const [taskSortBy, setTaskSortBy] = useState('due-date');
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [selectedProject, setSelectedProject] = useState<string>('');
+
+  // Add state for the reminder form
+  const [reminderForm, setReminderForm] = useState<Partial<Reminder>>({
+    title: '',
+    description: '',
+    due_date: new Date().toISOString(),
+    employee_id: '',
+    project_id: '',
+    status: false,
+    priority: 'medium'
+  });
 
   // Adjust sidebar visibility based on screen size
   useEffect(() => {
@@ -142,18 +164,39 @@ const EmployeePage: React.FC = () => {
   };
 
   //handle assign task modal
-  const handleAssignTask = (taskData: Task) => {
+  const handleAssignTask = (formData: FormData) => {
     if (selectedEmployeeId) {
-      const taskWithEmployeeId = {
-        ...taskData,
+      // Convert FormData to Task object
+      const taskData: Partial<Task> = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        status: formData.get('status') as string,
+        due_date: formData.get('due_date') as string,
+        priority: formData.get('priority') as string,
+        category: formData.get('category') as string,
+        project_id: formData.get('project_id') as string,
         employee_id: selectedEmployeeId
       };
-      console.log('Task data:', taskWithEmployeeId);
-      createTask(taskWithEmployeeId)
+      
+      console.log('Task data:', taskData);
+      
+      // Create task with explicitly typed data
+      const taskPayload: Partial<Task> = {
+        title: taskData.title || '',
+        description: taskData.description || '',
+        status: taskData.status || 'To Do',
+        due_date: taskData.due_date || new Date().toISOString(),
+        category: taskData.category || 'General',
+        priority: taskData.priority || 'medium',
+        project_id: taskData.project_id || '',
+        employee_id: selectedEmployeeId || ''
+      };
+      console.log('Task payload:', taskPayload);
+      createTask(taskPayload)
         .unwrap()
         .then(() => {
-          setAssignTaskModalOpen(true);
-          console.log('Task created:', taskWithEmployeeId);
+          setAssignTaskModalOpen(false);
+          console.log('Task created successfully');
         })
         .catch((error) => {
           console.error('Failed to create task:', error);
@@ -162,22 +205,74 @@ const EmployeePage: React.FC = () => {
   };
 
   //handle add note modal
-  const handleAddNote = (noteData: Note) => {
+  const handleAddNote = async (noteData: Note) => {
     if (selectedEmployeeId) {
       const noteWithEmployeeId = {
         ...noteData,
         employee_id: selectedEmployeeId
       };
-      createNote(noteWithEmployeeId)
+      try {
+        await createNote(noteWithEmployeeId).unwrap();
+        setAddNoteModalOpen(false);
+        console.log('Note created:', noteWithEmployeeId);
+      } catch (error) {
+        console.error('Failed to create note:', error);
+      }
+    }
+  };
+
+  // Handler for adding a new reminder
+  const handleAddReminder = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
+    if (selectedEmployeeId && reminderForm) {
+      // Create properly typed reminder data
+      const reminderData: Omit<Reminder, 'id'> = {
+        title: reminderForm.title || '',
+        description: reminderForm.description || '',
+        due_date: reminderForm.due_date || new Date().toISOString(),
+        priority: reminderForm.priority || 'medium',
+        status: reminderForm.status || false,
+        project_id: reminderForm.project_id || selectedProject || '',
+        employee_id: selectedEmployeeId
+      };
+      
+      createReminder(reminderData)
         .unwrap()
         .then(() => {
-          setAddNoteModalOpen(true);
-          console.log('Note created:', noteWithEmployeeId);
+          setAddReminderModalOpen(false);
+          console.log('Reminder created:', reminderData);
         })
         .catch((error) => {
-          console.error('Failed to create note:', error);
+          console.error('Failed to create reminder:', error);
         });
     }
+  };
+
+  // Handler for reminder form field changes
+  const handleReminderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setReminderForm({
+      ...reminderForm,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  // Handler for reminder select field changes
+  const handleReminderSelectChange = (e: SelectChangeEvent) => {
+    setReminderForm({
+      ...reminderForm,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  // Handler for reminder status toggle
+  const handleReminderStatusChange = (checked: boolean) => {
+    setReminderForm({
+      ...reminderForm,
+      status: checked
+    });
   };
 
   // Handler for employee dropdown change
@@ -196,11 +291,16 @@ const EmployeePage: React.FC = () => {
     return employee ? employee.name : 'Select Employee';
   };
 
+  // Find project by ID
+  const getProjectById = (id: string): Project | undefined => {
+    return projects.find((project: Project) => project.id === id);
+  };
+
   // Calculate drawer width
   const drawerWidth = 240;
 
   // Check if data is loading
-  const isLoading = employeesLoading || notesLoading || tasksLoading || remindersLoading;
+  const isLoading = employeesLoading || notesLoading || tasksLoading || remindersLoading || projectsLoading;
 
   if (isLoading) {
     return (
@@ -362,6 +462,7 @@ const EmployeePage: React.FC = () => {
                 onTaskStatusChange={handleTaskStatusChange}
                 onAssignTask={() => setAssignTaskModalOpen(true)}
                 onAddNote={() => setAddNoteModalOpen(true)}
+                onAddReminder={() => setAddReminderModalOpen(true)}
               />
             </Box>
           </Paper>
@@ -376,17 +477,53 @@ const EmployeePage: React.FC = () => {
         />
       )}
       {assignTaskModalOpen && (
-        <AssignTaskModal
-          employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
-          onSave={handleAssignTask}
+        <TaskModal
+          projectName={selectedProject ? getProjectById(selectedProject)?.title || '' : ''}
+          projectId={selectedProject || ''}
           onClose={() => setAssignTaskModalOpen(false)}
+          onSubmit={handleAssignTask}
+        />
+      )}
+      {addReminderModalOpen && (
+        <ReminderModal
+          open={addReminderModalOpen}
+          onClose={() => setAddReminderModalOpen(false)}
+          onSubmit={handleAddReminder}
+          onChange={handleReminderChange}
+          onSelectChange={handleReminderSelectChange}
+          onStatusChange={handleReminderStatusChange}
+          isEditing={false}
+          reminder={{
+            id: '',
+            title: reminderForm.title || '',
+            description: reminderForm.description || '',
+            due_date: reminderForm.due_date || new Date().toISOString(),
+            employee_id: selectedEmployeeId || '',
+            project_id: selectedProject || '',
+            status: reminderForm.status || false,
+            priority: reminderForm.priority || 'medium'
+          }}
+          projects={projects}
+          employees={employees}
         />
       )}
       {addNoteModalOpen && (
-        <AddNoteModal
-          employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}  
-          onSave={handleAddNote}
+        <NoteModal
+          open={addNoteModalOpen}
           onClose={() => setAddNoteModalOpen(false)}
+          onSave={handleAddNote}
+          editMode={false}
+          initialData={{
+            id: '',
+            title: '',
+            description: '',
+            project_id: selectedProject || '',
+            employee_id: selectedEmployeeId || '',
+            created_at: new Date().toISOString(),
+            files: []
+          }}
+          projects={projects}
+          isUploading={false}
         />
       )}
     </Box>

@@ -6,35 +6,29 @@ import { Reminder } from '../../../types/reminder.types';
 import {
   Avatar,
   Box,
-  Button,
   Card,
   CardContent,
   CardHeader,
   Chip,
-  FormControl,
   Grid,
-  InputLabel,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  MenuItem,
   Paper,
-  Select,
-  SelectChangeEvent,
   Stack,
   Typography,
-  useTheme
+  useTheme,
+  IconButton
 } from '@mui/material';
 import CircleSharpIcon from '@mui/icons-material/CircleSharp';
-import AddIcon from '@mui/icons-material/Add';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AlarmIcon from '@mui/icons-material/Alarm';
 import NoteIcon from '@mui/icons-material/Note';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import { AddCircleOutline } from '@mui/icons-material';
 
 interface EmployeeDetailsProps {
   employee: Employee | null;
@@ -48,6 +42,7 @@ interface EmployeeDetailsProps {
   onTaskStatusChange: (taskId: string, newStatus: string) => void;
   onAssignTask: () => void;
   onAddNote: () => void;
+  onAddReminder: () => void;
 }
 
 const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
@@ -57,11 +52,10 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
   reminders,
   taskFilterStatus,
   taskSortBy,
-  onTaskFilterChange,
-  onTaskSortChange,
   onTaskStatusChange,
   onAssignTask,
-  onAddNote
+  onAddNote,
+  onAddReminder
 }) => {
   const theme = useTheme();
 
@@ -319,16 +313,14 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
             </Box>
           }
           action={
-            <Button 
-              variant="contained" 
+            <IconButton 
               color="primary" 
-              startIcon={<AddIcon />}
               onClick={onAssignTask}
               size="small"
-              sx={{ mr: 2, px: 2 }}  
+              sx={{ mr: 2 }}  
             >
-              Assign New Task
-            </Button>
+              <AddCircleOutline />
+            </IconButton>
           }
         />
         <CardContent sx={{ pt: 2 }}>
@@ -527,8 +519,17 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
           title={
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <AlarmIcon sx={{ mr: 1 }} />
-              <Typography variant="h6">Requires Follow-up</Typography>
+              <Typography variant="h6">Follow-ups</Typography>
             </Box>
+          }
+          action={
+            <IconButton 
+              color="primary" 
+              onClick={onAddReminder}
+              size="small"
+            >
+              <AddCircleOutline />
+            </IconButton>
           }
         />
         <CardContent>
@@ -579,17 +580,15 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
               <Typography variant="h6">Notes</Typography>
             </Box>
           }
-          action={
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<AddIcon />}
-              onClick={onAddNote}
-              size="small"
-            >
-              Add Note
-            </Button>
-          }
+            action={
+              <IconButton 
+                color="primary" 
+                onClick={onAddNote}
+                size="small"
+              >
+                <AddCircleOutline />
+              </IconButton>
+            }
         />
         <CardContent>
           {notes.length === 0 ? (

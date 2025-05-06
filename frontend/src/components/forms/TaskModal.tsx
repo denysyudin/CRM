@@ -20,6 +20,9 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Close, CloudUpload } from '@mui/icons-material';
+import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
+import { useGetProjectsQuery } from '../../redux/api/projectsApi';
+import { blob } from 'stream/consumers';
 
 interface TaskModalProps {
   projectName: string;
@@ -36,26 +39,19 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
   const [due_date, setDueDate] = useState(task?.due_date || '');
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [category, setCategory] = useState(task?.category || 'General');
+  const [employeeId, setEmployeeId] = useState(task?.employee_id || '');
+  const [selectedProjectId, setSelectedProjectId] = useState(task?.project_id || projectId);
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
+  // Fetch employees and projects data
+  const { data: employees = [], isLoading: employeesLoading } = useGetEmployeesQuery();
+  const { data: projects = [], isLoading: projectsLoading } = useGetProjectsQuery();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
-    
-    const taskData = {
-      title,
-      description,
-      status,
-      due_date,
-      priority,
-      category,
-      project_id: task?.project_id || projectId,
-      employee_id: task?.employee_id || '',
-      // Convert file to array to match interface
-      files: file ? [fileName] : []
-    };
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
@@ -63,9 +59,8 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
     formData.append('due_date', due_date);
     formData.append('priority', priority);
     formData.append('category', category);
-    formData.append('project_id', projectId);
-    formData.append('employee_id', '');
-    console.log(formData);
+    formData.append('project_id', selectedProjectId || projectId);
+    formData.append('employee_id', employeeId || '');
     // If there's a file, prepare FormData for file upload
     if (file) {
       formData.append('file', file);
@@ -74,7 +69,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       // Just submit the task data without file
       onSubmit(formData);
     }
-    
     setIsUploading(false);
   };
 
@@ -212,6 +206,51 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                 margin="normal"
                 size="small"
               />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" size="small"> 
+                <InputLabel id="project-label">Project</InputLabel>
+                <Select
+                  labelId="project-label"
+                  value={selectedProjectId}
+                  label="Project"
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                >
+                  {projectsLoading ? (
+                    <MenuItem disabled>Loading projects...</MenuItem>
+                  ) : (
+                    projects.map((project) => (
+                      <MenuItem key={project.id} value={project.id}>
+                        {project.title}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" size="small">
+                <InputLabel id="employee-label">Employee</InputLabel>
+                <Select
+                  labelId="employee-label"
+                  value={employeeId}
+                  label="Employee"
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {employeesLoading ? (
+                    <MenuItem disabled>Loading employees...</MenuItem>
+                  ) : (
+                    employees.map((employee) => (
+                      <MenuItem key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+              </FormControl>
             </Grid>
             
             <Grid item xs={12}>
