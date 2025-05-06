@@ -3,6 +3,7 @@ import Sidebar from '../../components/Sidebar/Sidebar';
 import DirectoryTree from './components/DirectoryTree';
 import {
   Box,
+  Breadcrumbs,
   Button,
   CircularProgress,
   IconButton,
@@ -30,6 +31,7 @@ import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 import { useGetFilesQuery, useCreateFileMutation, useDeleteFileMutation } from '../../redux/api/filesApi';
 import { File } from '../../types';
@@ -45,6 +47,30 @@ const FileManager: React.FC = () => {
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
+
+  // Use the API query hook
+  const { data: filesData, isLoading, isError } = useGetFilesQuery();
+  const [deleteFile] = useDeleteFileMutation();
+  
+  // Load files when component mounts or when the query data changes
+  useEffect(() => {
+    if (filesData) {
+      setAllFiles(filesData);
+      
+      // Filter files for the current folder
+      const filteredFiles = filesData.filter(file => 
+        file.parent_id === currentFolder || 
+        (currentFolder === 'root' && file.parent_id === 'root')
+      );
+      setFiles(filteredFiles);
+      setLoading(false);
+    } else if (isError) {
+      setLoading(false);
+      // Could add error state handling here
+    } else {
+      setLoading(isLoading);
+    }
+  }, [filesData, isLoading, isError, currentFolder]);
 
   const navigateToFolder = (folderId: string, folderName: string) => {
     setCurrentFolder(folderId);
@@ -157,6 +183,17 @@ const FileManager: React.FC = () => {
     setContextMenuFile(null);
   };
 
+  const handleDeleteFile = async () => {
+    if (contextMenuFile) {
+      try {
+        await deleteFile(contextMenuFile);
+        closeContextMenu();
+      } catch (error) {
+        console.error('Error deleting file:', error);
+      }
+    }
+  };
+
   return (
     <div className="app-container">
       <div className="sidebar">
@@ -167,10 +204,29 @@ const FileManager: React.FC = () => {
 
       {/* Main Content */}
       <Box component="main" sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography variant="h5" component="h1" gutterBottom>
+        <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h5" component="h1" gutterBottom={false}>
             Google Drive Files
           </Typography>
+        </Paper>
+        
+        {/* Breadcrumb Navigation */}
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
+            {folderPath.map((folder, index) => (
+              <Typography
+                key={folder.id}
+                sx={{ 
+                  cursor: 'pointer', 
+                  color: index === folderPath.length - 1 ? 'text.primary' : 'primary.main',
+                  fontWeight: index === folderPath.length - 1 ? 'bold' : 'normal',
+                }}
+                onClick={() => index < folderPath.length - 1 && navigateToFolder(folder.id, folder.name)}
+              >
+                {folder.name}
+              </Typography>
+            ))}
+          </Breadcrumbs>
         </Paper>
         
         {/* Files Explorer with Directory Tree */}
@@ -197,9 +253,17 @@ const FileManager: React.FC = () => {
                 <CircularProgress />
               </Box>
             ) : files.length === 0 ? (
-              <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" height="100%">
-                <InsertDriveFileIcon sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-                <Typography variant="h6" color="text.secondary">No files found</Typography>
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="subtitle1" sx={{ p: 2, color: 'text.secondary' }}>
+                  {currentFolder === 'root' ? 'My Drive' : folderPath[folderPath.length - 1].name}
+                </Typography>
+                <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <InsertDriveFileIcon sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary">No files found</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Upload files to add them to this folder
+                  </Typography>
+                </Box>
               </Box>
             ) : (
               <List>
@@ -249,7 +313,7 @@ const FileManager: React.FC = () => {
         open={Boolean(anchorEl)}
         onClose={closeContextMenu}
       >
-        <MenuItem onClick={() => { contextMenuFile }}>
+        <MenuItem onClick={handleDeleteFile}>
           <ListItemIcon>
             <DeleteIcon fontSize="small" />
           </ListItemIcon>

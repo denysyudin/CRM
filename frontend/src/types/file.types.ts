@@ -6,7 +6,7 @@ export interface File {
   project_id?: string;
   employee_id?: string;
   note_id?: string;
-  event_id?: string;
+  task_id?: string;
   parent_id?: string;
   created_at?: string;
   updated_at?: string;
