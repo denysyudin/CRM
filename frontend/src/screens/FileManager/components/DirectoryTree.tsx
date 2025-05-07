@@ -29,19 +29,27 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CodeIcon from '@mui/icons-material/Code';
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 
+export interface FileNode {
+  id: string;
+  name: string;
+  children: FileNode[];
+  parent?: string;
+  type?: 'project' | 'note' | 'task' | 'file' | 'folder';
+  fileType?: string;
+}
+
+// Current node with parent and children info for the column display
+export interface FileTreeContext {
+  parent: FileNode | null;
+  current: FileNode | null;
+  children: FileNode[];
+}
+
 interface DirectoryTreeProps {
   files: File[];
   currentFolder: string;
-  onFolderSelect: (folderId: string, folderName: string) => void;
+  onFolderSelect: (folderId: string, folderName: string, context?: FileTreeContext) => void;
   loading: boolean;
-}
-
-interface TreeNode {
-  id: string;
-  name: string;
-  children: TreeNode[];
-  type?: 'project' | 'note' | 'task' | 'file';
-  fileType?: string;
 }
 
 const DirectoryTree: React.FC<DirectoryTreeProps> = ({
@@ -50,8 +58,14 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
   onFolderSelect,
   loading
 }): ReactElement => {
-  const [treeData, setTreeData] = useState<TreeNode[]>([]);
+  const [treeData, setTreeData] = useState<FileNode>(); // Root node
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({ root: true });
+  const [currentNode, setCurrentNode] = useState<FileNode | null>(null);
+  const [treeContext, setTreeContext] = useState<FileTreeContext>({
+    parent: null,
+    current: null,
+    children: []
+  });
 
   const { data: filesData, isLoading: filesLoading } = useGetFilesQuery();
   const { data: projectsData, isLoading: projectsLoading } = useGetProjectsQuery();
@@ -59,196 +73,143 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
   const { data: tasksData, isLoading: tasksLoading } = useGetTasksQuery();
 
   // Get file icon based on file type
-  const getFileIcon = (fileType: string | undefined) => {
-    if (!fileType) return <InsertDriveFileIcon fontSize="small" />;
+  const getFileIcon = (fileType: string | undefined, isSelected: boolean = false) => {
+    if (!fileType) return <InsertDriveFileIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
     
     const fileTypeLower = fileType.toLowerCase();
     
     if (fileTypeLower.match(/jpe?g|png|gif|bmp|svg/)) {
-      return <ImageIcon fontSize="small" color="action" />;
+      return <ImageIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
     } else if (fileTypeLower === 'pdf') {
-      return <PictureAsPdfIcon fontSize="small" color="error" />;
+      return <PictureAsPdfIcon fontSize="small" color={isSelected ? "primary" : "error"} />;
     } else if (fileTypeLower.match(/js|jsx|ts|tsx|html|css|java|py|c|cpp/)) {
-      return <CodeIcon fontSize="small" color="info" />;
+      return <CodeIcon fontSize="small" color={isSelected ? "primary" : "info"} />;
     } else if (fileTypeLower.match(/txt|md|rtf/)) {
-      return <TextSnippetIcon fontSize="small" color="action" />;
+      return <TextSnippetIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
     }
     
-    return <InsertDriveFileIcon fontSize="small" color="action" />;
+    return <InsertDriveFileIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
   };
 
-  // Build tree data structure from files data
+  // Recursively build file tree structure
   useEffect(() => {
-    // Create root node - always show root directory
-    const root: TreeNode = {
+    if (!filesData) return;
+
+    // Initialize the root node
+    const root: FileNode = {
       id: 'root',
       name: 'Root',
-      children: []
+      children: [],
+      type: 'folder'
     };
-    
-    // Create general folder
-    const generalFolder: TreeNode = {
-      id: 'general',
-      name: 'General',
-      children: []
+
+    // Map to store all nodes by ID for quick reference
+    const nodeMap: Record<string, FileNode> = {
+      'root': root
     };
-    
-    // Add general folder to root's children
-    root.children.push(generalFolder);
-    
-    // Map of all nodes by id for quick access
-    const nodesMap: Record<string, TreeNode> = {
-      'root': root,
-      'general': generalFolder
-    };
-    
-    // If we have all the required data, build the full tree
-    if (filesData && projectsData && notesData && tasksData) {
-      // Track created projects to avoid duplicates
-      const processedProjects = new Set<string>();
+
+    // First pass - create all nodes
+    filesData.forEach(file => {
       
-      // Process all files and create the directory structure
-      filesData.forEach(file => {
-        if (file.project_id) {
-          const projectId = file.project_id;
-          const projectNodeId = `project_${projectId}`;
-          
-          // Create project node if not already created
-          if (!processedProjects.has(projectId)) {
-            const project = projectsData.find(p => p.id === projectId);
-            const projectNode: TreeNode = {
-              id: projectNodeId,
-              name: project?.title || 'Unknown Project',
-              children: [],
-              type: 'project'
-            };
-            
-            nodesMap[projectNodeId] = projectNode;
-            root.children.push(projectNode);
-            processedProjects.add(projectId);
-          }
-          
-          // Add note as child of project
-          if (file.note_id) {
-            const noteId = file.note_id;
-            const noteNodeId = `note_${noteId}`;
-            const note = notesData.find(n => n.id === noteId);
-            
-            if (note && !nodesMap[noteNodeId]) {
-              const noteNode: TreeNode = {
-                id: noteNodeId,
-                name: note.title || 'Unknown Note',
-                children: [],
-                type: 'note'
-              };
-              
-              nodesMap[noteNodeId] = noteNode;
-              nodesMap[projectNodeId].children.push(noteNode);
-            }
-          }
-          
-          // Add task as child of project
-          if (file.task_id) {
-            const taskId = file.task_id;
-            const taskNodeId = `task_${taskId}`;
-            const task = tasksData.find(t => t.id === taskId);
-            
-            if (task && !nodesMap[taskNodeId]) {
-              const taskNode: TreeNode = {
-                id: taskNodeId,
-                name: task.title || 'Unknown Task',
-                children: [],
-                type: 'task'
-              };
-              
-              nodesMap[taskNodeId] = taskNode;
-              nodesMap[projectNodeId].children.push(taskNode);
-            }
-          }
-          
-          // Add the actual file as a leaf node
-          const fileNodeId = `file_${file.id}`;
-          const fileNode: TreeNode = {
-            id: fileNodeId,
-            name: file.title || 'Unknown File',
-            children: [],
-            type: 'file',
-            fileType: file.type || undefined
-          };
-          
-          const parentNodeId = file.task_id 
-            ? `task_${file.task_id}` 
-            : file.note_id 
-              ? `note_${file.note_id}` 
-              : `project_${file.project_id}`;
-              
-          if (nodesMap[parentNodeId]) {
-            nodesMap[parentNodeId].children.push(fileNode);
-          }
-        }
+      const node: FileNode = {
+        id: file.id,
+        name: file.title,
+        children: [],
+        parent: file.project_id || 'root',
+        type: file.file_type === 'application/vnd.google-apps.folder' ? 'folder' : 'file',
+        fileType: file.file_type
+      };
+
+      nodeMap[file.id] = node;
+    });
+
+    // Second pass - build the tree structure
+    filesData.forEach(file => {
+      const node = nodeMap[file.id];
+      const parentId = file.project_id || 'root';
+      
+      if (nodeMap[parentId]) {
+        nodeMap[parentId].children.push(node);
+      } else {
+        // If parent doesn't exist, add to root
+        root.children.push(node);
+      }
+    });
+
+    // Sort all nodes
+    const sortNodes = (node: FileNode) => {
+      // Sort folders first, then files alphabetically
+      node.children.sort((a, b) => {
+        const aIsFolder = a.type === 'folder';
+        const bIsFolder = b.type === 'folder';
+        
+        if (aIsFolder && !bIsFolder) return -1;
+        if (!aIsFolder && bIsFolder) return 1;
+        
+        return a.name.localeCompare(b.name);
       });
       
-      // Sort children alphabetically, with folders first
-      const sortTreeNodes = (nodes: TreeNode[]) => {
-        // Sort folders first, then files, both alphabetically
-        return nodes.sort((a, b) => {
-          const aIsFolder = a.children.length > 0 || a.type === 'project' || a.type === 'note' || a.type === 'task';
-          const bIsFolder = b.children.length > 0 || b.type === 'project' || b.type === 'note' || b.type === 'task';
-          
-          if (aIsFolder && !bIsFolder) return -1;
-          if (!aIsFolder && bIsFolder) return 1;
-          
-          return a.name.localeCompare(b.name);
-        });
-      };
-      
-      // Sort all nodes recursively
-      const sortAllNodes = (node: TreeNode) => {
-        if (node.children.length > 0) {
-          node.children = sortTreeNodes(node.children);
-          node.children.forEach(sortAllNodes);
-        }
-      };
-      
-      sortAllNodes(root);
-    }
+      // Recursively sort children
+      node.children.forEach(sortNodes);
+    };
     
-    // Always set tree data with at least the root node
-    setTreeData([root]);
-    
-    // Expand current folder's path
-    if (currentFolder !== 'root' && projectsData && notesData && tasksData) {
-      // Find which node contains the current folder
-      const findNodePath = (nodeId: string): string[] => {
-        // For project nodes
-        if (nodeId.startsWith('project_')) {
-          return ['root', nodeId];
-        }
-        
-        // For note/task nodes
-        if (nodeId.startsWith('note_') || nodeId.startsWith('task_')) {
-          const noteOrTask = nodeId.startsWith('note_')
-            ? notesData.find(n => `note_${n.id}` === nodeId)
-            : tasksData.find(t => `task_${t.id}` === nodeId);
-            
-          if (noteOrTask?.project_id) {
-            return ['root', `project_${noteOrTask.project_id}`, nodeId];
-          }
-        }
-        
-        return [nodeId];
-      };
+    sortNodes(root);
+    setTreeData(root);
+
+    // Find the current node and its context (parent and children)
+    const findNodeById = (nodeId: string, node: FileNode): FileNode | null => {
+      if (node.id === nodeId) {
+        return node;
+      }
       
-      const pathToExpand = findNodePath(currentFolder);
-      const newExpandedNodes = { ...expandedNodes };
+      for (const child of node.children) {
+        const found = findNodeById(nodeId, child);
+        if (found) return found;
+      }
       
-      pathToExpand.forEach(nodeId => {
-        newExpandedNodes[nodeId] = true;
+      return null;
+    };
+
+    // Find the parent node of a given node
+    const findParentNode = (node: FileNode | null): FileNode | null => {
+      if (!node || !node.parent) return null;
+      return nodeMap[node.parent] || null;
+    };
+
+    // Update the tree context with current, parent and children info
+    const updateTreeContext = (nodeId: string) => {
+      const current = findNodeById(nodeId, root);
+      const parent = current ? findParentNode(current) : null;
+      const children = current ? current.children : [];
+      
+      setTreeContext({
+        parent,
+        current,
+        children
       });
       
-      setExpandedNodes(newExpandedNodes);
+      setCurrentNode(current);
+    };
+
+    // If currentFolder is set, find and set the current node
+    if (currentFolder) {
+      updateTreeContext(currentFolder);
+      
+      // Ensure the path to the current node is expanded
+      const node = findNodeById(currentFolder, root);
+      if (node) {
+        let parent = node.parent;
+        const newExpandedNodes = { ...expandedNodes };
+        
+        while (parent) {
+          newExpandedNodes[parent] = true;
+          parent = nodeMap[parent]?.parent;
+        }
+        
+        setExpandedNodes(newExpandedNodes);
+      }
     }
-  }, [filesData, projectsData, notesData, tasksData, currentFolder, expandedNodes]);
+  }, [filesData, currentFolder]);
 
   const handleNodeToggle = (nodeId: string) => {
     setExpandedNodes({
@@ -257,31 +218,69 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     });
   };
 
-  // Recursive component to render tree nodes
-  const renderTreeNode = (node: TreeNode, depth: number = 0, isLastChild: boolean = true) => {
+  // Handle node selection
+  const handleNodeSelect = (node: FileNode) => {
+    setCurrentNode(node);
+    
+    // Find the parent and children for the selected node
+    if (treeData) {
+      const findParentById = (parentId: string, tree: FileNode): FileNode | null => {
+        if (tree.id === parentId) return tree;
+        
+        for (const child of tree.children) {
+          const found = findParentById(parentId, child);
+          if (found) return found;
+        }
+        
+        return null;
+      };
+      
+      const parent = node.parent ? findParentById(node.parent, treeData) : null;
+      
+      const newContext = {
+        parent,
+        current: node,
+        children: node.children
+      };
+      
+      setTreeContext(newContext);
+      
+      // Pass the context to the parent component
+      onFolderSelect(node.id, node.name, newContext);
+    } else {
+      onFolderSelect(node.id, node.name);
+    }
+    
+    // Auto-expand folder when clicked
+    if (node.children.length > 0 && !expandedNodes[node.id]) {
+      handleNodeToggle(node.id);
+    }
+  };
+
+  // Render a single node in the tree
+  const renderNode = (node: FileNode, depth: number = 0, isLastChild: boolean = true) => {
     const isExpanded = !!expandedNodes[node.id];
     const isSelected = currentFolder === node.id;
     const hasChildren = node.children.length > 0;
-    const isFolder = hasChildren || node.type === 'project' || node.type === 'note' || node.type === 'task';
     
-    // Determine which icon to use
+    // Select the appropriate icon
     let nodeIcon;
-    if (node.type === 'note') {
-      nodeIcon = <DescriptionIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    } else if (node.type === 'task') {
-      nodeIcon = <AssignmentIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    } else if (isFolder) {
+    if (node.type === 'folder') {
       nodeIcon = isExpanded 
         ? <FolderOpenIcon fontSize="small" color="primary" /> 
         : <FolderIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
+    } else if (node.type === 'note') {
+      nodeIcon = <DescriptionIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
+    } else if (node.type === 'task') {
+      nodeIcon = <AssignmentIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
     } else {
-      nodeIcon = getFileIcon(node.fileType);
+      nodeIcon = getFileIcon(node.fileType, isSelected);
     }
     
     return (
       <React.Fragment key={node.id}>
         <ListItemButton 
-          onClick={() => onFolderSelect(node.id, node.name)}
+          onClick={() => handleNodeSelect(node)}
           selected={isSelected}
           sx={{ 
             pl: 1 + (depth * 1.5),
@@ -294,22 +293,10 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
             },
             '&:hover': {
               backgroundColor: 'rgba(0, 0, 0, 0.04)'
-            },
-            position: 'relative',
-            '&::before': isFolder ? {
-              content: '""',
-              position: 'absolute',
-              left: 1 + (depth * 1.5) + (hasChildren ? 8 : 0),
-              top: 0,
-              bottom: 0,
-              width: 1,
-              bgcolor: isLastChild ? 'transparent' : 'rgba(0, 0, 0, 0.12)',
-              display: depth > 0 ? 'block' : 'none'
-            } : undefined
+            }
           }}
         >
-          
-          <ListItemIcon sx={{ minWidth: 28, ml: hasChildren ? 0 : 2 }}>
+          <ListItemIcon sx={{ minWidth: 30 }}>
             {hasChildren && (
               <Box 
                 component="span" 
@@ -325,11 +312,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
                   color: 'text.secondary',
                   width: 20,
                   height: 20,
-                  mr: 0.5,
-                  borderRadius: 0.5,
-                  '&:hover': {
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                  }
+                  mr: 0.5
                 }}
               >
                 {isExpanded ? 
@@ -355,7 +338,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
         {hasChildren && (
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <List component="div" disablePadding sx={{ m: 0, p: 0 }}>
-              {node.children.map((child, index) => renderTreeNode(
+              {node.children.map((child, index) => renderNode(
                 child, 
                 depth + 1, 
                 index === node.children.length - 1
@@ -382,6 +365,14 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     );
   }
 
+  if (!treeData) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography variant="subtitle2">No files found</Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ px: 1, py: 1 }}>
       <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', px: 1, mb: 1 }}>
@@ -404,7 +395,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
           }
         }}
       >
-        {treeData.map(node => renderTreeNode(node))}
+        {renderNode(treeData, 0, true)}
       </List>
     </Box>
   );

@@ -28,27 +28,27 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Update sidebar state when screen size changes
   useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    } else {
-      setSidebarOpen(true);
-    }
+    // if (isMobile) {
+    //   setSidebarOpen(true);
+    // } else {
+    //   setSidebarOpen(true);
+    // }
   }, [isMobile]);
 
   // Toggle sidebar open/closed
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    // setSidebarOpen(!sidebarOpen);
   };
 
   // Determine layout classes
   const layoutClasses = [
     'main-layout',
-    sidebarOpen ? 'sidebar-visible' : (isMobile ? 'sidebar-hidden' : 'sidebar-collapsed')
+    'sidebar-visible'
   ].join(' ');
 
   return (
     <div className={layoutClasses}>
-      <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+      <Sidebar isOpen={true} onToggle={toggleSidebar} />
       <main className="main-content">
         {children}
       </main>

@@ -77,7 +77,7 @@ const Sidebar: React.FC<Props> = () => {
             <span className="nav-icon">👥</span> Employees
           </Link>
         </li>
-        <li>
+        {/* <li>
           <Link to="/files" className={path === '/files' ? 'active' : ''}  >
             <span className="nav-icon">📎</span> Files
           </Link>
@@ -86,7 +86,7 @@ const Sidebar: React.FC<Props> = () => {
           <Link to="/settings" className={path === '/settings' ? 'active' : ''}  >
             <span className="nav-icon">⚙️</span> Settings
           </Link>
-        </li>
+        </li> */}
       </ul>
     </div>
   );

@@ -2,15 +2,14 @@
 export interface File {
   id: string;
   title: string;
-  type: string;
+  file_type: string;
+  file_path: string;
+  file_size: number;
   project_id?: string;
   employee_id?: string;
   note_id?: string;
   task_id?: string;
-  parent_id?: string;
   created_at?: string;
-  updated_at?: string;
-  size?: string;
 }
 
 // File creation/update payload types

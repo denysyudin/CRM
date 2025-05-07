@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../../components/Layout/Sidebar';
-import DirectoryTree from './components/DirectoryTree';
+import DirectoryTree, { FileTreeContext } from './components/DirectoryTree';
 import {
   Box,
   Breadcrumbs,
@@ -32,6 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 
 import { useGetFilesQuery, useCreateFileMutation, useDeleteFileMutation } from '../../redux/api/filesApi';
 import { File } from '../../types';
@@ -48,6 +48,7 @@ const FileManager: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
   const [generalFolderId, setGeneralFolderId] = useState<string>('general');
+  const [treeContext, setTreeContext] = useState<FileTreeContext | null>(null);
 
   // Use the API query hook
   const { data: filesData, isLoading, isError } = useGetFilesQuery();
@@ -57,12 +58,13 @@ const FileManager: React.FC = () => {
   // Load files when component mounts or when the query data changes
   useEffect(() => {
     if (filesData) {
+      // Process the files data
       let processedFiles = [...filesData];
       
       // Check if General folder exists
       const generalFolder = processedFiles.find(
-        file => file.parent_id === 'root' && 
-               file.type === 'application/vnd.google-apps.folder' && 
+        file => file.project_id === 'root' && 
+               file.file_type === 'folder' && 
                file.title === 'General'
       );
       
@@ -73,77 +75,150 @@ const FileManager: React.FC = () => {
         const newGeneralFolder: File = {
           id: 'general',
           title: 'General',
-          type: 'application/vnd.google-apps.folder',
-          parent_id: 'root',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          file_type: 'folder',
+          file_path: '/general',
+          file_size: 0,
+          project_id: 'root',
+          created_at: new Date().toISOString()
         };
         
         processedFiles.push(newGeneralFolder);
         setGeneralFolderId('general');
-        
-        // In a real application, you would call the API to persist this
-        // createFile(newGeneralFolder);
       }
       
-      // Process files without project_id and move them to the General folder
-      const updatedFiles = processedFiles.map(file => {
-        if (!file.project_id && 
-            file.parent_id === 'root' && 
-            file.id !== 'general' && // Don't move the General folder itself
-            file.type !== 'application/vnd.google-apps.folder') {
-          return { ...file, parent_id: generalFolderId };
+      // Organize files in the proper directory structure
+      processedFiles = processedFiles.map(file => {
+        // If file has no parent_id, set it to 'root'
+        if (!file.project_id) {
+          return { ...file, project_id: 'root' };
         }
+        
+        // If file has no project_id and is not a folder and not already in the General folder,
+        // put it in the General folder
+        if (!file.project_id && 
+            file.file_type !== 'folder' && 
+            file.project_id === 'root') {
+          return { ...file, project_id: generalFolderId };
+        }
+        
         return file;
       });
       
-      setAllFiles(updatedFiles);
+      // Make sure project directories exist
+      const projectFolders = new Set<string>();
       
-      // Filter files for the current folder
-      const filteredFiles = updatedFiles.filter(file => 
-        file.parent_id === currentFolder || 
-        (currentFolder === 'root' && file.parent_id === 'root')
-      );
-      setFiles(filteredFiles);
+      // Collect all unique project IDs
+      processedFiles.forEach(file => {
+        if (file.project_id && !projectFolders.has(file.project_id)) {
+          projectFolders.add(file.project_id);
+        }
+      });
+      
+      // Create project folders if they don't exist
+      projectFolders.forEach(projectId => {
+        const projectFolder = processedFiles.find(
+          file => file.id === projectId && file.file_type === 'folder'
+        );
+        
+        if (!projectFolder) {
+          // Project folder doesn't exist, create it
+          const newProjectFolder: File = {
+            id: projectId,
+            title: `Project ${projectId}`, // Use proper project name if available
+            file_type: 'folder',
+            file_size: 0,
+            file_path: `/projects/${projectId}`,
+            project_id: projectId,
+            created_at: new Date().toISOString()
+          };
+          
+          processedFiles.push(newProjectFolder);
+        }
+        
+        // Make sure files with project_id are in their project folders
+        processedFiles = processedFiles.map(file => {
+          if (file.project_id === projectId && 
+              file.project_id === 'root' && 
+              file.id !== projectId && 
+              file.file_type !== 'folder') {
+            return { ...file, project_id: projectId };
+          }
+          return file;
+        });
+      });
+      
+      setAllFiles(processedFiles);
+      
+      // Show files for the current folder
+      updateFilesForCurrentFolder(processedFiles, currentFolder);
       setLoading(false);
     } else if (isError) {
       setLoading(false);
-      // Could add error state handling here
     } else {
       setLoading(isLoading);
     }
   }, [filesData, isLoading, isError, currentFolder, generalFolderId]);
 
-  const navigateToFolder = (folderId: string, folderName: string) => {
+  // Update displayed files when the current folder changes
+  const updateFilesForCurrentFolder = (allFilesData: File[], folderId: string) => {
+    // Filter files to show only direct children of the current folder
+    const childrenFiles = allFilesData.filter(file => file.project_id === folderId);
+    setFiles(childrenFiles);
+  };
+
+  const navigateToFolder = (folderId: string, folderName: string, context?: FileTreeContext) => {
     setCurrentFolder(folderId);
     
-    // Update folder path
+    // If we receive context from the tree, update it
+    if (context) {
+      setTreeContext(context);
+    }
+    
+    // Update folder path - find the path to the selected folder
     if (folderId === 'root') {
       setFolderPath([{id: 'root', name: 'My Drive'}]);
     } else {
-      const folderIndex = folderPath.findIndex(folder => folder.id === folderId);
+      // First check if it's already in the path
+      const existingIndex = folderPath.findIndex(item => item.id === folderId);
       
-      if (folderIndex >= 0) {
-        // Navigate back to an existing folder in the path
-        setFolderPath(folderPath.slice(0, folderIndex + 1));
+      if (existingIndex >= 0) {
+        // If it exists in the path, truncate to that point
+        setFolderPath(folderPath.slice(0, existingIndex + 1));
       } else {
-        // Navigate to a new subfolder
-        setFolderPath([...folderPath, {id: folderId, name: folderName}]);
+        // Otherwise build a new path
+        const buildFolderPath = (id: string, name: string): {id: string, name: string}[] => {
+          const folder = allFiles.find(f => f.id === id);
+          
+          if (!folder || !folder.project_id || folder.project_id === 'root') {
+            return [{id: 'root', name: 'My Drive'}, {id, name}];
+          }
+          
+          const parent = allFiles.find(f => f.id === folder.project_id);
+          if (!parent) {
+            return [{id: 'root', name: 'My Drive'}, {id, name}];
+          }
+          
+          return [...buildFolderPath(parent.id, parent.title), {id, name}];
+        };
+        
+        setFolderPath(buildFolderPath(folderId, folderName));
       }
     }
     
-    // Filter files for the new current folder
-    const filteredFiles = allFiles.filter(file => 
-      file.parent_id === folderId || 
-      (folderId === 'root' && file.parent_id === 'root')
-    );
-    setFiles(filteredFiles);
+    // Update files list to show children of the selected folder
+    if (allFiles && allFiles.length > 0) {
+      updateFilesForCurrentFolder(allFiles, folderId);
+    }
     
     setSelectedFile(null);
   };
 
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType === 'application/vnd.google-apps.folder') {
+  const getFileIcon = (mimeType: string | null | undefined) => {
+    if (!mimeType) {
+      return <InsertDriveFileIcon fontSize="large" />;
+    }
+    
+    if (mimeType === 'folder' || mimeType === 'application/vnd.google-apps.folder') {
       return <FolderIcon fontSize="large" color="primary" />;
     } else if (mimeType.includes('image')) {
       return <ImageIcon fontSize="large" color="secondary" />;
@@ -161,7 +236,7 @@ const FileManager: React.FC = () => {
   };
 
   const handleFileSelect = (file: File) => {
-    if (file.type === 'application/vnd.google-apps.folder') {
+    if (file.file_type === 'folder' || file.file_type === 'application/vnd.google-apps.folder') {
       navigateToFolder(file.id, file.title);
     } else {
       setSelectedFile(file);
@@ -193,32 +268,6 @@ const FileManager: React.FC = () => {
       minute: '2-digit'
     });
   };
-
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = event.target.files;
-    
-    if (uploadedFiles && uploadedFiles.length > 0) {
-      // Would handle real upload API call in production
-      console.log(`Uploading ${uploadedFiles.length} files to ${currentFolder}`);
-      
-      // Mock adding the uploaded files
-      const newFiles: File[] = Array.from(uploadedFiles).map(file => ({
-        id: `file-${Date.now()}-${file.name}`,
-        title: file.name,
-        type: file.type || 'application/octet-stream',
-        size: file.size.toString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        parent_id: currentFolder
-      }));
-      
-      // Update both state variables
-      setAllFiles([...allFiles, ...newFiles]);
-      setFiles([...files, ...newFiles]);
-      
-      setUploadModalOpen(false);
-    }
-  };
   
   const closeContextMenu = () => {
     setAnchorEl(null);
@@ -243,22 +292,27 @@ const FileManager: React.FC = () => {
       <Box component="main" sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h5" component="h1" gutterBottom={false}>
-            Google Drive Files
+            File Explorer
           </Typography>
         </Paper>
-        
+
         {/* Breadcrumb Navigation */}
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
+        <Paper sx={{ p: 1, mb: 2, display: 'flex', alignItems: 'center' }}>
+          <Breadcrumbs 
+            separator={<NavigateNextIcon fontSize="small" />}
+            aria-label="folder-navigation"
+          >
             {folderPath.map((folder, index) => (
-              <Typography
+              <Typography 
                 key={folder.id}
+                variant="body2"
+                color={index === folderPath.length - 1 ? 'text.primary' : 'text.secondary'}
                 sx={{ 
-                  cursor: 'pointer', 
-                  color: index === folderPath.length - 1 ? 'text.primary' : 'primary.main',
-                  fontWeight: index === folderPath.length - 1 ? 'bold' : 'normal',
+                  cursor: 'pointer',
+                  fontWeight: index === folderPath.length - 1 ? 'medium' : 'normal',
+                  '&:hover': { textDecoration: 'underline' }
                 }}
-                onClick={() => index < folderPath.length - 1 && navigateToFolder(folder.id, folder.name)}
+                onClick={() => navigateToFolder(folder.id, folder.name)}
               >
                 {folder.name}
               </Typography>
@@ -266,7 +320,6 @@ const FileManager: React.FC = () => {
           </Breadcrumbs>
         </Paper>
         
-        {/* Files Explorer with Directory Tree */}
         <Box sx={{ display: 'flex', flexGrow: 1, gap: 2, overflow: 'hidden' }}>
           {/* Directory Tree Sidebar */}
           <Paper sx={{ 
@@ -278,8 +331,8 @@ const FileManager: React.FC = () => {
             <DirectoryTree 
               files={allFiles}
               currentFolder={currentFolder}
-              onFolderSelect={(folderId, folderName) => navigateToFolder(folderId, folderName)}
-              loading={loading}
+              onFolderSelect={(folderId, folderName, context) => navigateToFolder(folderId, folderName, context)}
+              loading={loading || isLoading}
             />
           </Paper>
           
@@ -289,120 +342,134 @@ const FileManager: React.FC = () => {
               <Box display="flex" justifyContent="center" alignItems="center" height="100%">
                 <CircularProgress />
               </Box>
-            ) : files.length === 0 ? (
-              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Typography variant="subtitle1" sx={{ p: 2, color: 'text.secondary' }}>
-                  {currentFolder === 'root' ? 'My Drive' : folderPath[folderPath.length - 1].name}
-                </Typography>
-                <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                  <InsertDriveFileIcon sx={{ fontSize: 60, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
-                  <Typography variant="h6" color="text.secondary">No files found</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Upload files to add them to this folder
-                  </Typography>
-                </Box>
-              </Box>
             ) : (
-              <List>
-                {files.map((file) => (
-                  <ListItem
-                    key={file.id}
-                    disablePadding
-                    secondaryAction={
-                      <IconButton edge="end" onClick={(e) => handleContextMenu(e, file)}>
-                        <MoreVertIcon />
-                      </IconButton>
-                    }
-                  >
-                    <ListItemButton
-                      onClick={() => handleFileSelect(file)}
-                      selected={selectedFile?.id === file.id}
-                      sx={{ borderRadius: 1 }}
-                    >
-                      <ListItemIcon>
-                        {getFileIcon(file.type)}
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={file.title}
-                        secondary={
-                          <React.Fragment>
-                            <Typography component="span" variant="body2" sx={{ display: 'block' }}>
-                              {file.type !== 'application/vnd.google-apps.folder' && formatBytes(file.size)}
-                            </Typography>
-                            <Typography component="span" variant="body2" color="text.secondary">
-                              Modified: {formatDate(file.updated_at || '')}
-                            </Typography>
-                          </React.Fragment>
+              <>
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                  {folderPath[folderPath.length - 1]?.name || 'Files'} 
+                  <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                    ({files.length} items)
+                  </Typography>
+                </Typography>
+                
+                {/* Tree Context Info (Parent, Current, Children) */}
+                {treeContext && (
+                  <Box sx={{ mb: 2, p: 1, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Directory Structure</Typography>
+                    
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      {/* Parent Column */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Parent</Typography>
+                        <Box sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, mt: 0.5 }}>
+                          <Typography noWrap variant="body2">{treeContext.parent?.name}</Typography>
+                        </Box>
+                      </Box>
+                      
+                      {/* Current Column */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Current</Typography>
+                        <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 1, mt: 0.5 }}>
+                          <Typography noWrap variant="body2">{treeContext.current?.name}</Typography>
+                        </Box>
+                      </Box>
+                      
+                      {/* Children Count */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Children</Typography>
+                        <Box sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, mt: 0.5 }}>
+                          <Typography variant="body2">
+                            {treeContext.children.length} item{treeContext.children.length !== 1 ? 's' : ''}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+                
+                {files.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      This folder is empty
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Upload files or create folders to see them here
+                    </Typography>
+                  </Box>
+                ) : (
+                  <List>
+                    {files.map((file) => (
+                      <ListItem 
+                        key={file.id}
+                        disablePadding
+                        secondaryAction={
+                          <IconButton 
+                            edge="end" 
+                            aria-label="more options"
+                            onClick={(e) => handleContextMenu(e, file)}
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
                         }
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                ))}
-              </List>
+                        sx={{ 
+                          mb: 1,
+                          bgcolor: 'background.paper',
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: 'divider'
+                        }}
+                      >
+                        <ListItemButton 
+                          onClick={() => handleFileSelect(file)}
+                          selected={selectedFile?.id === file.id}
+                          sx={{ 
+                            borderRadius: 1,
+                            '&.Mui-selected': {
+                              backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                            }
+                          }}
+                        >
+                          <ListItemIcon>
+                            {getFileIcon(file.file_type)}
+                          </ListItemIcon>
+                          <ListItemText 
+                            primary={file.title} 
+                            secondary={
+                              <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                <Typography variant="body2" color="text.secondary" component="span">
+                                  {formatBytes(file.file_size.toString())}
+                                </Typography>
+                                {file.created_at && (
+                                  <Typography variant="body2" color="text.secondary" component="span">
+                                      {formatDate(file.created_at)}
+                                    </Typography>
+                                  )}
+                              </Box>
+                            }
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </>
             )}
           </Paper>
         </Box>
+
+        {/* Context Menu */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={closeContextMenu}
+        >
+          <MenuItem onClick={handleDeleteFile}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Delete</ListItemText>
+          </MenuItem>
+        </Menu>
       </Box>
-      
-      {/* Context Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={closeContextMenu}
-      >
-        <MenuItem onClick={handleDeleteFile}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Delete</ListItemText>
-        </MenuItem>
-      </Menu>
-      
-      {/* Upload Modal */}
-      <Modal
-        open={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-      >
-        <Box sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 400,
-          bgcolor: 'background.paper',
-          boxShadow: 24,
-          p: 4,
-          borderRadius: 2
-        }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            Upload Files
-          </Typography>
-          <Typography variant="body2" sx={{ mb: 3 }}>
-            Select files to upload to the current folder
-          </Typography>
-          <Button
-            variant="contained"
-            component="label"
-            fullWidth
-            startIcon={<CloudUploadIcon />}
-          >
-            Choose Files
-            <input
-              type="file"
-              multiple
-              hidden
-              onChange={handleUpload}
-            />
-          </Button>
-          <Button 
-            onClick={() => setUploadModalOpen(false)} 
-            sx={{ mt: 2 }}
-            fullWidth
-          >
-            Cancel
-          </Button>
-        </Box>
-      </Modal>
     </Box>
   );
 };

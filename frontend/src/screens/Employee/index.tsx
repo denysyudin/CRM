@@ -31,12 +31,22 @@ import { Task } from '../../types/task.types';
 import { Reminder } from '../../types/reminder.types';
 import { Project } from '../../types/project.types';
 
-import { useGetEmployeesQuery, useCreateEmployeeMutation, useUpdateEmployeeMutation } from '../../redux/api/employeesApi';
+import { useGetEmployeesQuery, useCreateEmployeeMutation, useUpdateEmployeeMutation, useDeleteEmployeeMutation } from '../../redux/api/employeesApi';
 import { useGetNotesQuery, useCreateNoteMutation } from '../../redux/api/notesApi';
 import { useGetRemindersQuery, useCreateReminderMutation } from '../../redux/api/remindersApi';
 import { useGetTasksQuery, useCreateTaskMutation, useUpdateTaskMutation } from '../../redux/api/tasksApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
 import ReminderModal from '../../components/forms/ReminderModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
+
+// Define interface for API responses with message property
+// This interface helps us handle backend responses that include a message
+// property alongside the actual data. It allows for consistent notification
+// display based on backend responses while maintaining type safety.
+interface ApiResponse {
+  message?: string;  // Response message from the server
+  [key: string]: any;  // Additional properties returned by the API
+}
 
 const EmployeePage: React.FC = () => {
   const theme = useTheme();
@@ -98,6 +108,7 @@ const EmployeePage: React.FC = () => {
   const [updateTask] = useUpdateTaskMutation();
   const [createReminder] = useCreateReminderMutation();
   const [updateEmployee] = useUpdateEmployeeMutation();
+  const [deleteEmployee] = useDeleteEmployeeMutation();
 
   // Local state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
@@ -121,6 +132,24 @@ const EmployeePage: React.FC = () => {
     status: false,
     priority: 'medium'
   });
+
+  // State for confirmation dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmAction: () => void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    confirmAction: () => {}
+  });
+
+  // Function to close confirmation dialog
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, open: false }));
+  };
 
   // Adjust sidebar visibility based on screen size
   useEffect(() => {
@@ -150,19 +179,43 @@ const EmployeePage: React.FC = () => {
 
   // Handler for task status toggle
   const handleTaskStatusChange = (taskId: string, newStatus: string) => {
+    const task = tasks.find((t: any) => t.id === taskId);
+    
+    // If task is being marked as completed, show confirmation dialog
+    // if (newStatus === 'completed' && task) {
+    //   setConfirmDialog({
+    //     open: true,
+    //     title: 'Complete Task',
+    //     message: `Are you sure you want to mark "${task.title}" as completed?`,
+    //     confirmAction: () => {
+    //       performTaskStatusUpdate(taskId, newStatus);
+    //       closeConfirmDialog();
+    //     }
+    //   });
+    //   // performTaskStatusUpdate(taskId, newStatus);
+    // } else {
+      // For other status changes, proceed without confirmation
+      performTaskStatusUpdate(taskId, newStatus);
+    // }
+  };
+
+  // Function to update task status
+  const performTaskStatusUpdate = (taskId: string, newStatus: string) => {
     const taskWithEmployeeId = {
       id: taskId,
       status: newStatus
     };
+    
     updateTask(taskWithEmployeeId)
       .unwrap()
-      .then(() => {
+      .then((response: ApiResponse) => {
         setUpdateTaskStatus(true);
-        showNotification(`Task status updated to ${newStatus}`, 'success');
+        showNotification(response.message || `Task status updated to ${newStatus}`, 'success');
       })
       .catch((error) => {
         console.error('Failed to update task:', error);
-        showNotification('Failed to update task status', 'error');
+        const errorMsg = error.data?.message || 'Failed to update task status';
+        showNotification(errorMsg, 'error');
       });
   };
 
@@ -171,12 +224,12 @@ const EmployeePage: React.FC = () => {
     try {
       // Validate required fields
       if (!employee.name?.trim()) {
-        showError('Employee name is required');
+        showNotification('Employee name is required', 'error');
         return;
       }
       
       if (!employee.role?.trim()) {
-        showError('Employee role is required');
+        showNotification('Employee role is required', 'error');
         return;
       }
       
@@ -188,21 +241,21 @@ const EmployeePage: React.FC = () => {
         status: employee.status || true
       };
 
-      console.log(newEmployee);
-
       createEmployee(newEmployee as Employee)
         .unwrap()
-        .then(() => {
+        .then((response: ApiResponse) => {
           setIsAddEmployeeModalOpen(false);
-          showNotification('Employee added successfully', 'success');
+          showNotification(response.message || 'Employee added successfully', 'success');
         })
         .catch((error) => {
           console.error('Failed to create employee:', error);
-          showNotification('Failed to add employee', 'error');
+          const errorMsg = error.data?.message || 'Failed to add employee';
+          showNotification(errorMsg, 'error');
         });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create employee:', error);
-      showNotification('Failed to add employee', 'error');
+      const errorMsg = error.data?.message || 'Failed to add employee';
+      showNotification(errorMsg, 'error');
     }
   };
 
@@ -218,34 +271,52 @@ const EmployeePage: React.FC = () => {
     if (selectedEmployeeId) {
       const employee = getEmployeeById(selectedEmployeeId);
       if (employee) {
-        updateEmployee({
-          id: selectedEmployeeId,
-          status: newStatus,
-          name: employee.name,
-          role: employee.role,
-          project_id: employee.project_id
-        })
-          .unwrap()
-          .then(() => {
-            showNotification(`Employee status changed to ${newStatus ? 'active' : 'inactive'}`, 'success');
-          })
-          .catch((error) => {
-            console.error('Failed to update employee status:', error);
-            showNotification('Failed to update employee status', 'error');
-          });
+        const statusText = newStatus ? 'active' : 'inactive';
+        
+        setConfirmDialog({
+          open: true,
+          title: `Change Employee Status`,
+          message: `Are you sure you want to set ${employee.name} as ${statusText}?`,
+          confirmAction: () => {
+            updateEmployeeStatus(employee, newStatus);
+            closeConfirmDialog();
+          }
+        });
       }
     }
+  };
+
+  // Function to update employee status
+  const updateEmployeeStatus = (employee: Employee, newStatus: boolean) => {
+    if (!selectedEmployeeId) return;
+    
+    updateEmployee({
+      id: selectedEmployeeId,
+      status: newStatus,
+      name: employee.name,
+      role: employee.role,
+      project_id: employee.project_id || ''
+    })
+      .unwrap()
+      .then((response: ApiResponse) => {
+        showNotification(response.message || `Employee status changed to ${newStatus ? 'active' : 'inactive'}`, 'success');
+      })
+      .catch((error) => {
+        console.error('Failed to update employee status:', error);
+        const errorMsg = error.data?.message || 'Failed to update employee status';
+        showNotification(errorMsg, 'error');
+      });
   };
 
   //handle assign task modal
   const handleAssignTask = (formData: FormData) => {
     if (!selectedEmployeeId) {
-      showError('Please select an employee first');
+      showNotification('Please select an employee first', 'error');
       return;
     }
     
     if (!isEmployeeActive()) {
-      showError('Cannot assign task to inactive employee');
+      showNotification('Cannot assign task to inactive employee', 'error');
       return;
     }
     
@@ -254,43 +325,44 @@ const EmployeePage: React.FC = () => {
     const dueDate = formData.get('due_date');
     
     if (!title) {
-      showError('Task title is required');
+      showNotification('Task title is required', 'error');
       return;
     }
     
     if (!dueDate) {
-      showError('Task due date is required');
+      showNotification('Task due date is required', 'error');
       return;
     }
     
     // The TaskModal component sends FormData, which is what our API expects
     createTask(formData)
       .unwrap()
-      .then(() => {
+      .then((response: ApiResponse) => {
         setAssignTaskModalOpen(false);
-        showNotification('Task assigned successfully', 'success');
+        showNotification(response.message || 'Task assigned successfully', 'success');
       })
       .catch((error) => {
         console.error('Failed to create task:', error);
-        showNotification('Failed to assign task', 'error');
+        const errorMsg = error.data?.message || 'Failed to assign task';
+        showNotification(errorMsg, 'error');
       });
   };
 
   //handle add note modal
   const handleAddNote = async (noteData: Note) => {
     if (!selectedEmployeeId) {
-      showError('Please select an employee first');
+      showNotification('Please select an employee first', 'error');
       return;
     }
     
     if (!isEmployeeActive()) {
-      showError('Cannot add note for inactive employee');
+      showNotification('Cannot add note for inactive employee', 'error');
       return;
     }
     
     // Validate required fields
     if (!noteData.title?.trim()) {
-      showError('Note title is required');
+      showNotification('Note title is required', 'error');
       return;
     }
     
@@ -310,19 +382,18 @@ const EmployeePage: React.FC = () => {
     }
     
     try {
-      await createNote(formData).unwrap();
+      const response: ApiResponse = await createNote(formData).unwrap();
       setAddNoteModalOpen(false);
-      showNotification('Note added successfully', 'success');
-    } catch (error) {
+      showNotification(response.message || 'Note added successfully', 'success');
+    } catch (error: any) {
       console.error('Failed to create note:', error);
-      showNotification('Failed to add note', 'error');
+      const errorMsg = error.data?.message || 'Failed to add note';
+      showNotification(errorMsg, 'error');
     }
   };
 
   // Function to show error
   const showError = (message: string) => {
-    // Replace alert with our notification system
-    console.error(message);
     showNotification(message, 'error');
   };
 
@@ -334,27 +405,27 @@ const EmployeePage: React.FC = () => {
 
     // Validate required fields
     if (!selectedEmployeeId) {
-      showError('Please select an employee first');
+      showNotification('Please select an employee first', 'error');
       return;
     }
     
     if (!isEmployeeActive()) {
-      showError('Cannot create reminder for inactive employee');
+      showNotification('Cannot create reminder for inactive employee', 'error');
       return;
     }
     
     if (!reminderForm) {
-      showError('Reminder form data is missing');
+      showNotification('Reminder form data is missing', 'error');
       return;
     }
     
     if (!reminderForm.title?.trim()) {
-      showError('Please enter a title for the reminder');
+      showNotification('Please enter a title for the reminder', 'error');
       return;
     }
     
     if (!reminderForm.due_date) {
-      showError('Please select a due date for the reminder');
+      showNotification('Please select a due date for the reminder', 'error');
       return;
     }
 
@@ -375,7 +446,7 @@ const EmployeePage: React.FC = () => {
 
     createReminder(reminderData)
       .unwrap()
-      .then(() => {
+      .then((response: ApiResponse) => {
         setAddReminderModalOpen(false);
         // Reset form after successful creation
         setReminderForm({
@@ -387,12 +458,12 @@ const EmployeePage: React.FC = () => {
           status: false,
           priority: 'medium'
         });
-        // Replace alert with notification
-        showNotification('Reminder created successfully', 'success');
+        showNotification(response.message || 'Reminder created successfully', 'success');
       })
       .catch((error) => {
         console.error('Failed to create reminder:', error);
-        showError('Failed to create reminder. Please try again.');
+        const errorMsg = error.data?.message || 'Failed to create reminder. Please try again.';
+        showNotification(errorMsg, 'error');
       });
   };
 
@@ -447,6 +518,37 @@ const EmployeePage: React.FC = () => {
   // Check if data is loading
   const isLoading = employeesLoading || notesLoading || tasksLoading || remindersLoading || projectsLoading;
 
+  // Handler for deleting an employee
+  const handleDeleteEmployee = () => {
+    if (!selectedEmployeeId) {
+      showNotification('No employee selected', 'error');
+      return;
+    }
+
+    const employeeName = getEmployeeNameById(selectedEmployeeId);
+    
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Employee',
+      message: `Are you sure you want to delete ${employeeName}? This action cannot be undone.`,
+      confirmAction: () => {
+        deleteEmployee(selectedEmployeeId)
+          .unwrap()
+          .then(() => {
+            setSelectedEmployeeId(null);
+            showNotification('Employee deleted successfully', 'success');
+            closeConfirmDialog();
+          })
+          .catch((error) => {
+            console.error('Failed to delete employee:', error);
+            const errorMsg = error.data?.message || 'Failed to delete employee';
+            showNotification(errorMsg, 'error');
+            closeConfirmDialog();
+          });
+      }
+    });
+  };
+
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -469,14 +571,14 @@ const EmployeePage: React.FC = () => {
             flexDirection: 'column',
           }}
         >
-          <Box>
             <Box sx={{
               display: 'flex',
               alignItems: { xs: 'flex-start', sm: 'center' },
               justifyContent: 'space-between',
-              width: '100%'
+              width: '100%',
+              borderBottom: 1, borderColor: 'divider',
             }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', }}>
                 <Typography variant="h5" component="h1" sx={{ ml: 2 }}>
                   <PersonIcon /> Employee Management
                 </Typography>
@@ -538,7 +640,6 @@ const EmployeePage: React.FC = () => {
                 </Button>
               </Stack>
             </Box>
-          </Box>
 
           {/* Scrollable Content Area */}
           <Box
@@ -575,18 +676,30 @@ const EmployeePage: React.FC = () => {
                   onAddReminder={() => isEmployeeActive() && setAddReminderModalOpen(true)}
                   isEmployeeActive={isEmployeeActive()}
                   onEmployeeStatusChange={handleEmployeeStatusChange}
+                  onDeleteEmployee={handleDeleteEmployee}
                 />
               </Box>
             </Paper>
           </Box>
         </Box>
 
+        {/* Confirmation Dialog */}
+        <ConfirmDialog
+          open={confirmDialog.open}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.confirmAction}
+          onCancel={closeConfirmDialog}
+          severity="error"
+          confirmText="Delete"
+        />
+
         {/* Notification Snackbar */}
         <Snackbar
           open={notification.open}
           autoHideDuration={6000}
           onClose={handleCloseNotification}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
           <Alert 
             onClose={handleCloseNotification} 

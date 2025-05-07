@@ -358,7 +358,7 @@ const formatFile = (file: File) => (
       <AttachFile fontSize="small" sx={{ mr: 1 }} />
       <Typography variant="body1">{file.title}</Typography>
     </Box>
-    <Typography variant="caption">{file.type || ''}</Typography>
+    <Typography variant="caption">{file.file_type || ''}</Typography>
   </Box>
 );
 
@@ -1122,7 +1122,7 @@ const Projects: React.FC = () => {
       }}>
         <Box
           sx={{
-            borderBottom: 1, borderColor: 'divider', padding: 2
+            borderBottom: 1, borderColor: 'divider'
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>

@@ -21,7 +21,8 @@ import {
   useTheme,
   IconButton,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Button
 } from '@mui/material';
 import CircleSharpIcon from '@mui/icons-material/CircleSharp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -30,7 +31,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import AlarmIcon from '@mui/icons-material/Alarm';
 import NoteIcon from '@mui/icons-material/Note';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { AddCircleOutline } from '@mui/icons-material';
+import { AddCircleOutline, Delete } from '@mui/icons-material';
 
 interface EmployeeDetailsProps {
   employee: Employee | null;
@@ -47,6 +48,7 @@ interface EmployeeDetailsProps {
   onAddReminder: () => void;
   isEmployeeActive: boolean;
   onEmployeeStatusChange?: (status: boolean) => void;
+  onDeleteEmployee?: () => void;
 }
 
 const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
@@ -61,7 +63,8 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
   onAddNote,
   onAddReminder,
   isEmployeeActive,
-  onEmployeeStatusChange
+  onEmployeeStatusChange,
+  onDeleteEmployee
 }) => {
   const theme = useTheme();
 
@@ -322,18 +325,31 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
             />
           </Box>
         </Box>
-        {onEmployeeStatusChange && (
-          <FormControlLabel
-            control={
-              <Switch 
-                checked={employee.status !== false} 
-                onChange={handleStatusChange} 
-                color="primary"
-              />
-            }
-            label={employee.status === false ? "Set as Active" : "Set as Inactive"}
-          />
-        )}
+        <Box>
+          {onEmployeeStatusChange && (
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={employee.status !== false} 
+                  onChange={handleStatusChange} 
+                  color="primary"
+                />
+              }
+              label={employee.status === false ? "Set as Active" : "Set as Inactive"}
+            />
+          )}
+          {onDeleteEmployee && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Delete />}
+              onClick={onDeleteEmployee}
+              sx={{ ml: 2 }}
+            >
+              Delete
+            </Button>
+          )}
+        </Box>
       </Paper>
       
       {/* Tasks Section */}
