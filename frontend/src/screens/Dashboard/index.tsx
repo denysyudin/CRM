@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useMediaQuery } from '@mui/material';
-import Sidebar from '../../components/Sidebar/Sidebar.tsx';
+import { useMediaQuery, Grid, Container, Paper, Box, IconButton, Typography } from '@mui/material';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import TodaysTasks from '../../components/TodaysTasks';
 import Calendar from '../../components/Calendar';
 import KeyMetrics from '../../components/KeyMetrics';
@@ -8,10 +8,9 @@ import UpcomingEvents from '../../components/UpcomingEvents';
 import RecentNotes from '../../components/RecentNotes';
 import PendingReminders from '../../components/PendingReminders';
 import ActiveProjects from '../../components/ActiveProjects';
-import './styles.css';
+// import './styles.css';
 
 const Dashboard: React.FC = () => {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
     const [currentTime, setCurrentTime] = useState(new Date());
     const mainContentRef = useRef<HTMLDivElement>(null);
     
@@ -20,15 +19,6 @@ const Dashboard: React.FC = () => {
     const isMobile = useMediaQuery('(max-width:768px)');
     const isMedium = useMediaQuery('(max-width:960px)');
     const isLarge = useMediaQuery('(max-width:1280px)');
-    
-    // Update sidebar state when screen size changes
-    useEffect(() => {
-        if (isMobile) {
-            setSidebarOpen(false);
-        } else {
-            setSidebarOpen(true);
-        }
-    }, [isMobile]);
 
     // Update the clock every minute
     useEffect(() => {
@@ -51,18 +41,7 @@ const Dashboard: React.FC = () => {
             hour12: true
         });
     };
-
-    const toggleSidebar = () => {
-        setSidebarOpen(!sidebarOpen);
-    };
     
-    // Close sidebar when clicking overlay (mobile only)
-    const closeSidebar = () => {
-        if (isMobile) {
-            setSidebarOpen(false);
-        }
-    };
-
     // Scroll to top function
     const scrollToTop = () => {
         if (mainContentRef.current) {
@@ -73,80 +52,166 @@ const Dashboard: React.FC = () => {
         }
     };
 
-    // Calculate dynamic classes for different screen sizes, memoized for performance
-    const responsiveClass = useMemo(() => {
-        if (isSmall) return "dashboard-small";
-        if (isMobile) return "dashboard-mobile";
-        if (isMedium) return "dashboard-medium";
-        if (isLarge) return "dashboard-large";
-        return "dashboard-xlarge";
-    }, [isSmall, isMobile, isMedium, isLarge]);
-
-    // Determine if sidebar should be shown
-    const sidebarClass = sidebarOpen ? "sidebar-open" : "sidebar-closed";
-
     return (
-        <div className={`app-container ${responsiveClass} ${sidebarClass}`}>
-            {/* Fixed position sidebar */}
-            <div className="sidebar">
-                <Sidebar />
-            </div>
+        <Container 
+        maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}
+        >
+            <Box 
+                sx={{
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    p: 2, 
+                    borderBottom: 1, 
+                    borderColor: 'divider'
+                }}
+            >
+                <Typography variant="h5" component="h1">Main Dashboard</Typography>
+                <Typography variant="subtitle1">{formatDateTime(currentTime)}</Typography>
+            </Box>
+            <Box sx={{ p: 2, overflow: 'auto', height: 'calc(100vh - 20px)' }}>
             
-            {/* Overlay for mobile sidebar */}
-            {isMobile && sidebarOpen && (
-                <div className="sidebar-overlay" onClick={closeSidebar}></div>
-            )}
-            
-            {/* Main content area that adjusts based on sidebar state */}
-            <main className="main-content" ref={mainContentRef}>
-                <div className="dashboard-header-bar">
-                    <div className="header-left">
-                        <button 
-                            onClick={toggleSidebar} 
-                            className="sidebar-toggle"
-                            aria-label="Toggle sidebar"
-                        >
-                            ☰
-                        </button>
-                        <h1 className="dashboard-title">Main Dashboard</h1>
-                    </div>
-                    <div id="clock-display">{formatDateTime(currentTime)}</div>
-                </div>
-                
-                <div className="dashboard-grid">
-                    <div className={`widget widget-large ${isMobile ? 'full-width' : ''}`}>
+            <Grid container spacing={2}>
+                <Grid item xs={12} md={isMobile ? 12 : 6}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 2, 
+                            minHeight: 200,
+                            height: 500,
+                            maxHeight: {xs: 400, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
                         <TodaysTasks />
-                    </div>
-                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
-                        <Calendar />
-                    </div>
-                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
-                        <KeyMetrics />
-                    </div>
-                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
-                        <UpcomingEvents />
-                    </div>
-                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
-                        <RecentNotes />
-                    </div>
-                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
-                        <PendingReminders />
-                    </div>
-                    <div className={`widget ${isSmall ? 'full-width' : ''}`}>
-                        <ActiveProjects />
-                    </div>
-                </div>
+                    </Paper>
+                </Grid>
                 
-                {/* Scroll to top button */}
-                <button 
-                    className="scroll-to-top"
-                    onClick={scrollToTop}
-                    aria-label="Scroll to top"
-                >
-                    ↑
-                </button>
-            </main>
-        </div>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 4, 
+                            minHeight: 180,
+                            height: 500,
+                            maxHeight: {xs: 500, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
+                        <Calendar />
+                    </Paper>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 4,
+                            minHeight: 180,
+                            height: 500,
+                            maxHeight: {xs: 500, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
+                        <KeyMetrics />
+                    </Paper>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 4, 
+                            minHeight: 180,
+                            height: 500,
+                            maxHeight: {xs: 500, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
+                        <UpcomingEvents />
+                    </Paper>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 4, 
+                            minHeight: 180,
+                            height: 500,
+                            maxHeight: {xs: 500, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
+                        <RecentNotes />
+                    </Paper>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 4, 
+                            minHeight: 180,
+                            height: 500,
+                            maxHeight: {xs: 500, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
+                        <PendingReminders />
+                    </Paper>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper 
+                        elevation={2} 
+                        sx={{ 
+                            p: 4, 
+                            minHeight: 180,
+                            height: 500,
+                            maxHeight: {xs: 500, md: 'none'},
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'auto'
+                        }}
+                    >
+                        <ActiveProjects />
+                    </Paper>
+                </Grid>
+            </Grid>
+            
+            {/* Scroll to top button */}
+            <IconButton
+                onClick={scrollToTop}
+                aria-label="Scroll to top"
+                sx={{
+                    position: 'fixed',
+                    bottom: 20,
+                    right: 20,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                        bgcolor: 'primary.dark',
+                    },
+                    zIndex: 1000
+                }}
+            >
+                <KeyboardArrowUpIcon />
+            </IconButton>
+            </Box>
+        </Container>
     );
 };
 

@@ -3,7 +3,6 @@ import EmployeeDetails from './components/EmployeeDetails';
 import AddEmployeeModal from './components/AddEmployeeModal';
 import TaskModal from '../../components/forms/TaskModal';
 import NoteModal from '../../components/forms/NoteModal';
-import Sidebar from '../../components/Sidebar/Sidebar';
 import {
   Box,
   Typography,
@@ -13,18 +12,18 @@ import {
   MenuItem,
   Button,
   SelectChangeEvent,
-  IconButton,
   Paper,
   useMediaQuery,
   useTheme,
   Stack,
-  AppBar,
-  Toolbar,
-  CircularProgress
+  CircularProgress,
+  Container,
+  Snackbar,
+  Alert,
+  AlertColor
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import AddIcon from '@mui/icons-material/Add';
-import MenuIcon from '@mui/icons-material/Menu';
 import './styles.css';
 import { Note } from '../../types/note.types';
 import { Employee, CreateEmployeePayload } from '../../types/employee.types';
@@ -32,7 +31,7 @@ import { Task } from '../../types/task.types';
 import { Reminder } from '../../types/reminder.types';
 import { Project } from '../../types/project.types';
 
-import { useGetEmployeesQuery, useCreateEmployeeMutation } from '../../redux/api/employeesApi';
+import { useGetEmployeesQuery, useCreateEmployeeMutation, useUpdateEmployeeMutation } from '../../redux/api/employeesApi';
 import { useGetNotesQuery, useCreateNoteMutation } from '../../redux/api/notesApi';
 import { useGetRemindersQuery, useCreateReminderMutation } from '../../redux/api/remindersApi';
 import { useGetTasksQuery, useCreateTaskMutation, useUpdateTaskMutation } from '../../redux/api/tasksApi';
@@ -42,6 +41,31 @@ import ReminderModal from '../../components/forms/ReminderModal';
 const EmployeePage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Notification state
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    severity: AlertColor;
+  }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
+
+  // Function to show notification
+  const showNotification = (message: string, severity: AlertColor = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  // Function to close notification
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }));
+  };
 
   // Get data using RTK Query
   const {
@@ -73,6 +97,7 @@ const EmployeePage: React.FC = () => {
   const [createEmployee] = useCreateEmployeeMutation();
   const [updateTask] = useUpdateTaskMutation();
   const [createReminder] = useCreateReminderMutation();
+  const [updateEmployee] = useUpdateEmployeeMutation();
 
   // Local state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
@@ -133,92 +158,172 @@ const EmployeePage: React.FC = () => {
       .unwrap()
       .then(() => {
         setUpdateTaskStatus(true);
-        console.log(`Task ${taskId} status changed to ${newStatus}`);
+        showNotification(`Task status updated to ${newStatus}`, 'success');
       })
       .catch((error) => {
         console.error('Failed to update task:', error);
+        showNotification('Failed to update task status', 'error');
       });
   };
 
   // Handler for adding a new employee
-  const handleAddEmployee = async (name: string, role: string) => {
+  const handleAddEmployee = async (employee: Employee) => {
     try {
+      // Validate required fields
+      if (!employee.name?.trim()) {
+        showError('Employee name is required');
+        return;
+      }
+      
+      if (!employee.role?.trim()) {
+        showError('Employee role is required');
+        return;
+      }
+      
       // Create a payload that matches the definition in employee.types.ts
-      const newEmployee: CreateEmployeePayload = {
-        name,
-        role
-        // Don't add role as it's not part of the Employee type definition
+      const newEmployee: Employee = {
+        id: '',
+        name: employee.name,
+        role: employee.role,
+        status: employee.status || true
       };
+
+      console.log(newEmployee);
 
       createEmployee(newEmployee as Employee)
         .unwrap()
         .then(() => {
           setIsAddEmployeeModalOpen(false);
+          showNotification('Employee added successfully', 'success');
         })
         .catch((error) => {
           console.error('Failed to create employee:', error);
+          showNotification('Failed to add employee', 'error');
         });
     } catch (error) {
       console.error('Failed to create employee:', error);
+      showNotification('Failed to add employee', 'error');
+    }
+  };
+
+  // Check if the selected employee is active
+  const isEmployeeActive = (): boolean => {
+    if (!selectedEmployeeId) return false;
+    const employee = getEmployeeById(selectedEmployeeId);
+    return employee?.status !== false;
+  };
+
+  // Handler for employee status update
+  const handleEmployeeStatusChange = (newStatus: boolean) => {
+    if (selectedEmployeeId) {
+      const employee = getEmployeeById(selectedEmployeeId);
+      if (employee) {
+        updateEmployee({
+          id: selectedEmployeeId,
+          status: newStatus,
+          name: employee.name,
+          role: employee.role,
+          project_id: employee.project_id
+        })
+          .unwrap()
+          .then(() => {
+            showNotification(`Employee status changed to ${newStatus ? 'active' : 'inactive'}`, 'success');
+          })
+          .catch((error) => {
+            console.error('Failed to update employee status:', error);
+            showNotification('Failed to update employee status', 'error');
+          });
+      }
     }
   };
 
   //handle assign task modal
   const handleAssignTask = (formData: FormData) => {
-    if (selectedEmployeeId) {
-      // Convert FormData to Task object
-      const taskData: Partial<Task> = {
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-        status: formData.get('status') as string,
-        due_date: formData.get('due_date') as string,
-        priority: formData.get('priority') as string,
-        category: formData.get('category') as string,
-        project_id: formData.get('project_id') as string,
-        employee_id: selectedEmployeeId
-      };
-      
-      console.log('Task data:', taskData);
-      
-      // Create task with explicitly typed data
-      const taskPayload: Partial<Task> = {
-        title: taskData.title || '',
-        description: taskData.description || '',
-        status: taskData.status || 'To Do',
-        due_date: taskData.due_date || new Date().toISOString(),
-        category: taskData.category || 'General',
-        priority: taskData.priority || 'medium',
-        project_id: taskData.project_id || '',
-        employee_id: selectedEmployeeId || ''
-      };
-      console.log('Task payload:', taskPayload);
-      createTask(taskPayload)
-        .unwrap()
-        .then(() => {
-          setAssignTaskModalOpen(false);
-          console.log('Task created successfully');
-        })
-        .catch((error) => {
-          console.error('Failed to create task:', error);
-        });
+    if (!selectedEmployeeId) {
+      showError('Please select an employee first');
+      return;
     }
+    
+    if (!isEmployeeActive()) {
+      showError('Cannot assign task to inactive employee');
+      return;
+    }
+    
+    // Check if required fields exist in formData
+    const title = formData.get('title');
+    const dueDate = formData.get('due_date');
+    
+    if (!title) {
+      showError('Task title is required');
+      return;
+    }
+    
+    if (!dueDate) {
+      showError('Task due date is required');
+      return;
+    }
+    
+    // The TaskModal component sends FormData, which is what our API expects
+    createTask(formData)
+      .unwrap()
+      .then(() => {
+        setAssignTaskModalOpen(false);
+        showNotification('Task assigned successfully', 'success');
+      })
+      .catch((error) => {
+        console.error('Failed to create task:', error);
+        showNotification('Failed to assign task', 'error');
+      });
   };
 
   //handle add note modal
   const handleAddNote = async (noteData: Note) => {
-    if (selectedEmployeeId) {
-      const noteWithEmployeeId = {
-        ...noteData,
-        employee_id: selectedEmployeeId
-      };
-      try {
-        await createNote(noteWithEmployeeId).unwrap();
-        setAddNoteModalOpen(false);
-        console.log('Note created:', noteWithEmployeeId);
-      } catch (error) {
-        console.error('Failed to create note:', error);
-      }
+    if (!selectedEmployeeId) {
+      showError('Please select an employee first');
+      return;
     }
+    
+    if (!isEmployeeActive()) {
+      showError('Cannot add note for inactive employee');
+      return;
+    }
+    
+    // Validate required fields
+    if (!noteData.title?.trim()) {
+      showError('Note title is required');
+      return;
+    }
+    
+    // Create FormData for the API
+    const formData = new FormData();
+    formData.append('title', noteData.title || '');
+    formData.append('description', noteData.description || '');
+    formData.append('project_id', noteData.project_id || '');
+    formData.append('employee_id', selectedEmployeeId);
+    formData.append('created_at', new Date().toISOString());
+    
+    // Handle file if exists
+    if (noteData.file && noteData.file.length > 0) {
+      noteData.file.forEach(file => {
+        formData.append('file', file);
+      });
+    }
+    
+    try {
+      await createNote(formData).unwrap();
+      setAddNoteModalOpen(false);
+      showNotification('Note added successfully', 'success');
+    } catch (error) {
+      console.error('Failed to create note:', error);
+      showNotification('Failed to add note', 'error');
+    }
+  };
+
+  // Function to show error
+  const showError = (message: string) => {
+    // Replace alert with our notification system
+    console.error(message);
+    showNotification(message, 'error');
   };
 
   // Handler for adding a new reminder
@@ -226,29 +331,69 @@ const EmployeePage: React.FC = () => {
     if (e) {
       e.preventDefault();
     }
-    
-    if (selectedEmployeeId && reminderForm) {
-      // Create properly typed reminder data
-      const reminderData: Omit<Reminder, 'id'> = {
-        title: reminderForm.title || '',
-        description: reminderForm.description || '',
-        due_date: reminderForm.due_date || new Date().toISOString(),
-        priority: reminderForm.priority || 'medium',
-        status: reminderForm.status || false,
-        project_id: reminderForm.project_id || selectedProject || '',
-        employee_id: selectedEmployeeId
-      };
-      
-      createReminder(reminderData)
-        .unwrap()
-        .then(() => {
-          setAddReminderModalOpen(false);
-          console.log('Reminder created:', reminderData);
-        })
-        .catch((error) => {
-          console.error('Failed to create reminder:', error);
-        });
+
+    // Validate required fields
+    if (!selectedEmployeeId) {
+      showError('Please select an employee first');
+      return;
     }
+    
+    if (!isEmployeeActive()) {
+      showError('Cannot create reminder for inactive employee');
+      return;
+    }
+    
+    if (!reminderForm) {
+      showError('Reminder form data is missing');
+      return;
+    }
+    
+    if (!reminderForm.title?.trim()) {
+      showError('Please enter a title for the reminder');
+      return;
+    }
+    
+    if (!reminderForm.due_date) {
+      showError('Please select a due date for the reminder');
+      return;
+    }
+
+    // Combine date and time into a single timestamp
+    const dueDate = reminderForm.due_date || '';
+    const combinedDateTime = `${dueDate}`;
+
+    // Create properly typed reminder data
+    const reminderData: any = {
+      title: reminderForm.title,
+      description: reminderForm.description || '',
+      due_date: combinedDateTime,
+      priority: reminderForm.priority || 'medium',
+      status: reminderForm.status || false,
+      project_id: reminderForm.project_id || selectedProject || '',
+      employee_id: selectedEmployeeId
+    };
+
+    createReminder(reminderData)
+      .unwrap()
+      .then(() => {
+        setAddReminderModalOpen(false);
+        // Reset form after successful creation
+        setReminderForm({
+          title: '',
+          description: '',
+          due_date: new Date().toISOString(),
+          employee_id: '',
+          project_id: '',
+          status: false,
+          priority: 'medium'
+        });
+        // Replace alert with notification
+        showNotification('Reminder created successfully', 'success');
+      })
+      .catch((error) => {
+        console.error('Failed to create reminder:', error);
+        showError('Failed to create reminder. Please try again.');
+      });
   };
 
   // Handler for reminder form field changes
@@ -311,224 +456,217 @@ const EmployeePage: React.FC = () => {
   }
 
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <Sidebar isOpen={true} toggleSidebar={() => { }} activePath="/employee" />
-      </div>
-      <div className="main-content">
-        <Box sx={{ display: 'flex', height: '100vh' }}>
-      {/* Main content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          height: '100%',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          width: { md: `calc(100% - ${sidebarOpen ? drawerWidth : 0}px)` },
-          transition: theme.transitions.create('width', {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
-        }}
-      >
-        {/* Sticky Header */}
-        <AppBar
-          position="sticky"
-          color="default"
-          elevation={0}
+    <Container maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', height: '100vh' }}>
+        {/* Main content */}
+        <Box
           sx={{
-            backgroundColor: theme.palette.grey[100],
-            width: '100%',
+            p: 2,
+            flexGrow: 1,
+            height: '100%',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          <Paper
-            elevation={0}
-            sx={{
-              height: '100%',
+          <Box>
+            <Box sx={{
               display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 2
-            }}
-          >
-            <Toolbar>
-              <Box sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                width: '100%',
-                py: 1,
-                zIndex: 1
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 2, sm: 0 } }}>
-                  <IconButton
-                    edge="start"
-                    color="inherit"
-                    aria-label="menu"
-                    onClick={toggleSidebar}
-                    sx={{ mr: 2, display: { md: 'none' } }}
-                  >
-                    <MenuIcon />
-                  </IconButton>
-                  <Typography variant="h5" component="h1" sx={{ color: 'white', ml: 2 }}>
-                    Employee Management
-                  </Typography>
-                </Box>
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
+              width: '100%'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="h5" component="h1" sx={{ ml: 2 }}>
+                  <PersonIcon /> Employee Management
+                </Typography>
+              </Box>
 
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={2}
-                  alignItems={{ xs: 'stretch', sm: 'center' }}
-                  width={{ xs: '100%', sm: 'auto' }}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'stretch', sm: 'center' }}
+                width={{ xs: '100%', sm: 'auto' }}
+              >
+                {/* Employee Dropdown */}
+                <FormControl
+                  variant="outlined"
+                  size="small"
+                  sx={{ minWidth: 200 }}
                 >
-                  {/* Employee Dropdown */}
-                  <FormControl
-                    variant="outlined"
-                    size="small"
-                    sx={{ minWidth: 200 }}
+                  <InputLabel id="employee-select-label" shrink={true}>Employee</InputLabel>
+                  <Select
+                    labelId="employee-select-label"
+                    id="employee-select"
+                    value={selectedEmployeeId || ''}
+                    onChange={handleEmployeeChange}
+                    label="Employee"
+                    displayEmpty
+                    renderValue={(value) => (
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <PersonIcon sx={{ mr: 1 }} />
+                        {value === selectedEmployeeId ? getEmployeeNameById(value as string) : "Select Employee"}
+                      </Box>
+                    )}
                   >
-                    <InputLabel id="employee-select-label" shrink={true}>Employee</InputLabel>
-                    <Select
-                      labelId="employee-select-label"
-                      id="employee-select"
-                      value={selectedEmployeeId || ''}
-                      onChange={handleEmployeeChange}
-                      label="Employee"
-                      displayEmpty
-                      renderValue={(value) => (
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <PersonIcon sx={{ mr: 1 }} />
-                          {value === selectedEmployeeId ? getEmployeeNameById(value as string) : "Select Employee"}
-                        </Box>
-                      )}
-                    >
-                      {employees.map((employee: Employee) => (
-                        <MenuItem key={employee.id} value={employee.id}>
+                    {employees.map((employee: Employee) => (
+                      <MenuItem key={employee.id} value={employee.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <PersonIcon sx={{ mr: 1 }} />
                             {employee.name}
                           </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                          {employee.status === false && (
+                            <Typography variant="caption" color="error" sx={{ ml: 1 }}>
+                              (Inactive)
+                            </Typography>
+                          )}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<AddIcon />}
-                    onClick={() => setIsAddEmployeeModalOpen(true)}
-                    fullWidth={isMobile}
-                  >
-                    Add Employee
-                  </Button>
-                </Stack>
-              </Box>
-            </Toolbar>
-          </Paper>
-        </AppBar>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  onClick={() => setIsAddEmployeeModalOpen(true)}
+                  fullWidth={isMobile}
+                >
+                  Add Employee
+                </Button>
+              </Stack>
+            </Box>
+          </Box>
 
-        {/* Scrollable Content Area */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            mt: 2,
-            overflow: 'auto',
-            backgroundColor: theme.palette.grey[100]
-          }}
-        >
-          <Paper
-            elevation={0}
+          {/* Scrollable Content Area */}
+          <Box
             sx={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 2
+              flexGrow: 1,
+              mt: 2,
+              overflow: 'auto',
+              backgroundColor: theme.palette.grey[100]
             }}
           >
-            <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
-              {/* Cast to any to avoid type issues with component props */}
-              <EmployeeDetails
-                employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
-                tasks={employeeTasks as Task[]}
-                notes={employeeNotes as Note[]}
-                reminders={employeeReminders as Reminder[]}
-                taskFilterStatus={taskFilterStatus}
-                taskSortBy={taskSortBy}
-                onTaskFilterChange={setTaskFilterStatus}
-                onTaskSortChange={setTaskSortBy}
-                onTaskStatusChange={handleTaskStatusChange}
-                onAssignTask={() => setAssignTaskModalOpen(true)}
-                onAddNote={() => setAddNoteModalOpen(true)}
-                onAddReminder={() => setAddReminderModalOpen(true)}
-              />
-            </Box>
-          </Paper>
+            <Paper
+              elevation={0}
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 2
+              }}
+            >
+              <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+                {/* Cast to any to avoid type issues with component props */}
+                <EmployeeDetails
+                  employee={selectedEmployeeId ? getEmployeeById(selectedEmployeeId) as Employee : null}
+                  tasks={employeeTasks as Task[]}
+                  notes={employeeNotes as Note[]}
+                  reminders={employeeReminders as Reminder[]}
+                  taskFilterStatus={taskFilterStatus}
+                  taskSortBy={taskSortBy}
+                  onTaskFilterChange={setTaskFilterStatus}
+                  onTaskSortChange={setTaskSortBy}
+                  onTaskStatusChange={handleTaskStatusChange}
+                  onAssignTask={() => isEmployeeActive() && setAssignTaskModalOpen(true)}
+                  onAddNote={() => isEmployeeActive() && setAddNoteModalOpen(true)}
+                  onAddReminder={() => isEmployeeActive() && setAddReminderModalOpen(true)}
+                  isEmployeeActive={isEmployeeActive()}
+                  onEmployeeStatusChange={handleEmployeeStatusChange}
+                />
+              </Box>
+            </Paper>
+          </Box>
         </Box>
-      </Box>
 
-      {/* Modals */}
-      {isAddEmployeeModalOpen && (
+        {/* Notification Snackbar */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={6000}
+          onClose={handleCloseNotification}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={handleCloseNotification} 
+            severity={notification.severity}
+            sx={{ width: '100%' }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
+
+        {/* Modals */}
         <AddEmployeeModal
           onSave={handleAddEmployee}
           onClose={() => setIsAddEmployeeModalOpen(false)}
+          open={isAddEmployeeModalOpen}
         />
-      )}
-      {assignTaskModalOpen && (
-        <TaskModal
-          projectName={selectedProject ? getProjectById(selectedProject)?.title || '' : ''}
-          projectId={selectedProject || ''}
-          onClose={() => setAssignTaskModalOpen(false)}
-          onSubmit={handleAssignTask}
-        />
-      )}
-      {addReminderModalOpen && (
-        <ReminderModal
-          open={addReminderModalOpen}
-          onClose={() => setAddReminderModalOpen(false)}
-          onSubmit={handleAddReminder}
-          onChange={handleReminderChange}
-          onSelectChange={handleReminderSelectChange}
-          onStatusChange={handleReminderStatusChange}
-          isEditing={false}
-          reminder={{
-            id: '',
-            title: reminderForm.title || '',
-            description: reminderForm.description || '',
-            due_date: reminderForm.due_date || new Date().toISOString(),
-            employee_id: selectedEmployeeId || '',
-            project_id: selectedProject || '',
-            status: reminderForm.status || false,
-            priority: reminderForm.priority || 'medium'
-          }}
-          projects={projects}
-          employees={employees}
-        />
-      )}
-      {addNoteModalOpen && (
-        <NoteModal
-          open={addNoteModalOpen}
-          onClose={() => setAddNoteModalOpen(false)}
-          onSave={handleAddNote}
-          editMode={false}
-          initialData={{
-            id: '',
-            title: '',
-            description: '',
-            project_id: selectedProject || '',
-            employee_id: selectedEmployeeId || '',
-            created_at: new Date().toISOString(),
-            files: []
-          }}
-          projects={projects}
-          isUploading={false}
-        />
-      )}
-    </Box>
-    </div>
-    </div>
+        {assignTaskModalOpen && (
+          <TaskModal
+            projectName={selectedProject ? getProjectById(selectedProject)?.title || '' : ''}
+            projectId={selectedProject || ''}
+            onClose={() => setAssignTaskModalOpen(false)}
+            onSubmit={handleAssignTask}
+          />
+        )}
+        {addReminderModalOpen && (
+          <ReminderModal
+            open={addReminderModalOpen}
+            onClose={() => {
+              // Reset the form when closing the modal
+              setReminderForm({
+                title: '',
+                description: '',
+                due_date: new Date().toISOString(),
+                employee_id: '',
+                project_id: '',
+                status: false,
+                priority: 'medium'
+              });
+              setAddReminderModalOpen(false);
+            }}
+            onSubmit={handleAddReminder}
+            onChange={handleReminderChange}
+            onSelectChange={handleReminderSelectChange}
+            onStatusChange={handleReminderStatusChange}
+            isEditing={false}
+            reminder={{
+              id: '',
+              title: reminderForm.title || '',
+              description: reminderForm.description || '',
+              due_date: reminderForm.due_date || new Date().toISOString(),
+              employee_id: selectedEmployeeId || '',
+              project_id: selectedProject || '',
+              status: reminderForm.status || false,
+              priority: reminderForm.priority || 'medium'
+            } as any}
+            projects={projects}
+            employees={employees}
+          />
+        )}
+        {addNoteModalOpen && (
+          <NoteModal
+            open={addNoteModalOpen}
+            onClose={() => setAddNoteModalOpen(false)}
+            onSave={handleAddNote}
+            editMode={false}
+            initialData={{
+              id: '',
+              title: '',
+              description: '',
+              project_id: selectedProject || '',
+              employee_id: selectedEmployeeId || '',
+              created_at: new Date().toISOString(),
+              file: []
+            }}
+            projects={projects}
+            isUploading={false}
+          />
+        )}
+      </Box>
+    </Container>
   );
 };
 

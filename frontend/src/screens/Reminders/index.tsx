@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Paper, Grid, Checkbox,
-  FormControl, InputLabel, MenuItem, Select, TextField,
+  FormControl, InputLabel, MenuItem, Select,
   Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, Chip, ListItem, List, ListItemText,
   ListItemIcon, Snackbar, Alert, CircularProgress,
-  SelectChangeEvent, FormControlLabel
+  SelectChangeEvent, Container
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -20,10 +20,7 @@ import {
   Person as PersonIcon,
   Menu as MenuIcon,
 } from '@mui/icons-material';
-import { LocalizationProvider, DatePicker, TimePicker } from '@mui/x-date-pickers';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import Sidebar from '../../components/Sidebar/Sidebar';
-import { ReminderModal, ReminderData } from '../../components/common';
+import { ReminderModal } from '../../components/forms';
 import './styles.css';
 import { Reminder } from '../../types/reminder.types';
 
@@ -48,15 +45,18 @@ const Reminders: React.FC = () => {
   const { data: projects = [] } = useGetProjectsQuery();
   const { data: employees = [] } = useGetEmployeesQuery();
   
-  const [createReminder] = useCreateReminderMutation();
-  const [updateReminder] = useUpdateReminderMutation();
-  const [deleteReminder] = useDeleteReminderMutation();
+  const [createReminder, { isLoading: isCreating }] = useCreateReminderMutation();
+  const [updateReminder, { isLoading: isUpdating }] = useUpdateReminderMutation();
+  const [deleteReminder, { isLoading: isDeleting }] = useDeleteReminderMutation();
+  
+  // Combined loading state for operations
+  const isOperationLoading = isCreating || isUpdating || isDeleting;
   
   // Local state for UI display
   const [reminders, setReminders] = useState<Reminder[]>([]);
 
   // UI state
-  const [filter, setFilter] = useState<'pending' | 'completed' | 'all'>('pending');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'due-date' | 'priority' | 'created'>('due-date');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -75,14 +75,15 @@ const Reminders: React.FC = () => {
   });
 
   // Form state for new reminder
-  const [newReminder, setNewReminder] = useState<ReminderData>({
-    name: '',
-    dueDate: '',
-    dueTime: '',
+  const [newReminder, setNewReminder] = useState<Reminder>({
+    id: '',
+    title: '',
+    due_date: '',
     priority: 'medium',
     project_id: '',
     employee_id: '',
-    status: false
+    status: false,
+    description: ''
   });
   
   // Add state for delete confirmation dialog
@@ -99,6 +100,8 @@ const Reminders: React.FC = () => {
       status: reminder.status || false,
       project_id: reminder.project_id || '',
       employee_id: reminder.employee_id || '',
+      description: reminder.description || '',
+      isUpdatingStatus: false,
       relatedTo: reminder.project_id ? {
         type: 'project' as const,
         name: `Project ${reminder.project_id}`
@@ -160,10 +163,22 @@ const Reminders: React.FC = () => {
   const toggleReminderStatus = async (id: string) => {
     console.log(`Reminders: Toggling status for reminder ${id}`);
     const reminder = reminders.find(r => r.id === id);
-    
+    const newReminder = {
+      ...reminder,
+      status: !reminder?.status
+    };
     if (reminder) {
       const status = !reminder.status;
       try {
+        // Add optimistic update
+        setReminders(prevReminders => 
+          prevReminders.map(reminder => 
+            reminder.id === id 
+              ? { ...reminder, status, isUpdatingStatus: true } 
+              : reminder
+          )
+        );
+        
         await updateReminder({
           id,
           title: reminder.title,
@@ -171,14 +186,15 @@ const Reminders: React.FC = () => {
           priority: reminder.priority,
           status: status,
           project_id: reminder.project_id,
-          employee_id: reminder.employee_id
+          employee_id: reminder.employee_id,
+          description: reminder.description
         }).unwrap();
         
-        // Also update local state immediately for UI responsiveness
+        // Update local state again after API call completes
         setReminders(prevReminders => 
           prevReminders.map(reminder => 
             reminder.id === id 
-              ? { ...reminder, status: !reminder.status } 
+              ? { ...reminder, status, isUpdatingStatus: false } 
               : reminder
           )
         );
@@ -188,6 +204,14 @@ const Reminders: React.FC = () => {
           'success'
         );
       } catch (error) {
+        // Revert optimistic update on error
+        setReminders(prevReminders => 
+          prevReminders.map(r => 
+            r.id === id 
+              ? { ...r, status: reminder.status, isUpdatingStatus: false } 
+              : r
+          )
+        );
         console.error('Failed to update reminder status:', error);
         showNotification('Failed to update reminder status', 'error');
       }
@@ -196,15 +220,21 @@ const Reminders: React.FC = () => {
 
   // Handle new reminder button click
   const handleNewReminder = () => {
+    // Get current date and time
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().substring(0, 5);
+    
     setEditingReminder(null);
     setNewReminder({
-      name: '',
-      dueDate: '',
-      dueTime: '',
+      id: '',
+      title: '',
+      due_date: now.toISOString(), // Set initial date as current date in ISO format
       priority: 'medium',
       project_id: '',
       employee_id: '',
-      status: false
+      status: false,
+      description: ''
     });
     setIsModalOpen(true);
   };
@@ -219,13 +249,14 @@ const Reminders: React.FC = () => {
       const timeStr = dueDate.toTimeString().substring(0, 5);
       console.log('Reminders: Editing reminder', reminder);
       setNewReminder({
-        name: reminder.title,
-        dueDate: dateStr,
-        dueTime: timeStr,
+        id: reminder.id,
+        title: reminder.title,
+        due_date: dueDate.toISOString(),
         status: reminder.status,
         priority: reminder.priority as 'high' | 'medium' | 'low',
         project_id: reminder.project_id || '',
-        employee_id: reminder.employee_id || ''
+        employee_id: reminder.employee_id || '',
+        description: reminder.description || ''
       });
       setEditingReminder(id);
       setIsModalOpen(true);
@@ -235,7 +266,7 @@ const Reminders: React.FC = () => {
   // Handle input changes for the new reminder form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setNewReminder(prev => ({
+    setNewReminder((prev: Reminder) => ({
       ...prev,
       [name]: value
     }));
@@ -243,14 +274,14 @@ const Reminders: React.FC = () => {
 
   const handleSelectChange = (e: SelectChangeEvent<string>) => {
     const { name, value } = e.target;
-    setNewReminder(prev => ({
+    setNewReminder((prev: Reminder) => ({
       ...prev,
       [name]: value
     }));
   };
 
   const handleStatusChange = (checked: boolean) => {
-    setNewReminder(prev => ({
+    setNewReminder((prev: Reminder) => ({
       ...prev,
       status: checked
     }));
@@ -261,59 +292,66 @@ const Reminders: React.FC = () => {
     if (e) e.preventDefault();
     console.log('Reminders: Creating/updating reminder', newReminder);
     
-    if (newReminder.name && newReminder.dueDate) {
-      // Combine date and time for the due_date
-      const combinedDateTime = newReminder.dueTime 
-        ? `${newReminder.dueDate}T${newReminder.dueTime}`
-        : `${newReminder.dueDate}T00:00:00`;
-      
-      try {
-        if (editingReminder) {
-          // Update existing reminder
-          await updateReminder({
-            id: editingReminder,
-            title: newReminder.name,
-            due_date: combinedDateTime,
-            priority: newReminder.priority,
-            project_id: newReminder.project_id || undefined,
-            employee_id: newReminder.employee_id || undefined,
-            status: newReminder.status
-          }).unwrap();
-          
-          showNotification('Reminder updated successfully', 'success');
-        } else {
-          // Create new reminder
-          await createReminder({
-            title: newReminder.name,
-            due_date: combinedDateTime,
-            priority: newReminder.priority,
-            status: false,
-            project_id: newReminder.project_id || undefined,
-            employee_id: newReminder.employee_id || undefined
-          }).unwrap();
-          
-          showNotification('Reminder created successfully', 'success');
-        }
+    // Validate form
+    if (!newReminder.title?.trim()) {
+      showNotification('Please enter a title for the reminder', 'error');
+      return;
+    }
+    
+    if (!newReminder.due_date) {
+      showNotification('Please select a due date for the reminder', 'error');
+      return;
+    }
+    
+    try {
+      if (editingReminder) {
+        // Update existing reminder
+        await updateReminder({
+          id: editingReminder,
+          title: newReminder.title.trim(),
+          due_date: newReminder.due_date,
+          priority: newReminder.priority,
+          project_id: newReminder.project_id || undefined,
+          employee_id: newReminder.employee_id || undefined,
+          status: newReminder.status,
+          description: newReminder.description
+        }).unwrap();
         
-        // Close modal and reset form
-        setIsModalOpen(false);
-        setEditingReminder(null);
-        setNewReminder({
-          name: '',
-          dueDate: '',
-          dueTime: '',
-          priority: 'medium',
-          project_id: '',
-          employee_id: '',
-          status: false
-        });
-      } catch (error) {
-        console.error('Failed to save reminder:', error);
-        showNotification(
-          `Failed to ${editingReminder ? 'update' : 'create'} reminder`, 
-          'error'
-        );
+        showNotification('Reminder updated successfully', 'success');
+      } else {
+        // Create new reminder
+        await createReminder({
+          title: newReminder.title.trim(),
+          due_date: newReminder.due_date,
+          priority: newReminder.priority,
+          status: false,
+          project_id: newReminder.project_id || undefined,
+          employee_id: newReminder.employee_id || undefined,
+          description: newReminder.description
+        }).unwrap();
+        
+        showNotification('Reminder created successfully', 'success');
       }
+      
+      // Close modal and reset form
+      setIsModalOpen(false);
+      setEditingReminder(null);
+      setNewReminder({
+        id: '',
+        title: '',
+        due_date: '',
+        priority: 'medium',
+        project_id: '',
+        employee_id: '',
+        status: false,
+        description: ''
+      });
+    } catch (error) {
+      console.error('Failed to save reminder:', error);
+      showNotification(
+        `Failed to ${editingReminder ? 'update' : 'create'} reminder`, 
+        'error'
+      );
     }
   };
 
@@ -329,12 +367,12 @@ const Reminders: React.FC = () => {
       try {
         await deleteReminder(reminderToDelete).unwrap();
         showNotification('Reminder deleted successfully', 'success');
+        setDeleteDialogOpen(false);
+        setReminderToDelete(null);
       } catch (error) {
         console.error('Failed to delete reminder:', error);
         showNotification('Failed to delete reminder', 'error');
       }
-      setDeleteDialogOpen(false);
-      setReminderToDelete(null);
     }
   };
 
@@ -409,9 +447,6 @@ const Reminders: React.FC = () => {
   if (isLoading) {
     return (
       <Box className="app-container" sx={{ display: 'flex' }}>
-        <Box className="sidebar">
-          <Sidebar />
-        </Box>
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column',
@@ -432,9 +467,6 @@ const Reminders: React.FC = () => {
   if (remindersError) {
     return (
       <Box className="app-container" sx={{ display: 'flex' }}>
-        <Box className="sidebar">
-          <Sidebar />
-        </Box>
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column',
@@ -466,18 +498,13 @@ const Reminders: React.FC = () => {
   }
 
   return (
-    <Box className="app-container" sx={{ display: 'flex' }}>
-      <Box className="sidebar">
-        <Sidebar />
-      </Box>
-      
+    <Container maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}>
       <Box sx={{ 
         flexGrow: 1, 
-        p: { xs: 1, sm: 2, md: 3 }, 
         height: '100vh', 
         overflow: 'auto' 
       }}>
-        <Paper elevation={0} sx={{ p: { xs: 1, sm: 2 }, mb: 2 }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', padding: 2 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex' }}>
@@ -503,9 +530,9 @@ const Reminders: React.FC = () => {
                     onChange={(e) => setFilter(e.target.value as 'pending' | 'completed' | 'all')}
                     label="Show"
                   >
+                    <MenuItem value="all">All</MenuItem>
                     <MenuItem value="pending">Pending</MenuItem>
                     <MenuItem value="completed">Completed</MenuItem>
-                    <MenuItem value="all">All</MenuItem>
                   </Select>
                 </FormControl>
 
@@ -536,7 +563,7 @@ const Reminders: React.FC = () => {
               </Button>
             </Grid>
           </Grid>
-        </Paper>
+        </Box>
 
         {sortedReminders.length === 0 ? (
           <Paper sx={{ py: 6, textAlign: 'center' }}>
@@ -565,6 +592,7 @@ const Reminders: React.FC = () => {
                           e.stopPropagation();
                           handleEditReminder(reminder.id);
                         }}
+                        disabled={reminder.isUpdatingStatus || isOperationLoading}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -575,6 +603,7 @@ const Reminders: React.FC = () => {
                           e.stopPropagation();
                           handleDeleteReminder(reminder.id);
                         }}
+                        disabled={reminder.isUpdatingStatus || isOperationLoading}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -585,8 +614,10 @@ const Reminders: React.FC = () => {
                     <Checkbox
                       edge="start"
                       checked={reminder.status}
-                      onChange={() => toggleReminderStatus(reminder.id)}
+                      onChange={() => !reminder.isUpdatingStatus && toggleReminderStatus(reminder.id)}
                       inputProps={{ 'aria-labelledby': reminder.id }}
+                      disabled={reminder.isUpdatingStatus}
+                      icon={reminder.isUpdatingStatus ? <CircularProgress size={20} /> : undefined}
                     />
                   </ListItemIcon>
                   <ListItemText
@@ -642,7 +673,7 @@ const Reminders: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
-        onClose={cancelDeleteReminder}
+        onClose={!isDeleting ? cancelDeleteReminder : undefined}
         aria-labelledby="delete-dialog-title"
         aria-describedby="delete-dialog-description"
       >
@@ -655,16 +686,21 @@ const Reminders: React.FC = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelDeleteReminder} color="primary">
+          <Button 
+            onClick={cancelDeleteReminder} 
+            color="primary" 
+            disabled={isDeleting}
+          >
             Cancel
           </Button>
           <Button 
             onClick={confirmDeleteReminder} 
             color="error" 
-            variant="contained" 
-            startIcon={<DeleteIcon />}
+            variant="contained"
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
           >
-            Delete
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -688,9 +724,10 @@ const Reminders: React.FC = () => {
       {/* Reminder modal */}
       <ReminderModal
         open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => !isOperationLoading && setIsModalOpen(false)}
         reminder={newReminder}
         isEditing={!!editingReminder}
+        isLoading={isOperationLoading}
         projects={projects}
         employees={employees}
         onChange={handleInputChange}
@@ -698,7 +735,8 @@ const Reminders: React.FC = () => {
         onStatusChange={handleStatusChange}
         onSubmit={handleSubmit}
       />
-    </Box>
+    </Container>
+
   );
 };
 

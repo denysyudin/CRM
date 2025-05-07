@@ -52,8 +52,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
   editMode,
   initialData,
   projects,
-  isUploading = false,
-  uploadProgress = 0
+  isUploading = false
 }) => {
   const [noteData, setNoteData] = useState<Note>(initialData);
 
@@ -100,7 +99,9 @@ const NoteModal: React.FC<NoteModalProps> = ({
             zIndex: 1
           }}>
             <CircularProgress />
-            <Typography variant="body1" sx={{ mt: 2 }}>Uploading file...</Typography>
+            <Typography variant="body1" sx={{ mt: 2 }}>
+              {editMode ? 'Updating note...' : 'Creating note...'}
+            </Typography>
           </Box>
         )}
 
@@ -176,7 +177,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
                     const newFiles = Array.from(e.target.files);
                     setNoteData(prev => ({ 
                       ...prev, 
-                      files: [...(prev.files || []), ...newFiles] 
+                      file: [...(prev.file || []), ...newFiles] 
                     }));
                   }
                 }}
@@ -201,13 +202,13 @@ const NoteModal: React.FC<NoteModalProps> = ({
               </Box>
             )}
             
-            {noteData.files && noteData.files.length > 0 && (
+            {noteData.file && noteData.file.length > 0 && (
               <Box sx={{ display: 'flex', flexDirection: 'column', mt: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Typography variant="body2">{noteData.files.map(file => file.name).join(', ')}</Typography>
+                  <Typography variant="body2">{noteData.file.map(file => file.name).join(', ')}</Typography>
                   <IconButton 
                     size="small" 
-                    onClick={() => setNoteData(prev => ({ ...prev, files: [] }))}
+                    onClick={() => setNoteData(prev => ({ ...prev, file: [] }))}
                     disabled={isUploading}
                   >
                     <CloseIcon fontSize="small" />
@@ -232,7 +233,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
             onClick={handleSaveNote}
             disabled={isUploading}
           >
-            {isUploading ? 'Uploading...' : (editMode ? 'Update Note' : 'Create Note')}
+            {editMode ? 'Update Note' : 'Create Note'}
           </Button>
         </Box>
       </Box>

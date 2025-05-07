@@ -1,9 +1,10 @@
 // Employee type definitions
 export interface Employee {
-  id: string;
+  id?: string;
   name: string;
   project_id?: string;
   role?: string;
+  status?: boolean;
 }
 
 // Note creation/update payload types

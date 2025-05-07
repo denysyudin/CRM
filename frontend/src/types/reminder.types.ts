@@ -8,8 +8,9 @@ export interface Reminder {
   project_id?: string;
   employee_id?: string;
   description?: string;
+  isUpdatingStatus?: boolean;
 }
 
 // Reminder creation/update payload types
-export type CreateReminderPayload = Omit<Reminder, 'id'>;
+export type CreateReminderPayload = Omit<Reminder, 'id' | 'isUpdatingStatus'>;
 export type UpdateReminderPayload = Partial<Reminder>; 

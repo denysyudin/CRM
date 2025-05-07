@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../../components/Sidebar/Sidebar';
+import Sidebar from '../../components/Layout/Sidebar';
 import DirectoryTree from './components/DirectoryTree';
 import {
   Box,
@@ -47,18 +47,60 @@ const FileManager: React.FC = () => {
   const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
+  const [generalFolderId, setGeneralFolderId] = useState<string>('general');
 
   // Use the API query hook
   const { data: filesData, isLoading, isError } = useGetFilesQuery();
   const [deleteFile] = useDeleteFileMutation();
+  const [createFile] = useCreateFileMutation();
   
   // Load files when component mounts or when the query data changes
   useEffect(() => {
     if (filesData) {
-      setAllFiles(filesData);
+      let processedFiles = [...filesData];
+      
+      // Check if General folder exists
+      const generalFolder = processedFiles.find(
+        file => file.parent_id === 'root' && 
+               file.type === 'application/vnd.google-apps.folder' && 
+               file.title === 'General'
+      );
+      
+      // Create General folder if it doesn't exist
+      if (generalFolder) {
+        setGeneralFolderId(generalFolder.id);
+      } else {
+        const newGeneralFolder: File = {
+          id: 'general',
+          title: 'General',
+          type: 'application/vnd.google-apps.folder',
+          parent_id: 'root',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        processedFiles.push(newGeneralFolder);
+        setGeneralFolderId('general');
+        
+        // In a real application, you would call the API to persist this
+        // createFile(newGeneralFolder);
+      }
+      
+      // Process files without project_id and move them to the General folder
+      const updatedFiles = processedFiles.map(file => {
+        if (!file.project_id && 
+            file.parent_id === 'root' && 
+            file.id !== 'general' && // Don't move the General folder itself
+            file.type !== 'application/vnd.google-apps.folder') {
+          return { ...file, parent_id: generalFolderId };
+        }
+        return file;
+      });
+      
+      setAllFiles(updatedFiles);
       
       // Filter files for the current folder
-      const filteredFiles = filesData.filter(file => 
+      const filteredFiles = updatedFiles.filter(file => 
         file.parent_id === currentFolder || 
         (currentFolder === 'root' && file.parent_id === 'root')
       );
@@ -70,7 +112,7 @@ const FileManager: React.FC = () => {
     } else {
       setLoading(isLoading);
     }
-  }, [filesData, isLoading, isError, currentFolder]);
+  }, [filesData, isLoading, isError, currentFolder, generalFolderId]);
 
   const navigateToFolder = (folderId: string, folderName: string) => {
     setCurrentFolder(folderId);
@@ -195,11 +237,6 @@ const FileManager: React.FC = () => {
   };
 
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <Sidebar isOpen={true} toggleSidebar={() => {}} activePath="/files" />
-      </div>
-      <div className="main-content">
     <Box sx={{ display: 'flex', height: '100vh' }}>
 
       {/* Main Content */}
@@ -367,8 +404,6 @@ const FileManager: React.FC = () => {
         </Box>
       </Modal>
     </Box>
-    </div>
-    </div>
   );
 };
 

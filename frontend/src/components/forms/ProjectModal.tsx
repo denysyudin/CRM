@@ -6,14 +6,16 @@ interface ProjectModalProps {
   onClose: () => void;
   onSubmit: (projectData: Omit<Project, 'id'>) => void;
   project?: Project | null | undefined;
+  isUploading?: boolean;
 }
 
-const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project }) => {
+const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project, isUploading = false }) => {
   const [title, setTitle] = useState(project?.title || '');
   const [description, setDescription] = useState(project?.description || '');
   const [status, setStatus] = useState(project?.status || 'Not Started');
   const [start_date, setStartDate] = useState(project?.start_date || '');
   const [end_date, setEndDate] = useState(project?.end_date || '');
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +44,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
+              disabled={isUploading}
             />
           </div>
           <div className="form-group">
@@ -51,6 +54,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
               value={description || ''}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
+              disabled={isUploading}
             />
           </div>
           <div className="form-group">
@@ -59,6 +63,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
               id="status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              disabled={isUploading}
             >
               <option value="Not Started">Not Started</option>
               <option value="In Progress">In Progress</option>
@@ -74,6 +79,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
               type="date"
               value={start_date || ''}
               onChange={(e) => setStartDate(e.target.value)}
+              disabled={isUploading}
             />
           </div>
           <div className="form-group">
@@ -83,13 +89,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ onClose, onSubmit, project 
               type="date"
               value={end_date || ''}
               onChange={(e) => setEndDate(e.target.value)}
+              disabled={isUploading}
             />
           </div>
           <div className="form-actions">
-            <button type="button" className="form-button button-secondary" onClick={onClose}>
+            <button type="button" className="form-button button-secondary" onClick={onClose} disabled={isUploading}>
               Cancel
             </button>
-            <button type="submit" className="form-button button-primary">
+            <button type="submit" className="form-button button-primary" disabled={isUploading}>
               {project ? 'Update Project' : 'Create Project'}
             </button>
           </div>

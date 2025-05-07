@@ -8,7 +8,8 @@ import {
   ListItem, 
   Divider,
   Stack,
-  CircularProgress
+  CircularProgress,
+  Container
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useGetPendingRemindersQuery } from '../../redux/api/remindersApi';
@@ -35,10 +36,10 @@ const PendingReminders: React.FC = () => {
   }
 
   return (
+    <Container maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}>
     <Paper
       elevation={0}
       sx={{
-        p: 2,
         borderRadius: 2,
         maxWidth: '100%'
       }}
@@ -46,11 +47,11 @@ const PendingReminders: React.FC = () => {
       <Typography 
         variant="h6" 
         sx={{ 
-          mb: 2,
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 1,
         }}
+        gutterBottom
       >
         <NotificationsIcon color="primary" />
         Pending Reminders
@@ -58,11 +59,11 @@ const PendingReminders: React.FC = () => {
       <Divider />
       
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
           <CircularProgress size={24} />
         </Box>
       ) : isError ? (
-        <Typography variant="body2" color="error" sx={{ p: 2, textAlign: 'center' }}>
+        <Typography variant="body2" color="error" sx={{ textAlign: 'center' }}>
           Failed to load reminders
         </Typography>
       ) : data.length === 0 ? (
@@ -99,6 +100,7 @@ const PendingReminders: React.FC = () => {
         </List>
       )}
     </Paper>
+    </Container>
   );
 };
 

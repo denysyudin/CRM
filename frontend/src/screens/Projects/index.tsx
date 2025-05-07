@@ -1,21 +1,20 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import Sidebar from '../../components/Sidebar/Sidebar';
-import { 
-  TaskModal, 
-  NoteModal, 
-  EventModal, 
+import {
+  TaskModal,
+  NoteModal,
+  EventModal,
   ReminderModal,
   ProjectModal
 } from '../../components/forms';
-import { 
-  Typography, 
-  Box, 
-  Button, 
-  Paper, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  ListItemIcon, 
+import {
+  Typography,
+  Box,
+  Button,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
   Chip,
   IconButton,
   CircularProgress,
@@ -25,78 +24,85 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Snackbar,
+  Alert,
+  AlertColor
 } from '@mui/material';
-import { 
+import {
   FolderOutlined,
-  AddCircleOutline, 
-  ListAlt, 
-  NoteAlt, 
-  Event, 
+  AddCircleOutline,
+  ListAlt,
+  NoteAlt,
+  Event,
   Notifications,
   AttachFile,
   Edit,
   Delete,
   AccountTree,
-  Menu,
   Add,
   CheckCircle as CheckCircleIcon,
   CircleSharp as CircleSharpIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   Alarm as AlarmIcon
 } from '@mui/icons-material';
-import { 
+import {
   Project,
   Task,
   Note,
   Events,
-  Reminder,
   File
 } from '../../types';
 
-import { 
-  useGetActiveProjectsQuery, 
+// Import Reminder from services API instead of from types
+import { Reminder } from '../../services/api';
+
+import {
+  useGetProjectsQuery,
   useUpdateProjectMutation,
   useCreateProjectMutation,
   useDeleteProjectMutation
 } from '../../redux/api/projectsApi';
 
-import { 
-  useGetTaskByProjectIdQuery, 
+import {
+  useGetTaskByProjectIdQuery,
   useCreateTaskMutation,
   useUpdateTaskMutation,
+  useDeleteTaskMutation
 } from '../../redux/api/tasksApi';
 
-import { 
-  useGetNoteByProjectIdQuery, 
-  useCreateNoteMutation 
+import {
+  useGetNoteByProjectIdQuery,
+  useCreateNoteMutation,
 } from '../../redux/api/notesApi';
 
-import { 
-  useGetEventByProjectIdQuery, 
-  useCreateEventMutation 
+import {
+  useGetEventByProjectIdQuery,
+  useCreateEventMutation,
 } from '../../redux/api/eventsApi';
 
-import { 
-  useGetReminderByProjectIdQuery, 
-  useCreateReminderMutation 
+import {
+  useGetReminderByProjectIdQuery,
+  useCreateReminderMutation,
 } from '../../redux/api/remindersApi';
 
-import { 
+import {
   useGetFileByProjectIdQuery,
-  useCreateFileMutation
 } from '../../redux/api/filesApi';
+
+// Import ReminderData interface 
+import { ReminderData } from '../../components/common';
 
 // Dictionary type for collections of items by ID
 type ItemDict<T> = {
   [key: string]: T;
 };
-
-// Define custom API types to match the backend expectations
-interface TaskPayload extends Omit<Task, 'id' | 'employee_id'> {
-  id?: string;
-  employee_id?: string; // Make employee_id optional string (not null)
-}
 
 interface FilePayload {
   id?: string;
@@ -139,12 +145,11 @@ interface EventFormData {
 const ModalFallback: React.FC = () => (
   <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" p={3}>
     <CircularProgress />
-    <Typography variant="body1" sx={{ mt: 2 }}>Loading form...</Typography>
   </Box>
 );
 
 // Format functions for each type of linked item
-const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: string) => void) => {
+const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: string) => void, onDelete?: (taskId: string) => void) => {
   const statusColors: Record<string, string> = {
     'not-started': 'default',
     'inprogress': 'primary',
@@ -154,27 +159,27 @@ const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: str
     'deferred': 'warning',
     'todo': 'default'
   };
-  
+
   const priorityColors: Record<string, string> = {
     'high': 'error',
     'medium': 'warning',
     'low': 'success',
     'none': 'default'
   };
-  
+
   const statusKey = task.status.replace('-', '').toLowerCase();
   const priorityKey = task.priority ? task.priority.toLowerCase() : 'none';
-  
+
   // Format date more nicely
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
-  
+
   // Status icon based on task status
   const getStatusIcon = () => {
     switch (task.status.toLowerCase()) {
@@ -187,13 +192,13 @@ const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: str
         return <RadioButtonUncheckedIcon fontSize="small" color="action" />;
     }
   };
-  
+
   // Handle status toggle
   const handleStatusToggle = () => {
     if (!onStatusChange) return;
-    
+
     let nextStatus = 'not-started';
-    
+
     if (task.status === 'not-started') {
       nextStatus = 'in-progress';
     } else if (task.status === 'in-progress') {
@@ -201,23 +206,31 @@ const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: str
     } else if (task.status === 'completed') {
       nextStatus = 'not-started';
     }
-    
+
     onStatusChange(task.id, nextStatus);
   };
-  
+
+  // Handle delete
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(task.id);
+    }
+  };
+
   return (
     <Paper elevation={0} sx={{ p: 1, width: '100%', borderRadius: 1, borderLeft: 3, borderColor: priorityColors[priorityKey] }}>
       <Box display="flex" alignItems="flex-start" justifyContent="space-between" width="100%">
         <Box display="flex" alignItems="flex-start">
-          <Box 
-            sx={{ 
-              mr: 1, 
+          <Box
+            sx={{
+              mr: 1,
               mt: 0.5,
               cursor: onStatusChange ? 'pointer' : 'default',
               '&:hover': {
                 opacity: onStatusChange ? 0.8 : 1
               }
-            }} 
+            }}
             onClick={onStatusChange ? handleStatusToggle : undefined}
             title={onStatusChange ? "Click to change status" : ""}
           >
@@ -233,12 +246,25 @@ const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: str
           </Box>
         </Box>
         <Box display="flex" flexDirection="column" alignItems="flex-end">
-          <Chip 
-            size="small" 
-            label={task.status.replace('-', ' ')}
-            color={statusColors[statusKey] as any || 'default'}
-            sx={{ mb: 1, textTransform: 'capitalize' }}
-          />
+          <Box display="flex" alignItems="center">
+            <Chip
+              size="small"
+              label={task.status.replace('-', ' ')}
+              color={statusColors[statusKey] as any || 'default'}
+              sx={{ mb: 1, textTransform: 'capitalize', mr: 1 }}
+            />
+            {onDelete && (
+              <IconButton 
+                size="small" 
+                onClick={handleDelete} 
+                title="Delete Task"
+                color="error"
+                sx={{ padding: 0.5 }}
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+            )}
+          </Box>
           {task.due_date && (
             <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center' }}>
               <AlarmIcon fontSize="inherit" sx={{ mr: 0.5 }} />
@@ -246,8 +272,8 @@ const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: str
             </Typography>
           )}
           {task.priority && (
-            <Chip 
-              size="small" 
+            <Chip
+              size="small"
               label={task.priority}
               color={priorityColors[priorityKey] as any || 'default'}
               sx={{ mt: 1 }}
@@ -275,9 +301,9 @@ const formatEvent = (event: Events) => {
     'deadline': 'error',
     'other': 'default'
   };
-  
+
   const typeKey = event.type || 'other';
-  
+
   return (
     <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
       <Box display="flex" alignItems="center">
@@ -286,8 +312,8 @@ const formatEvent = (event: Events) => {
       </Box>
       <Box display="flex" alignItems="center">
         <Typography variant="caption" sx={{ mr: 1 }}>{event.due_date}</Typography>
-        <Chip 
-          size="small" 
+        <Chip
+          size="small"
           label={event.type}
           color={eventTypeColors[typeKey] as any || 'default'}
         />
@@ -303,9 +329,9 @@ const formatReminder = (reminder: Reminder) => {
     'low': 'success',
     'none': 'default'
   };
-  
+
   const priorityKey = reminder.priority ? reminder.priority.toLowerCase() : 'none';
-  
+
   return (
     <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
       <Box display="flex" alignItems="center">
@@ -315,8 +341,8 @@ const formatReminder = (reminder: Reminder) => {
       <Box display="flex" alignItems="center">
         <Typography variant="caption" sx={{ mr: 1 }}>{reminder.due_date}</Typography>
         {reminder.priority && (
-          <Chip 
-            size="small" 
+          <Chip
+            size="small"
             label={reminder.priority}
             color={priorityColors[priorityKey] as any || 'default'}
           />
@@ -337,16 +363,16 @@ const formatFile = (file: File) => (
 );
 
 // Linked items list component with updated type to accept any array of items with IDs
-const LinkedItemsList = React.memo(({ 
-  items, 
-  itemsData, 
-  formatter, 
-  emptyMessage = "No related items found." 
-}: { 
-  items: (Task | Note | Events | Reminder | File)[], 
-  itemsData: ItemDict<any> | (Task | Note | Events | Reminder | File)[], 
+const LinkedItemsList = React.memo(({
+  items,
+  itemsData,
+  formatter,
+  emptyMessage = "No related items found."
+}: {
+  items: (Task | Note | Events | Reminder | File)[],
+  itemsData: ItemDict<any> | (Task | Note | Events | Reminder | File)[],
   formatter: (item: any) => React.ReactNode,
-  emptyMessage?: string 
+  emptyMessage?: string
 }) => {
   if (!items || items.length === 0) {
     return (
@@ -358,10 +384,10 @@ const LinkedItemsList = React.memo(({
 
   // Check if itemsData is an array
   const isArray = Array.isArray(itemsData);
-  
+
   // If we don't have the items data (empty dictionaries or empty array)
-  if ((!isArray && Object.keys(itemsData).length === 0 && items.length > 0) || 
-      (isArray && itemsData.length === 0 && items.length > 0)) {
+  if ((!isArray && Object.keys(itemsData).length === 0 && items.length > 0) ||
+    (isArray && itemsData.length === 0 && items.length > 0)) {
     return (
       <ListItem>
         <Typography variant="body2" color="text.secondary">
@@ -377,12 +403,12 @@ const LinkedItemsList = React.memo(({
         // @ts-ignore - Handling the ID inconsistency that was causing TS errors
         const id = item?.id;
         if (!item) return null;
-        
+
         // For tasks, we need to handle the Paper layout differently
         if ('status' in item && 'priority' in item) {
           return (
-            <ListItem 
-              key={id} 
+            <ListItem
+              key={id}
               sx={{
                 padding: '0.5rem 0',
                 display: 'block',
@@ -393,12 +419,12 @@ const LinkedItemsList = React.memo(({
             </ListItem>
           );
         }
-        
+
         // For other item types, use the original formatting
         return (
-          <ListItem 
-            key={id} 
-            divider 
+          <ListItem
+            key={id}
+            divider
             sx={{
               padding: 1.5,
               '&:hover': {
@@ -415,14 +441,14 @@ const LinkedItemsList = React.memo(({
 });
 
 // Project list item component
-const ProjectListItem = React.memo(({ 
-  project, 
-  isActive, 
-  onSelect 
-}: { 
-  project: Project, 
-  isActive: boolean, 
-  onSelect: (id: string) => void 
+const ProjectListItem = React.memo(({
+  project,
+  isActive,
+  onSelect
+}: {
+  project: Project,
+  isActive: boolean,
+  onSelect: (id: string) => void
 }) => {
   const statusColors: Record<string, string> = {
     'notstarted': 'default',
@@ -431,12 +457,12 @@ const ProjectListItem = React.memo(({
     'completed': 'success',
     'canceled': 'error'
   };
-  
+
   const statusKey = project.status.toLowerCase().replace(' ', '');
-  
+
   return (
-    <ListItem 
-      button 
+    <ListItem
+      button
       selected={isActive}
       onClick={() => onSelect(project.id)}
       sx={{
@@ -457,8 +483,8 @@ const ProjectListItem = React.memo(({
         primary={project.title}
         secondary={
           <Box display="flex" alignItems="center" flexWrap="wrap" gap={0.5}>
-            <Chip 
-              size="small" 
+            <Chip
+              size="small"
               label={project.status}
               color={statusColors[statusKey] as any || 'default'}
             />
@@ -481,66 +507,17 @@ const ProjectDetailSection = React.memo(({
   itemsData,
   formatter,
   onAddItem,
-  showaddbutton = true
+  showaddbutton = true,
+  disabled = false
 }: {
   title: string,
   items: (Task | Note | Events | Reminder | File)[],
   itemsData: ItemDict<any> | (Task | Note | Events | Reminder | File)[],
   formatter: (item: any) => React.ReactNode,
   onAddItem: () => void,
-  showaddbutton?: boolean
+  showaddbutton?: boolean,
+  disabled?: boolean
 }) => {
-  // Task filtering and sorting state
-  const [taskFilterStatus, setTaskFilterStatus] = useState('all');
-  const [taskSortBy, setTaskSortBy] = useState('due-date');
-  
-  // Filter and sort tasks if this is the task section
-  const processedItems = useMemo(() => {
-    // Only apply to task section
-    if (!title.includes('Task') || !items.length) {
-      return items;
-    }
-    
-    // Create a copy of the tasks array
-    let filtered = [...items];
-    
-    // Apply status filter
-    if (taskFilterStatus !== 'all') {
-      if (taskFilterStatus === 'pending') {
-        filtered = filtered.filter((task: any) => 
-          task.status === 'not-started' || task.status === 'in-progress'
-        );
-      } else if (taskFilterStatus === 'inprogress') {
-        filtered = filtered.filter((task: any) => 
-          task.status === 'in-progress'
-        );
-      } else if (taskFilterStatus === 'completed') {
-        filtered = filtered.filter((task: any) => 
-          task.status === 'completed'
-        );
-      }
-    }
-    
-    // Apply sorting
-    filtered.sort((a: any, b: any) => {
-      if (taskSortBy === 'due-date') {
-        const dateA = a.due_date ? new Date(a.due_date) : new Date('9999-12-31');
-        const dateB = b.due_date ? new Date(b.due_date) : new Date('9999-12-31');
-        return dateA.getTime() - dateB.getTime();
-      } else if (taskSortBy === 'priority') {
-        const priorityOrder: { [key: string]: number } = { 
-          'high': 1, 
-          'medium': 2, 
-          'low': 3 
-        };
-        return (priorityOrder[a.priority?.toLowerCase()] || 4) - (priorityOrder[b.priority?.toLowerCase()] || 4);
-      }
-      return 0;
-    });
-    
-    return filtered;
-  }, [items, title, taskFilterStatus, taskSortBy]);
-
   // Determine the icon based on the title
   const getIcon = () => {
     if (title.includes('Task')) return <ListAlt />;
@@ -564,6 +541,7 @@ const ProjectDetailSection = React.memo(({
             onClick={onAddItem}
             title={`Add New ${title.replace('Related ', '')}`}
             color="primary"
+            disabled={disabled}
           >
             {showaddbutton && <AddCircleOutline />}
           </IconButton>
@@ -571,7 +549,7 @@ const ProjectDetailSection = React.memo(({
       </Box>
       <List sx={{ width: '100%' }}>
         <LinkedItemsList
-          items={processedItems}
+          items={items}
           itemsData={itemsData}
           formatter={formatter}
         />
@@ -584,7 +562,7 @@ const Projects: React.FC = () => {
   // Theme and media query
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   // State for project selection and modals
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -593,9 +571,28 @@ const Projects: React.FC = () => {
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [showAddReminderModal, setShowAddReminderModal] = useState(false);
-  const [isEditingProject, setIsEditingProject] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   
+  // Notification state
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    type: AlertColor;
+  }>({
+    open: false,
+    message: '',
+    type: 'success'
+  });
+  
+  // Confirmation modal states
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmDialogTitle, setConfirmDialogTitle] = useState('');
+  const [confirmDialogMessage, setConfirmDialogMessage] = useState('');
+  const [confirmDialogAction, setConfirmDialogAction] = useState<() => Promise<void>>(() => async () => {});
+  
+  const [isEditingProject, setIsEditingProject] = useState(false);
+  const [isSubmittingProject, setIsSubmittingProject] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+
   // Form error state
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -604,51 +601,51 @@ const Projects: React.FC = () => {
     data: projects,
     isLoading: isLoadingProjects,
     error: projectsError,
-  } = useGetActiveProjectsQuery();
-  
+  } = useGetProjectsQuery();
+
   const [updateProject] = useUpdateProjectMutation();
   const [createProject] = useCreateProjectMutation();
   const [deleteProject] = useDeleteProjectMutation();
-  
+
   // Query hooks for project items - these will only fetch when selectedProjectId is available
-  const { 
-    data: tasks = [] 
-  } = useGetTaskByProjectIdQuery(selectedProjectId as string, { 
-    skip: !selectedProjectId 
+  const {
+    data: tasks = []
+  } = useGetTaskByProjectIdQuery(selectedProjectId as string, {
+    skip: !selectedProjectId
   });
-  
-  const { 
-    data: notes = [] 
-  } = useGetNoteByProjectIdQuery(selectedProjectId as string, { 
-    skip: !selectedProjectId 
+
+  const {
+    data: notes = []
+  } = useGetNoteByProjectIdQuery(selectedProjectId as string, {
+    skip: !selectedProjectId
   });
-  
-  const { 
-    data: events = [] 
-  } = useGetEventByProjectIdQuery(selectedProjectId as string, { 
-    skip: !selectedProjectId 
+
+  const {
+    data: events = []
+  } = useGetEventByProjectIdQuery(selectedProjectId as string, {
+    skip: !selectedProjectId
   });
-  
-  const { 
-    data: reminders = [] 
-  } = useGetReminderByProjectIdQuery(selectedProjectId as string, { 
-    skip: !selectedProjectId 
+
+  const {
+    data: reminders = []
+  } = useGetReminderByProjectIdQuery(selectedProjectId as string, {
+    skip: !selectedProjectId
   });
-  
-  const { 
-    data: files = [] 
-  } = useGetFileByProjectIdQuery(selectedProjectId as string, { 
-    skip: !selectedProjectId 
+
+  const {
+    data: files = []
+  } = useGetFileByProjectIdQuery(selectedProjectId as string, {
+    skip: !selectedProjectId
   });
-  
+
   // Mutation hooks for adding items
   const [createTask, { isLoading: isCreatingTask }] = useCreateTaskMutation();
   const [createNote, { isLoading: isCreatingNote }] = useCreateNoteMutation();
   const [createEvent, { isLoading: isCreatingEvent }] = useCreateEventMutation();
   const [createReminder, { isLoading: isCreatingReminder }] = useCreateReminderMutation();
-  const [createFile, { isLoading: isCreatingFile }] = useCreateFileMutation();
   const [updateTask, { isLoading: isUpdatingTask }] = useUpdateTaskMutation();
-  
+  const [deleteTask, { isLoading: isDeletingTask }] = useDeleteTaskMutation();
+
   // Initialize empty states for modal forms
   const [newTask, setNewTask] = useState<Partial<Task>>({});
   const [newNote, setNewNote] = useState<Partial<Note>>({});
@@ -660,17 +657,22 @@ const Projects: React.FC = () => {
     hours: '09',
     minutes: '00'
   });
-  const [newReminder, setNewReminder] = useState<Partial<Reminder>>({
+  const [newReminder, setNewReminder] = useState<Reminder>({
+    id: '',
     title: '',
+    due_date: new Date().toISOString().split('T')[0], // Today's date
     priority: 'medium',
-    status: false
+    project_id: '',
+    employee_id: '',
+    status: false,
+    description: ''
   });
-  
+
   // States for editing items
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingEvent, setEditingEvent] = useState<Events | null>(null);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  
+
   // Convert projects to dictionary for easier access - memoized
   const projectsDict = useMemo(() => {
     return projects ? projects.reduce<ItemDict<Project>>((acc, project) => {
@@ -713,6 +715,7 @@ const Projects: React.FC = () => {
     setter: React.Dispatch<React.SetStateAction<any>>
   ) => {
     const { name, value } = e.target;
+    console.log('Projects: Input change', name, value);
     setter((prev: any) => ({ ...prev, [name]: value }));
   };
 
@@ -721,6 +724,7 @@ const Projects: React.FC = () => {
     setter: React.Dispatch<React.SetStateAction<any>>
   ) => {
     const { name, value } = e.target;
+    console.log('Projects: Select change', name, value);
     setter((prev: any) => ({ ...prev, [name]: value }));
   };
 
@@ -747,7 +751,7 @@ const Projects: React.FC = () => {
       console.error('No project selected');
       return;
     }
-    
+
     switch (type) {
       case 'Task':
         setShowAddTaskModal(true);
@@ -768,24 +772,34 @@ const Projects: React.FC = () => {
 
   const handleProjectSubmit = async (projectData: Omit<Project, 'id'>) => {
     try {
+      setIsSubmittingProject(true);
       if (isEditingProject && selectedProject) {
         // Update existing project using RTK Query mutation
-        await updateProject({
+        const result = await updateProject({
           id: selectedProject.id,
           ...projectData
         }).unwrap();
+        showNotification(`Project "${result.title}" updated successfully`, 'success');
       } else {
         // Create new project using RTK Query mutation
         const result = await createProject(projectData).unwrap();
         setSelectedProjectId(result.id);
+        showNotification(`Project "${result.title}" created successfully`, 'success');
       }
-      
+
       // Reset state
       setShowAddProjectModal(false);
       setIsEditingProject(false);
+      setIsSubmittingProject(false);
     } catch (error) {
+      setIsSubmittingProject(false);
       console.error(isEditingProject ? 'Failed to update project:' : 'Failed to create project:', error);
-      alert(isEditingProject ? 'Failed to update project' : 'Failed to create project');
+      showNotification(
+        isEditingProject 
+          ? 'Failed to update project. Please try again.' 
+          : 'Failed to create project. Please try again.',
+        'error'
+      );
     }
   };
 
@@ -794,78 +808,40 @@ const Projects: React.FC = () => {
     setShowAddProjectModal(true);
   };
 
-  const handleTaskSubmit = async (taskData: FormData, fileData?: FormData) => {
+  const handleTaskSubmit = async (taskData: FormData) => {
     if (!selectedProject) return;
-    
+
     try {
-      // Ensure we're using FormData properly
-      const formData = new FormData();
-      
-      // Copy all fields from taskData to new FormData
-      for (const [key, value] of taskData.entries()) {
-        formData.append(key, value);
-      }
-      
-      // Add project_id to FormData
-      formData.append('project_id', selectedProject.id.toString());
-      
-      // Handle employee_id properly
-      const employeeId = taskData.get('employee_id');
-      if (employeeId) {
-        formData.set('employee_id', String(employeeId));
-      }
-      
-      // Use createTask mutation with FormData directly
-      const newTask = await createTask(formData as any).unwrap();
-      
-      // If there's file data, handle file upload separately
-      if (fileData && newTask.id) {
-        try {
-          // Create a new FormData for file upload
-          const fileFormData = new FormData();
-          fileFormData.append('title', fileData.get('fileName') as string || 'Untitled File');
-          fileFormData.append('type', 'task-attachment');
-          fileFormData.append('project_id', selectedProject.id.toString());
-          fileFormData.append('task_id', newTask.id.toString());
-          
-          // Append the actual file data
-          for (const [key, value] of fileData.entries()) {
-            if (key !== 'fileName') {
-              fileFormData.append(key, value);
-            }
-          }
-          
-          await createFile(fileFormData as any).unwrap();
-          console.log('File uploaded successfully');
-        } catch (fileError) {
-          console.error('Error uploading file:', fileError);
-          // The task was created, just the file upload failed
-          alert('Task created but file upload failed. Please try attaching the file again.');
-        }
-      }
-      
+      const result = await createTask(taskData as FormData).unwrap();
+      showNotification('Task created successfully', 'success');
       setShowAddTaskModal(false);
     } catch (error) {
       console.error('Failed to add task:', error);
-      alert('Failed to add task. Please try again.');
-      setFormError('Failed to add task. Please try again.');
+      showNotification('Failed to add task. Please try again.', 'error');
     }
   };
 
   const handleNoteSubmit = async (noteData: Note, fileData?: FormData) => {
     if (!selectedProject) return;
-    
+
     try {
-      // Ensure the correct project_id is set and add any required fields
-      const notePayload = {
-        ...noteData,
-        project_id: selectedProject.id,
-        employee_id: noteData.employee_id || '' // Ensure employee_id is set
-      };
-      
-      // Use createNote mutation from RTK Query
-      const newNote = await createNote(notePayload).unwrap();
-      
+      // Create FormData object
+      const formData = new FormData();
+
+      // Add note fields to FormData
+      formData.append('title', noteData.title);
+      formData.append('description', noteData.description || '');
+      formData.append('project_id', selectedProject.id);
+      formData.append('employee_id', noteData.employee_id || '');
+
+      if (noteData.category) {
+        formData.append('category', noteData.category);
+      }
+
+      // Use createNote mutation with FormData
+      const newNote = await createNote(formData).unwrap();
+      showNotification(`Note "${noteData.title}" created successfully`, 'success');
+
       // If there's file data, handle file upload separately
       if (fileData && newNote.id) {
         try {
@@ -877,26 +853,26 @@ const Projects: React.FC = () => {
             note_id: newNote.id,
             file_data: fileData
           };
-          
-          await createFile(filePayload as any).unwrap();
+
+          // formData.append('file', fileData.)
           console.log('File uploaded successfully');
         } catch (fileError) {
           console.error('Error uploading file:', fileError);
           // The note was created, just the file upload failed
-          alert('Note created but file upload failed. Please try attaching the file again.');
+          showNotification('Note created but file upload failed. Please try attaching the file again.', 'warning');
         }
       }
-      
+
       setShowAddNoteModal(false);
     } catch (error) {
       console.error('Failed to add note:', error);
-      alert('Failed to add note. Please try again.');
+      showNotification('Failed to add note. Please try again.', 'error');
     }
   };
 
   const handleEventSubmit = async (eventData: Omit<Events, 'id'>) => {
     if (!selectedProject) return;
-    
+
     try {
       // Create event with required id field
       const eventPayload: EventPayload = {
@@ -904,32 +880,33 @@ const Projects: React.FC = () => {
         ...eventData as any,
         project_id: selectedProject.id
       };
-      
+
       // Use createEvent mutation from RTK Query
-      await createEvent(eventPayload as any).unwrap();
-      
+      const result = await createEvent(eventPayload as any).unwrap();
+      showNotification(`Event "${result.title}" created successfully`, 'success');
       setShowAddEventModal(false);
     } catch (error) {
       console.error('Failed to add event:', error);
-      alert('Failed to add event. Please try again.');
+      showNotification('Failed to add event. Please try again.', 'error');
     }
   };
 
   const handleEventFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
-    
+
     try {
       if (editingEvent && editingEvent.id) {
         // Handle event update logic here
         console.log('Update event with data:', newEvent);
+        showNotification(`Event "${newEvent.title}" updated successfully`, 'success');
       } else {
         // Combine date and time into a single timestamp
         const dateStr = newEvent.date;
         const hours = newEvent.hours || '00';
         const minutes = newEvent.minutes || '00';
         const fullDateTime = `${dateStr}T${hours}:${minutes}:00`;
-        
+
         // Map the form event data to the API expected format
         const eventPayload: EventPayload = {
           id: '',  // This will be assigned by the server
@@ -940,10 +917,11 @@ const Projects: React.FC = () => {
           description: newEvent.description,
           participants: newEvent.participants
         };
-        
-        await createEvent(eventPayload as any).unwrap();
+
+        const result = await createEvent(eventPayload as any).unwrap();
+        showNotification(`Event "${result.title}" created successfully`, 'success');
       }
-      
+
       // Reset the form with the proper EventFormData structure
       setNewEvent({
         id: '',
@@ -957,59 +935,116 @@ const Projects: React.FC = () => {
       setShowAddEventModal(false);
     } catch (error) {
       console.error('Failed to handle event:', error);
-      setFormError('Failed to handle event. Please try again.');
+      showNotification('Failed to process event. Please try again.', 'error');
     }
   };
 
-  const handleReminderSubmit = async (reminderData: Omit<Reminder, 'id'>) => {
+  const handleReminderSubmit = async (reminderData: Reminder) => {
     if (!selectedProject) return;
-    
+
     try {
       // Use createReminder mutation from RTK Query
-      await createReminder({
-        ...reminderData,
-        project_id: selectedProject.id
-      }).unwrap();
+      console.log('Reminder data:', reminderData);
       
+      // Validate required fields
+      if (!reminderData.title.trim()) {
+        showNotification('Please enter a title for the reminder.', 'warning');
+        return;
+      }
+      
+      if (!reminderData.due_date) {
+        showNotification('Please select a due date for the reminder.', 'warning');
+        return;
+      }
+      
+      if (!reminderData.priority) {
+        showNotification('Please select a priority level for the reminder.', 'warning');
+        return;
+      }
+      
+      // Combine date and time
+      const due_time = reminderData.due_date?.split('T')[1] || '00:00';
+      const due_date = `${reminderData.due_date}T${due_time}`;
+      
+      // Convert ReminderData to the format expected by the API
+      const reminderPayload: Omit<Reminder, 'id'> = {
+        title: reminderData.title,
+        due_date: due_date,
+        priority: reminderData.priority,
+        status: Boolean(reminderData.status),
+        project_id: selectedProject.id,
+        employee_id: reminderData.employee_id || undefined,
+        description: reminderData.description
+      };
+      
+      const result = await createReminder(reminderPayload).unwrap();
+      showNotification(`Reminder "${result.title}" created successfully`, 'success');
       setShowAddReminderModal(false);
     } catch (error) {
       console.error('Failed to add reminder:', error);
-      alert('Failed to add reminder. Please try again.');
+      showNotification('Failed to add reminder. Please try again.', 'error');
     }
   };
 
+  // Show confirmation dialog
+  const showConfirmDialog = (title: string, message: string, action: () => Promise<void>) => {
+    setConfirmDialogTitle(title);
+    setConfirmDialogMessage(message);
+    setConfirmDialogAction(() => action);
+    setConfirmDialogOpen(true);
+  };
+
+  // Handle confirmation dialog confirm action
+  const handleConfirmDialogConfirm = async () => {
+    try {
+      await confirmDialogAction();
+      setConfirmDialogOpen(false);
+    } catch (error) {
+      console.error('Error executing confirmed action:', error);
+    }
+  };
+
+  // Handle confirmation dialog cancel
+  const handleConfirmDialogCancel = () => {
+    setConfirmDialogOpen(false);
+  };
+
+  // Handle task deletion
+  const handleDeleteTask = async (taskId: string) => {
+    showConfirmDialog(
+      'Delete Task',
+      'Are you sure you want to delete this task? This action cannot be undone.',
+      async () => {
+        try {
+          // Call the deleteTask mutation
+          const result = await deleteTask(taskId).unwrap();
+          console.log(`Task ${taskId} deleted successfully`);
+          showNotification('Task deleted successfully', 'success');
+        } catch (error) {
+          console.error('Failed to delete task:', error);
+          showNotification('Failed to delete task. Please try again.', 'error');
+        }
+      }
+    );
+  };
+
+  // Handle project deletion
   const handleDeleteProject = async (projectId: string) => {
-    if (!confirm('Are you sure you want to delete this project?')) return;
-    
-    try {
-      // Use deleteProject mutation from RTK Query
-      await deleteProject(projectId).unwrap();
-      setSelectedProjectId(null);
-    } catch (error) {
-      console.error('Failed to delete project:', error);
-    }
-  };
-
-  // Handlers for delete operations
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
-    
-    try {
-      // Event deletion logic would go here
-      console.log('Deleting event with ID:', eventId);
-      // Reset states
-      setEditingEvent(null);
-      setShowAddEventModal(false);
-    } catch (error) {
-      console.error('Failed to delete event:', error);
-    }
-  };
-
-  // Handle project selection change from dropdown
-  const handleProjectDropdownChange = (event: SelectChangeEvent) => {
-    if (event.target.value) {
-      selectProject(event.target.value);
-    }
+    showConfirmDialog(
+      'Delete Project',
+      'Are you sure you want to delete this project? This will also delete all associated tasks, notes, events, and reminders.',
+      async () => {
+        try {
+          // Use deleteProject mutation from RTK Query
+          const result = await deleteProject(projectId).unwrap();
+          setSelectedProjectId(null);
+          showNotification('Project deleted successfully', 'success');
+        } catch (error) {
+          console.error('Failed to delete project:', error);
+          showNotification('Failed to delete project. Please try again.', 'error');
+        }
+      }
+    );
   };
 
   // Handle task status change
@@ -1020,96 +1055,124 @@ const Projects: React.FC = () => {
         id: taskId,
         status: newStatus
       };
-      
+
       // Call the updateTask mutation
-      await updateTask(updatePayload).unwrap();
+      const result = await updateTask(updatePayload).unwrap();
       console.log(`Task ${taskId} status updated to ${newStatus}`);
+      showNotification(`Task status updated to "${newStatus}"`, 'success');
     } catch (error) {
       console.error('Failed to update task status:', error);
-      alert('Failed to update task status. Please try again.');
+      showNotification('Failed to update task status. Please try again.', 'error');
     }
   };
 
+  // Handlers for delete operations
+  const handleDeleteEvent = (eventId: string) => {
+    showConfirmDialog(
+      'Delete Event',
+      'Are you sure you want to delete this event? This action cannot be undone.',
+      async () => {
+        try {
+          // Event deletion logic would go here
+          console.log('Deleting event with ID:', eventId);
+          // Reset states
+          setEditingEvent(null);
+          setShowAddEventModal(false);
+          showNotification('Event deleted successfully', 'success');
+        } catch (error) {
+          console.error('Failed to delete event:', error);
+          showNotification('Failed to delete event. Please try again.', 'error');
+        }
+      }
+    );
+  };
+
+  // Handle project selection change from dropdown
+  const handleProjectDropdownChange = (event: SelectChangeEvent) => {
+    if (event.target.value) {
+      selectProject(event.target.value);
+    }
+  };
+
+  // Helper function to show notifications
+  const showNotification = (message: string, type: AlertColor = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      type
+    });
+  };
+
+  // Handle notification close
+  const handleCloseNotification = (_?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setNotification({ ...notification, open: false });
+  };
+
+  const isProjectCompleted = selectedProject?.status?.toLocaleLowerCase() === 'completed';
+
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <Sidebar isOpen={true} toggleSidebar={() => {}} activePath="/projects" />     
-      </div>
-      <div className="main-content">
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-           
-      
-      <Box 
-        component="main" 
-        sx={{ 
-          flexGrow: 1, 
-          height: '100%', 
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: theme.palette.grey[100],
-        }}
-      >
-        <Box 
-          sx={{ 
-            p: 2, 
-            display: 'flex', 
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'white',
-            borderRadius: 2,
+    <Container maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}>
+      <Box sx={{
+        flexGrow: 1,
+        height: '100vh',
+        overflow: 'hidden'
+      }}>
+        <Box
+          sx={{
+            borderBottom: 1, borderColor: 'divider', padding: 2
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', }}>
-            {isMobile && (
-              <IconButton edge="start" onClick={toggleSidebar} sx={{ mr: 2 }}>
-                <Menu />
-              </IconButton>
-            )}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h5" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
               <AccountTree sx={{ mr: 1 }} /> Projects & Businesses
             </Typography>
-          </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel id="project-selector-label">Select Project</InputLabel>
-              <Select
-                labelId="project-selector-label"
-                id="project-selector"
-                value={selectedProjectId || ''}
-                label="Select Project"
-                onChange={handleProjectDropdownChange}
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <FormControl size="small" sx={{ minWidth: 200 }}>
+                <InputLabel id="project-selector-label">Select Project</InputLabel>
+                <Select
+                  labelId="project-selector-label"
+                  id="project-selector"
+                  value={selectedProjectId || ''}
+                  label="Select Project"
+                  onChange={handleProjectDropdownChange}
+                >
+                  {projects && projects.map(project => (
+                    <MenuItem key={project.id} value={project.id}>
+                      {project.title}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                size="medium"
+                color="primary"
+                onClick={() => setShowAddProjectModal(true)}
               >
-                {projects && projects.map(project => (
-                  <MenuItem key={project.id} value={project.id}>
-                    {project.title}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <Button 
-              variant="contained" 
-              startIcon={<Add />}
-              size="medium"
-              color="primary"
-              onClick={() => setShowAddProjectModal(true)}
-            >
-              New Project
-            </Button>
+                New Project
+              </Button>
+            </Box>
           </Box>
         </Box>
-
-        <Box sx={{mt: 2, flex: 1 }}>
+        <Box sx={{
+          flexGrow: 1,
+          height: 'calc(100vh - 100px)',
+          overflow: 'auto'
+        }}>
           {!selectedProject ? (
-            <Box 
-              display="flex" 
-              flexDirection="column" 
-              alignItems="center" 
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
               justifyContent="center"
-              sx={{ 
-                height: '100%', 
+              sx={{
+                height: '100%',
                 py: 8,
                 backgroundColor: 'background.default',
                 borderRadius: 1
@@ -1145,35 +1208,35 @@ const Projects: React.FC = () => {
                     </IconButton>
                   </Box>
                 </Box>
-                
-                <Box 
-                  display="flex" 
-                  flexWrap="wrap" 
-                  gap={2} 
-                  alignItems="center" 
+
+                <Box
+                  display="flex"
+                  flexWrap="wrap"
+                  gap={2}
+                  alignItems="center"
                   mb={2}
                 >
-                  <Chip 
+                  <Chip
                     icon={<AccountTree fontSize="small" />}
                     label={`Status: ${selectedProject.status}`}
                     color={
                       selectedProject.status === 'Completed' ? 'success' :
-                      selectedProject.status === 'In Progress' ? 'primary' :
-                      selectedProject.status === 'Not Started' ? 'default' :
-                      selectedProject.status === 'On Hold' ? 'warning' :
-                      'default'
+                        selectedProject.status === 'In Progress' ? 'primary' :
+                          selectedProject.status === 'Not Started' ? 'default' :
+                            selectedProject.status === 'On Hold' ? 'warning' :
+                              'default'
                     }
                   />
-                  
+
                   {(selectedProject.start_date || selectedProject.end_date) && (
-                    <Chip 
+                    <Chip
                       icon={<Event fontSize="small" />}
                       label={`${selectedProject.start_date ? `Started: ${selectedProject.start_date}` : 'No start date'}
-                             ${selectedProject.end_date ? ` | Due: ${selectedProject.end_date}` : ''}`}
+                            ${selectedProject.end_date ? ` | Due: ${selectedProject.end_date}` : ''}`}
                     />
                   )}
                 </Box>
-                
+
                 <Typography variant="body1" paragraph>
                   {selectedProject.description || 'No description provided.'}
                 </Typography>
@@ -1184,9 +1247,10 @@ const Projects: React.FC = () => {
                 title="Related Tasks"
                 items={tasks}
                 itemsData={tasks}
-                formatter={(task) => formatTask(task, handleTaskStatusChange)}
+                formatter={(task) => formatTask(task, handleTaskStatusChange, handleDeleteTask)}
                 onAddItem={() => handleAddLinkedItem('Task')}
                 showaddbutton={true}
+                disabled={isProjectCompleted}
               />
 
               {/* Related Notes */}
@@ -1197,6 +1261,7 @@ const Projects: React.FC = () => {
                 formatter={formatNote}
                 onAddItem={() => handleAddLinkedItem('Note')}
                 showaddbutton={true}
+                disabled={isProjectCompleted}
               />
 
               {/* Related Events */}
@@ -1207,6 +1272,7 @@ const Projects: React.FC = () => {
                 formatter={formatEvent}
                 onAddItem={() => handleAddLinkedItem('Event')}
                 showaddbutton={true}
+                disabled={isProjectCompleted}
               />
 
               {/* Related Reminders */}
@@ -1217,6 +1283,7 @@ const Projects: React.FC = () => {
                 formatter={formatReminder}
                 onAddItem={() => handleAddLinkedItem('Reminder')}
                 showaddbutton={true}
+                disabled={isProjectCompleted}
               />
 
               {/* Related Files */}
@@ -1227,6 +1294,7 @@ const Projects: React.FC = () => {
                 formatter={formatFile}
                 onAddItem={() => handleAddLinkedItem('File')}
                 showaddbutton={false}
+                disabled={isProjectCompleted}
               />
             </Box>
           )}
@@ -1236,32 +1304,34 @@ const Projects: React.FC = () => {
       {/* Modal components with lazy loading */}
       {showAddProjectModal && (
         <Suspense fallback={<ModalFallback />}>
-          <ProjectModal 
+          <ProjectModal
             project={isEditingProject ? selectedProject : undefined}
             onClose={() => {
               setShowAddProjectModal(false)
               setIsEditingProject(false)
             }}
             onSubmit={handleProjectSubmit}
+            isUploading={isSubmittingProject}
           />
         </Suspense>
       )}
 
       {showAddTaskModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
-          <TaskModal 
+          <TaskModal
             projectName={selectedProject.title}
             projectId={selectedProject.id}
             onClose={() => setShowAddTaskModal(false)}
             onSubmit={handleTaskSubmit}
             task={editingTask || undefined}
+            isUploading={isCreatingTask}
           />
         </Suspense>
       )}
 
       {showAddNoteModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
-          <NoteModal 
+          <NoteModal
             open={showAddNoteModal}
             onClose={() => setShowAddNoteModal(false)}
             onSave={handleNoteSubmit}
@@ -1275,7 +1345,7 @@ const Projects: React.FC = () => {
               employee_id: '' // Required field
             }}
             projects={projects || []}
-            isUploading={false}
+            isUploading={isCreatingNote}
             uploadProgress={0}
           />
         </Suspense>
@@ -1283,11 +1353,11 @@ const Projects: React.FC = () => {
 
       {showAddEventModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
-          <EventModal 
+          <EventModal
             open={showAddEventModal}
             onClose={() => setShowAddEventModal(false)}
             eventFormData={{
-              id: newEvent.id,
+              id: newEvent.id || editingEvent?.id || '',
               title: newEvent.title,
               date: newEvent.date,
               type: newEvent.type,
@@ -1311,23 +1381,81 @@ const Projects: React.FC = () => {
 
       {showAddReminderModal && selectedProject && (
         <Suspense fallback={<ModalFallback />}>
-          <ReminderModal 
+          <ReminderModal
             open={showAddReminderModal}
-            onClose={() => setShowAddReminderModal(false)}
-            reminder={newReminder as any}
+            onClose={() => {
+              // Check if there's unsaved data
+              const hasUnsavedData = 
+                (newReminder.title && newReminder.title.trim() !== '') || 
+                newReminder.due_date || 
+                newReminder.description;
+              
+              if (hasUnsavedData) {
+                // Show confirmation before closing
+                showConfirmDialog(
+                  'Unsaved Changes',
+                  'You have unsaved changes. Are you sure you want to close without saving?',
+                  async () => {
+                    setShowAddReminderModal(false);
+                  }
+                );
+              } else {
+                // Close directly if no unsaved data
+                setShowAddReminderModal(false);
+              }
+            }}
+            reminder={newReminder as Reminder}
             isEditing={!!editingReminder}
             employees={[]} // Add actual employee data here if available
             projects={projects || []}
             onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleInputChange(e, setNewReminder)}
             onSelectChange={(e: SelectChangeEvent) => handleSelectChange(e, setNewReminder)}
             onStatusChange={(status: boolean) => handleStatusChange(status.toString(), setNewReminder)}
-            onSubmit={() => handleReminderSubmit(newReminder as any)}
+            onSubmit={() => handleReminderSubmit(newReminder as Reminder)}
           />
         </Suspense>
       )}
-    </Box>
-    </div>
-    </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={handleConfirmDialogCancel}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{confirmDialogTitle}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {confirmDialogMessage}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleConfirmDialogCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDialogConfirm} color="error" autoFocus>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseNotification} 
+          severity={notification.type} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
+    </Container>
   );
 };
 

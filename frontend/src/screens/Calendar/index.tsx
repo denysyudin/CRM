@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Events } from '../../types/event.types';
 import { useCreateEventMutation, useUpdateEventMutation, useDeleteEventMutation, useGetEventsQuery } from '../../redux/api/eventsApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
-import Sidebar from '../../components/Sidebar/Sidebar';
 import EventModal, { EventFormData } from '../../components/forms/EventModal';
 import {
   Box,
@@ -390,11 +389,9 @@ const Calendar: React.FC = () => {
     // If loading events, show loading indicator
     if (isLoading && events.length === 0) {
       return (
-        <Box display="flex" justifyContent="center" alignItems="center" p={4}>
-          <CircularProgress />
-          <Typography variant="body1" sx={{ ml: 2 }}>
-            Loading events...
-          </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
+          <CircularProgress size={60} sx={{ mb: 2 }}/>
+          <Typography variant="h6">Loading events...</Typography>
         </Box>
       );
     }
@@ -402,7 +399,7 @@ const Calendar: React.FC = () => {
     // If there was an error, show error message
     if (error) {
       return (
-        <Box p={4} textAlign="center">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
           <Typography color="error" paragraph>
             Error: {typeof error === 'string' ? error : 'Failed to load events'}
           </Typography>
@@ -611,13 +608,9 @@ const Calendar: React.FC = () => {
     "July", "August", "September", "October", "November", "December"];
 
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <Sidebar />
-      </div>
-      <div className="main-content sidebar-open">
-        <Box sx={{ display: 'flex', height: '100vh' }}>
-          <Box component="main" sx={{ flexGrow: 1, height: '100%', overflow: 'auto' }}>
+    <Container maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', borderBottom: 1, borderColor: 'divider' }}>
+          <Box component="main" sx={{ flexGrow: 1, height: '100%', overflow: 'hidden' }}>
             <Box
               sx={{
                 p: 2,
@@ -626,17 +619,12 @@ const Calendar: React.FC = () => {
                 borderBottom: `1px solid ${theme.palette.divider}`
               }}
             >
-              {isMobile && (
-                <IconButton edge="start" onClick={toggleSidebar} sx={{ mr: 2 }}>
-                  <Menu />
-                </IconButton>
-              )}
               <Typography variant="h5" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
                 <EventIcon sx={{ mr: 1 }} /> Calendar
               </Typography>
             </Box>
 
-            <Container maxWidth="xl" sx={{ mt: 3, mb: 4 }}>
+            <Container maxWidth="xl" sx={{ mt: 3, mb: 4, height: 'calc(100vh - 60px)', overflow: 'auto' }}>
               <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Typography variant="h5" component="h2">
@@ -814,8 +802,7 @@ const Calendar: React.FC = () => {
             </Dialog>
           </Box>
         </Box>
-      </div>
-    </div>
+    </Container>
   );
 };
 

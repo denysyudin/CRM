@@ -19,7 +19,9 @@ import {
   Stack,
   Typography,
   useTheme,
-  IconButton
+  IconButton,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import CircleSharpIcon from '@mui/icons-material/CircleSharp';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -43,6 +45,8 @@ interface EmployeeDetailsProps {
   onAssignTask: () => void;
   onAddNote: () => void;
   onAddReminder: () => void;
+  isEmployeeActive: boolean;
+  onEmployeeStatusChange?: (status: boolean) => void;
 }
 
 const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
@@ -55,7 +59,9 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
   onTaskStatusChange,
   onAssignTask,
   onAddNote,
-  onAddReminder
+  onAddReminder,
+  isEmployeeActive,
+  onEmployeeStatusChange
 }) => {
   const theme = useTheme();
 
@@ -257,6 +263,13 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
         return <CircleSharpIcon sx={{ color: theme.palette.grey[400] }} />;
     }
   };
+
+  // Function to handle employee status change
+  const handleStatusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (onEmployeeStatusChange) {
+      onEmployeeStatusChange(event.target.checked);
+    }
+  };
   
   // If no employee is selected, show placeholder
   if (!employee) {
@@ -286,21 +299,41 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
   return (
     <Box sx={{ width: '100%', height: '100%', overflow: 'auto' }}>
       {/* Employee Header */}
-      <Paper elevation={0} sx={{ p: 3, mb: 3, display: 'flex', alignItems: 'center' }}>
-        <Avatar 
-          sx={{ 
-            width: 60, 
-            height: 60, 
-            bgcolor: theme.palette.primary.main,
-            fontSize: '1.5rem'
-          }}
-        >
-          {employee.name.charAt(0)}
-        </Avatar>
-        <Box sx={{ ml: 2 }}>
-          <Typography variant="h5">{employee.name}</Typography>
-          <Typography variant="body2" color="text.secondary">{employee.role}</Typography>
+      <Paper elevation={0} sx={{ p: 3, mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Avatar 
+            sx={{ 
+              width: 60, 
+              height: 60, 
+              bgcolor: theme.palette.primary.main,
+              fontSize: '1.5rem'
+            }}
+          >
+            {employee.name.charAt(0)}
+          </Avatar>
+          <Box sx={{ ml: 2 }}>
+            <Typography variant="h5">{employee.name}</Typography>
+            <Typography variant="body2" color="text.secondary">{employee.role}</Typography>
+            <Chip 
+              label={employee.status === false ? 'Inactive' : 'Active'} 
+              color={employee.status === false ? 'error' : 'success'} 
+              size="small" 
+              sx={{ mt: 1 }} 
+            />
+          </Box>
         </Box>
+        {onEmployeeStatusChange && (
+          <FormControlLabel
+            control={
+              <Switch 
+                checked={employee.status !== false} 
+                onChange={handleStatusChange} 
+                color="primary"
+              />
+            }
+            label={employee.status === false ? "Set as Active" : "Set as Inactive"}
+          />
+        )}
       </Paper>
       
       {/* Tasks Section */}
@@ -308,16 +341,16 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
         <CardHeader 
           title={
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <AssignmentIcon sx={{ mr: 2 }} />
-              <Typography variant="h6">Assigned Tasks</Typography>
+              <AssignmentIcon sx={{ mr: 1 }} />
+              <Typography variant="h6">Tasks</Typography>
             </Box>
           }
           action={
             <IconButton 
               color="primary" 
-              onClick={onAssignTask}
-              size="small"
-              sx={{ mr: 2 }}  
+              onClick={onAssignTask} 
+              disabled={!isEmployeeActive}
+              title={!isEmployeeActive ? "Cannot assign tasks to inactive employee" : "Assign Task"}
             >
               <AddCircleOutline />
             </IconButton>
@@ -526,7 +559,8 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
             <IconButton 
               color="primary" 
               onClick={onAddReminder}
-              size="small"
+              disabled={!isEmployeeActive}
+              title={!isEmployeeActive ? "Cannot add reminders to inactive employee" : "Add Reminder"}
             >
               <AddCircleOutline />
             </IconButton>
@@ -580,15 +614,16 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({
               <Typography variant="h6">Notes</Typography>
             </Box>
           }
-            action={
-              <IconButton 
-                color="primary" 
-                onClick={onAddNote}
-                size="small"
-              >
-                <AddCircleOutline />
-              </IconButton>
-            }
+          action={
+            <IconButton 
+              color="primary" 
+              onClick={onAddNote}
+              disabled={!isEmployeeActive}
+              title={!isEmployeeActive ? "Cannot add notes to inactive employee" : "Add Note"}
+            >
+              <AddCircleOutline />
+            </IconButton>
+          }
         />
         <CardContent>
           {notes.length === 0 ? (

@@ -1,0 +1,45 @@
+/* Main Layout Container */
+:root {
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 80px;
+  --bg-color: #f8f9fa;
+  --border-color: #e9ecef;
+}
+
+.main-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  overflow-y: hidden;
+  padding: 20px;
+  background-color: var(--bg-color);
+  transition: margin-left 0.3s ease;
+  box-sizing: border-box;
+}
+
+/* When sidebar is collapsed */
+.sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+/* Responsive layouts */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 15px;
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 10px;
+  }
+} 

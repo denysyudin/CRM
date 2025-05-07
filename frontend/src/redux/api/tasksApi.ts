@@ -47,11 +47,12 @@ export const tasksApi = apiSlice.injectEndpoints({
     }),
 
     // Create a new task
-    createTask: builder.mutation<Task, Partial<Task>>({
-      query: (newTask) => ({
+    createTask: builder.mutation<Task, FormData>({
+      query: (formData) => ({
         url: '/tasks',
         method: 'POST',
-        body: newTask,
+        body: formData,
+        formData: true,
       }),
       invalidatesTags: [{ type: 'Tasks', id: 'LIST' }],
     }),

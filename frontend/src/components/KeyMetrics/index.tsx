@@ -76,13 +76,13 @@ const KeyMetrics: React.FC = () => {
 
   return (
     <Paper elevation={0} className="mui-metrics-container">
-      <Box p={2}>
-        <Typography variant="h5" component="h2" gutterBottom color="black" fontWeight={500}>
+      <Box>
+        <Typography variant="h5" component="h2" gutterBottom color="black">
         📊 Key Metrics
         </Typography>
-        <Divider sx={{ mb: 2 }} />
+        <Divider />
         
-        <Grid container spacing={2}>
+        <Grid container>
           <Grid item xs={12}>
             <MetricItem 
               icon="⚠️" 

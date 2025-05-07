@@ -2,17 +2,18 @@
 export interface Note {
   id: string;
   title: string;
-  description: string;
-  project_id: string;
-  employee_id: string;
+  description: string | null;
+  project_id: string | null;
+  employee_id: string | null;
   category?: string;
   created_at: string;
-  files?: File[];
+  file?: File[] | null;
   file_url?: string;
   existingFile?: {
     name: string;
     url: string;
   };
+  status_code?: number;
 }
 
 // Note creation/update payload types

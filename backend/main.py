@@ -94,6 +94,7 @@ class EmployeeBase(BaseModel):
     name: str
     project_id: Optional[str] = None
     role: Optional[str] = None
+    status: bool
 
 class TaskStatusUpdate(BaseModel):
     status: str
@@ -244,7 +245,8 @@ async def get_project(project_id: str):
     response = query.execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Project not found")
-    return response.data[0]
+    project_data = response.data[0]
+    return project_data
 
 @app.post("/projects", response_model=ProjectBase)
 async def create_project(project: ProjectBase):
@@ -260,7 +262,8 @@ async def create_project(project: ProjectBase):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create project")
     
-    return response.data[0]
+    created_project = response.data[0]
+    return created_project
 
 @app.put("/projects/{project_id}", response_model=ProjectBase)
 async def update_project(project_id: str, project: ProjectBase):
@@ -275,7 +278,8 @@ async def update_project(project_id: str, project: ProjectBase):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update project")
     
-    return response.data[0]
+    updated_project = response.data[0]
+    return updated_project
 
 @app.delete("/projects/{project_id}")
 async def delete_project(project_id: str):
@@ -308,7 +312,8 @@ async def get_task(task_id: str):
     response = supabase.table("tasks").select("*").eq("id", task_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    return response.data[0]
+    task_data = response.data[0]
+    return task_data
 
 @app.post("/tasks", response_model=TaskBase)
 async def create_task(
@@ -437,7 +442,8 @@ async def update_task_status(task_id: str, task_status: TaskStatusUpdate):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update task status")
     
-    return response.data[0]
+    updated_task = response.data[0]
+    return updated_task
 
 @app.delete("/tasks/{task_id}")
 async def delete_task(task_id: str):
@@ -469,7 +475,8 @@ async def get_note(note_id: str):
     response = supabase.table("notes").select("*").eq("id", note_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Note not found")
-    return response.data[0]
+    note_data = response.data[0]
+    return note_data
 
 @app.post("/notes", response_model=NoteBase)
 async def create_note(
@@ -487,7 +494,7 @@ async def create_note(
         "employee_id": employee_id,
         "project_id": project_id,
         "created_at": created_at or get_current_timestamp(),
-        "file_id": None
+        "file_url": None
     }
     
     # Handle file upload if provided
@@ -509,7 +516,7 @@ async def create_note(
             
             # Update the note with the file URL
             if upload_result['file_url']:
-                note_data['file_id'] = upload_result['file_id']
+                note_data['file_url'] = upload_result['file_url']
                 response = supabase.table("notes").insert(note_data).execute()
                 if not response.data:
                     raise HTTPException(status_code=400, detail="Failed to create note")
@@ -567,7 +574,7 @@ async def update_note(
     if file and file.filename:
         try:
             upload_result = upload_file(file, project_id=project_id)
-            note_data["file_id"] = upload_result["file_id"]
+            note_data["file_url"] = upload_result["file_url"]
             
             # Create a file record in the database
             file_data = {
@@ -594,10 +601,10 @@ async def update_note(
     if note_data:
         #delete the file from drive
         try:
-            file_id = note_data["file_id"]
+            file_url = note_data["file_url"]
             try:
-                delete_file_from_drive(file_id)
-                response_file = supabase.table("files").delete().eq("id", file_id).execute()
+                delete_file_from_drive(file_url)
+                response_file = supabase.table("files").delete().eq("file_url", file_url).execute()
                 if not response_file.data:
                     raise HTTPException(status_code=400, detail="Failed to delete file")
             except Exception as e:
@@ -623,14 +630,20 @@ async def delete_note(note_id: str):
         raise HTTPException(status_code=404, detail="Note not found")
     
     # Delete the file from Google Drive
-    file_id = check_response.data[0]["file_id"]
-    delete_file_from_drive(file_id)
-    #delete the file from supabase
-    response_file = supabase.table("files").delete().eq("id", file_id).execute()
-    if not response_file.data:
-        raise HTTPException(status_code=400, detail="Failed to delete file")
+    try:
+        file_url = check_response.data[0]["file_url"]
+        if file_url:
+            delete_file_from_drive(file_url)
+            response_file = supabase.table("files").delete().eq("file_url", file_url).execute()
+            if not response_file.data:
+                raise HTTPException(status_code=400, detail="Failed to delete file")
+    except Exception as e:
+        print(f"File deletion failed: {str(e)}")
     #delete the note from supabase
     response = supabase.table("notes").delete().eq("id", note_id).execute()
+    print(response)
+    if not response.data:
+        raise HTTPException(status_code=400, detail="Failed to delete note")
     return {"message": "Note deleted successfully"}
 
 # Events
@@ -654,7 +667,8 @@ async def get_event(event_id: str):
     response = supabase.table("events").select("*").eq("id", event_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Event not found")
-    return response.data[0]
+    event_data = response.data[0]
+    return event_data
 
 @app.post("/events", response_model=EventBase)
 async def create_event(event: EventBase):
@@ -669,7 +683,8 @@ async def create_event(event: EventBase):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create event")
     
-    return response.data[0]
+    created_event = response.data[0]
+    return created_event
 
 @app.put("/events/{event_id}", response_model=EventBase)
 async def update_event(event_id: str, event: EventBase):
@@ -682,7 +697,8 @@ async def update_event(event_id: str, event: EventBase):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update event")
     
-    return response.data[0]
+    updated_event = response.data[0]
+    return updated_event
 
 @app.delete("/events/{event_id}")
 async def delete_event(event_id: str):
@@ -719,7 +735,8 @@ async def get_reminder(reminder_id: str):
     response = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
-    return response.data[0]
+    reminder_data = response.data[0]
+    return reminder_data
 
 @app.post("/reminders", response_model=ReminderBase)
 async def create_reminder(reminder: ReminderBase):
@@ -732,7 +749,8 @@ async def create_reminder(reminder: ReminderBase):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create reminder")
     
-    return response.data[0]
+    created_reminder = response.data[0]
+    return created_reminder
 
 @app.put("/reminders/{reminder_id}", response_model=ReminderBase)
 async def update_reminder(reminder_id: str, reminder: ReminderBase):
@@ -747,7 +765,8 @@ async def update_reminder(reminder_id: str, reminder: ReminderBase):
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to update reminder")
     
-    return response.data[0]
+    updated_reminder = response.data[0]
+    return updated_reminder
 
 @app.delete("/reminders/{reminder_id}")
 async def delete_reminder(reminder_id: str):
@@ -777,7 +796,8 @@ async def get_file(file_id: str):
     response = supabase.table("files").select("*").eq("id", file_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="File not found")
-    return response.data[0]
+    file_data = response.data[0]
+    return file_data
 
 @app.post("/files")
 @app.delete("/files/{file_id}")
@@ -800,11 +820,15 @@ async def get_employees():
 @app.get("/employees/{employee_id}", response_model=EmployeeBase)
 async def get_employee(employee_id: str):
     response = supabase.table("employees").select("*").eq("id", employee_id).execute()
-    return response.data[0]
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    employee_data = response.data[0]
+    return employee_data
 
 # Create employee
 @app.post("/employees", response_model=EmployeeBase)
 async def create_employee(employee: EmployeeBase):
+    employee.id = generate_id()
     response = supabase.table("employees").insert(employee.dict()).execute()
     return response.data[0]
 
@@ -812,7 +836,10 @@ async def create_employee(employee: EmployeeBase):
 @app.put("/employees/{employee_id}", response_model=EmployeeBase)
 async def update_employee(employee_id: str, employee: EmployeeBase):
     response = supabase.table("employees").update(employee.dict()).eq("id", employee_id).execute()
-    return response.data[0]
+    if not response.data:
+        raise HTTPException(status_code=400, detail="Failed to update employee")
+    updated_employee = response.data[0]
+    return updated_employee
 
 # Delete employee
 @app.delete("/employees/{employee_id}")

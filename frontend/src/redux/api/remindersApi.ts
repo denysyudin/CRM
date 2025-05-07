@@ -1,5 +1,5 @@
 import { apiSlice } from './apiSlice';
-import { Reminder } from '../../services/api';
+import { Reminder } from '../../types/reminder.types';
 
 export const remindersApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({

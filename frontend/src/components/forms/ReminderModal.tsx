@@ -15,6 +15,7 @@ import {
   FormControlLabel,
   Checkbox,
   SelectChangeEvent,
+  CircularProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { LocalizationProvider } from '@mui/x-date-pickers';
@@ -28,6 +29,7 @@ interface ReminderModalProps {
   onClose: () => void;
   reminder: Reminder;
   isEditing: boolean;
+  isLoading?: boolean;
   projects: Project[];
   employees: Employee[];
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -41,6 +43,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
   onClose,
   reminder,
   isEditing,
+  isLoading = false,
   projects,
   employees,
   onChange,
@@ -51,23 +54,25 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={!isLoading ? onClose : undefined}
       maxWidth="sm"
       fullWidth
     >
       <DialogTitle>
         {isEditing ? 'Edit Reminder' : 'New Reminder'}
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
+        {!isLoading && (
+          <IconButton
+            aria-label="close"
+            onClick={onClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        )}
       </DialogTitle>
       
       <DialogContent>
@@ -75,12 +80,25 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
           <TextField
             margin="normal"
             fullWidth
-            id="name"
+            id="title"
             label="Reminder Name"
-            name="name"
+            name="title"
             value={reminder.title}
             onChange={onChange}
+            disabled={isLoading}
             required
+          />
+          <TextField
+            margin="normal"
+            fullWidth
+            id="description"
+            label="Description"
+            name="description"
+            value={reminder.description || ''}
+            onChange={onChange}
+            multiline
+            rows={3}
+            disabled={isLoading}
           />
           
           <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -88,27 +106,30 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
               <TextField
                 type="date"
                 label="Due Date"
-                name="dueDate"
-                value={reminder.due_date}
+                name="due_date"
+                value={reminder.due_date?.split('T')[0]}
                 onChange={onChange}
                 fullWidth
-                required
                 InputLabelProps={{ shrink: true }}
+                disabled={isLoading}
+                required
               />
               
               <TextField
                 type="time"
                 label="Due Time"
-                name="dueTime"
-                value={reminder.due_date}
+                name="due_time"
+                value={reminder.due_date?.split('T')[1]}
                 onChange={onChange}
                 fullWidth
                 InputLabelProps={{ shrink: true }}
+                disabled={isLoading}
+                required 
               />
             </Box>
           </LocalizationProvider>
           
-          <FormControl fullWidth margin="normal">
+          <FormControl fullWidth margin="normal" disabled={isLoading}>
             <InputLabel id="priority-label">Priority</InputLabel>
             <Select
               labelId="priority-label"
@@ -124,7 +145,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
             </Select>
           </FormControl>
           
-          <FormControl fullWidth margin="normal">
+          <FormControl fullWidth margin="normal" disabled={isLoading}>
             <InputLabel id="project-label">Project</InputLabel>
             <Select
               labelId="project-label"
@@ -143,7 +164,7 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
             </Select>
           </FormControl>
           
-          <FormControl fullWidth margin="normal">
+          <FormControl fullWidth margin="normal" disabled={isLoading}>
             <InputLabel id="employee-label">Assignee</InputLabel>
             <Select
               labelId="employee-label"
@@ -169,25 +190,34 @@ const ReminderModal: React.FC<ReminderModalProps> = ({
                   checked={reminder.status}
                   onChange={(e) => onStatusChange(e.target.checked)}
                   name="status"
+                  disabled={isLoading}
                 />
               }
               label="Mark as completed"
               sx={{ mt: 1 }}
+              disabled={isLoading}
             />
           )}
         </Box>
       </DialogContent>
       
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={onClose}>
+        <Button 
+          onClick={onClose}
+          disabled={isLoading}
+        >
           Cancel
         </Button>
         <Button 
           variant="contained" 
           color="primary"
           onClick={onSubmit}
+          disabled={isLoading || !reminder.title}
+          startIcon={isLoading && <CircularProgress size={20} color="inherit" />}
         >
-          {isEditing ? 'Update' : 'Create'}
+          {isLoading 
+            ? (isEditing ? 'Updating...' : 'Creating...') 
+            : (isEditing ? 'Update' : 'Create')}
         </Button>
       </DialogActions>
     </Dialog>

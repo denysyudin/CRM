@@ -61,8 +61,6 @@ const ActiveProjects: React.FC = () => {
       elevation={0}
       sx={{ 
         borderRadius: 2,
-        p: 3,
-        mb: 2.5,
         height: 'auto',
         minHeight: 280,
         display: 'flex',
@@ -72,18 +70,16 @@ const ActiveProjects: React.FC = () => {
       <Typography 
         variant="h6" 
         sx={{ 
-          pb: 1.5, 
-          mb: 2.5, 
           display: 'flex', 
           alignItems: 'center', 
-          gap: 1,
-          borderBottom: `1px solid ${theme.palette.divider}`
+          gap: 1
         }}
+        gutterBottom
       >
         <FolderIcon color="primary" />
         Active Project Status
       </Typography>
-      
+      <Divider />
       <List sx={{ flexGrow: 1, overflow: 'auto' }}>
         {projects.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>

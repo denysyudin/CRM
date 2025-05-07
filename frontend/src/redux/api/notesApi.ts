@@ -16,6 +16,10 @@ export const notesApi = apiSlice.injectEndpoints({
         }
         return url;
       },
+      transformResponse: (response: Note[]) => {
+        console.log('response', response);
+        return response || [];
+      },
       providesTags: (result) => 
         result
           ? [
@@ -28,11 +32,17 @@ export const notesApi = apiSlice.injectEndpoints({
     // Get a single note by ID
     getNoteById: builder.query<Note, string>({
       query: (id) => `/notes/${id}`,
+      transformResponse: (response: Note) => {
+        return response;
+      },
       providesTags: (result, error, id) => [{ type: 'Notes', id }],
     }),
 
     getNoteByProjectId: builder.query<Note[], string>({
       query: (projectId) => `/notes?project_id=${projectId}`,
+      transformResponse: (response: Note[]) => {
+        return response || [];
+      },
       providesTags: (result) => 
         result
           ? [
@@ -44,6 +54,9 @@ export const notesApi = apiSlice.injectEndpoints({
     
     getNoteByEmployeeId: builder.query<Note[], string>({
       query: (employeeId) => `/notes?employee_id=${employeeId}`,
+      transformResponse: (response: Note[]) => {
+        return response || [];
+      },
       providesTags: (result) => 
         result
           ? [
@@ -55,21 +68,8 @@ export const notesApi = apiSlice.injectEndpoints({
     
 
     // Create a new note
-    createNote: builder.mutation<Note, FormData | (Omit<Note, 'id'> & { fileData?: File })>({
-      query: (data) => {
-        const { fileData, ...noteData } = data as (Omit<Note, 'id'> & { fileData?: File });
-        const formData = new FormData();
-        
-        Object.entries(noteData).forEach(([key, value]) => {
-          if (value !== undefined && key !== 'files') {
-            formData.append(key, value.toString());
-          }
-        });
-        
-        if (fileData) {
-          formData.append('file', fileData);
-        }
-        
+    createNote: builder.mutation<Note, FormData>({
+      query: (formData) => {
         return {
           url: '/notes',
           method: 'POST',
@@ -105,7 +105,7 @@ export const notesApi = apiSlice.injectEndpoints({
         // Append all note data to form
         Object.entries(patch).forEach(([key, value]) => {
           // Skip undefined values, id (already extracted), and files array
-          if (value !== undefined && key !== 'files' && key !== 'id') {
+          if (value !== undefined && key !== 'files' && key !== 'id' && value !== null) {
             formData.append(key, value.toString());
           }
         });
@@ -127,7 +127,7 @@ export const notesApi = apiSlice.injectEndpoints({
     }),
     
     // Delete a note
-    deleteNote: builder.mutation<void, string>({
+    deleteNote: builder.mutation<string, string>({
       query: (id) => ({
         url: `/notes/${id}`,
         method: 'DELETE',
@@ -146,4 +146,4 @@ export const {
   useCreateNoteMutation,
   useUpdateNoteMutation,
   useDeleteNoteMutation,
-} = notesApi; 
+} = notesApi;

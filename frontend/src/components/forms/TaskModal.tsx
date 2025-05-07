@@ -22,7 +22,6 @@ import {
 import { Close, CloudUpload } from '@mui/icons-material';
 import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
-import { blob } from 'stream/consumers';
 
 interface TaskModalProps {
   projectName: string;
@@ -30,9 +29,10 @@ interface TaskModalProps {
   onSubmit: (taskData: FormData) => void;
   task?: Task;
   projectId: string;
+  isUploading?: boolean;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, task, projectId }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, task, projectId, isUploading = false }) => {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [status, setStatus] = useState(task?.status || 'To Do');
@@ -43,7 +43,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
   const [selectedProjectId, setSelectedProjectId] = useState(task?.project_id || projectId);
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
 
   // Fetch employees and projects data
   const { data: employees = [], isLoading: employeesLoading } = useGetEmployeesQuery();
@@ -51,7 +50,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsUploading(true);
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
@@ -69,7 +67,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
       // Just submit the task data without file
       onSubmit(formData);
     }
-    setIsUploading(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,6 +116,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                 variant="outlined"
                 margin="normal"
                 size="small"
+                disabled={isUploading}
               />
             </Grid>
             
@@ -130,6 +128,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   value={category}
                   label="Category"
                   onChange={(e) => setCategory(e.target.value)}
+                  disabled={isUploading}
                 >
                   <MenuItem value="To Buy">To Buy</MenuItem>
                   <MenuItem value="To Pay">To Pay</MenuItem>
@@ -152,6 +151,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   value={status}
                   label="Status"
                   onChange={(e) => setStatus(e.target.value)}
+                  disabled={isUploading}
                 >
                   <MenuItem value="To Do">To Do</MenuItem>
                   <MenuItem value="In Progress">In Progress</MenuItem>
@@ -173,6 +173,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                 variant="outlined"
                 margin="normal"
                 size="small"
+                disabled={isUploading}
               />
             </Grid>
             
@@ -184,6 +185,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   value={priority}
                   label="Priority"
                   onChange={(e) => setPriority(e.target.value)}
+                  disabled={isUploading}
                 >
                   <MenuItem value="Low">Low</MenuItem>
                   <MenuItem value="Medium">Medium</MenuItem>
@@ -205,6 +207,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                 variant="outlined"
                 margin="normal"
                 size="small"
+                disabled={isUploading}
               />
             </Grid>
 
@@ -216,6 +219,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   value={selectedProjectId}
                   label="Project"
                   onChange={(e) => setSelectedProjectId(e.target.value)}
+                  disabled={isUploading}
                 >
                   {projectsLoading ? (
                     <MenuItem disabled>Loading projects...</MenuItem>
@@ -238,6 +242,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   value={employeeId}
                   label="Employee"
                   onChange={(e) => setEmployeeId(e.target.value)}
+                  disabled={isUploading}
                 >
                   <MenuItem value="">None</MenuItem>
                   {employeesLoading ? (
@@ -274,6 +279,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   type="file"
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
+                  disabled={isUploading}
                 />
                 <label htmlFor="file-upload">
                   <Button
@@ -281,6 +287,7 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                     variant="outlined"
                     startIcon={<CloudUpload />}
                     sx={{ mb: 1 }}
+                    disabled={isUploading}
                   >
                     Upload File
                   </Button>

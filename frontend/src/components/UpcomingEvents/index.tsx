@@ -35,14 +35,14 @@ const UpcomingEvents: React.FC = () => {
 
   return (
     <Paper elevation={0} className="mui-events-container">
-      <Box p={2}>
-        <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={1} gutterBottom>
+      <Box>
+        <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={2} gutterBottom>
           <EventIcon color="primary" /> Upcoming Events
         </Typography>
-        <Divider sx={{ mb: 2 }} />
+        <Divider />
         
         {isLoading ? (
-          <Box display="flex" justifyContent="center" p={3}>
+          <Box display="flex" justifyContent="center" >
             <CircularProgress />
           </Box>
         ) : isError ? (

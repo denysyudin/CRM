@@ -40,14 +40,14 @@ const RecentNotes: React.FC = () => {
       borderRadius: 2,
       overflow: 'hidden'
     }}>
-      <Box p={2}>
-        <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={1} gutterBottom>
+      <Box>
+        <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={2} gutterBottom>
           <FormatListBulletedRoundedIcon color="primary" /> Recent Notes
         </Typography>
-        <Divider sx={{ mb: 2 }} />
+        <Divider />
 
         {isLoading ? (
-          <Box display="flex" justifyContent="center" p={3}>
+          <Box display="flex" justifyContent="center" >
             <CircularProgress />
           </Box>
         ) : isError ? (

@@ -82,13 +82,24 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     // Create root node - always show root directory
     const root: TreeNode = {
       id: 'root',
-      name: 'Root Folder',
+      name: 'Root',
       children: []
     };
     
+    // Create general folder
+    const generalFolder: TreeNode = {
+      id: 'general',
+      name: 'General',
+      children: []
+    };
+    
+    // Add general folder to root's children
+    root.children.push(generalFolder);
+    
     // Map of all nodes by id for quick access
     const nodesMap: Record<string, TreeNode> = {
-      'root': root
+      'root': root,
+      'general': generalFolder
     };
     
     // If we have all the required data, build the full tree
@@ -297,20 +308,6 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
             } : undefined
           }}
         >
-          {/* Connecting lines */}
-          {depth > 0 && (
-            <Box 
-              sx={{ 
-                position: 'absolute',
-                left: 1 + ((depth - 1) * 1.5) + 10,
-                width: 10,
-                height: 1,
-                top: '50%',
-                bgcolor: 'rgba(0, 0, 0, 0.12)',
-                display: 'block'
-              }}
-            />
-          )}
           
           <ListItemIcon sx={{ minWidth: 28, ml: hasChildren ? 0 : 2 }}>
             {hasChildren && (

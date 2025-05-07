@@ -1,20 +1,29 @@
-.app {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-  color: #000;
+/* 
+  App.css is now primarily for global styles and utility classes.
+  Layout-specific styles are now in MainLayout.css
+*/
+
+/* Global utility classes */
+.text-center {
+  text-align: center;
 }
 
-@media screen and (max-width: 768px) {
-  .app {
-    font-size: 14px;
-  }
+.text-right {
+  text-align: right;
 }
 
-@media screen and (max-width: 480px) {
-  .app {
-    font-size: 12px;
-  }
+.mb-1 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-2 {
+  margin-bottom: 1rem;
+}
+
+.mt-1 {
+  margin-top: 0.5rem;
+}
+
+.mt-2 {
+  margin-top: 1rem;
 } 

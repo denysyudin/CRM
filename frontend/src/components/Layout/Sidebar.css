@@ -1,8 +1,20 @@
+/* Add CSS variables if not already defined in a higher level stylesheet */
+:root {
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 80px;
+  --sidebar-bg: #ffffff;
+  --border-color: #e9ecef;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --accent-color: #3f51b5;
+  --shadow-color: rgba(0,0,0,0.1);
+}
+
 .sidebar-nav {
-  width: 240px;
-  background-color: var(--bg-color, #f8f9fa);
+  width: var(--sidebar-width);
+  background-color: var(--sidebar-bg);
   padding: 25px 15px;
-  border-right: 1px solid var(--border-color, #e9ecef);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -10,24 +22,37 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.3s ease, transform 0.3s ease, left 0.3s ease;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.sidebar-nav {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
 .sidebar-header {
   font-size: 1.5em;
   font-weight: 600;
-  color: var(--text-primary, #e4e5e6);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 0 10px 20px 10px;
-  border-bottom: 1px solid var(--border-color, #e9ecef);
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 20px;
 }
 
 .sidebar-header .logo-icon {
-  color: var(--accent-color, #007bff);
+  color: var(--accent-color);
 }
 
 .nav-list {
@@ -44,19 +69,19 @@
   padding: 12px 15px;
   border-radius: 6px;
   text-decoration: none;
-  color: var(--text-secondary, #6c757d);
+  color: var(--text-secondary);
   font-weight: 500;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .nav-list li a:hover {
-  background-color: #eef2f7;
-  color: var(--text-primary, #212529);
+  background-color: rgba(63, 81, 181, 0.08);
+  color: var(--text-primary);
 }
 
 .nav-list li a.active {
-  background-color: #e7f3ff;
-  color: var(--accent-color, #007bff);
+  background-color: rgba(63, 81, 181, 0.12);
+  color: var(--accent-color);
   font-weight: 600;
 }
 
@@ -64,6 +89,58 @@
   width: 20px;
   text-align: center;
   font-size: 1.1em;
+}
+
+/* Collapsed sidebar styles */
+.sidebar-collapsed .sidebar-nav {
+  width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-collapsed .sidebar-nav .logo-text,
+.sidebar-collapsed .sidebar-nav .nav-list li a span:not(.nav-icon) {
+  display: none;
+}
+
+.sidebar-collapsed .sidebar-nav .nav-list li a {
+  justify-content: center;
+  padding: 12px;
+}
+
+.sidebar-collapsed .sidebar-nav .nav-list li a .nav-icon {
+  margin: 0;
+  font-size: 1.3em;
+}
+
+/* Sidebar toggle/expand buttons */
+.sidebar-toggle, .sidebar-expand-button {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-toggle:hover, .sidebar-expand-button:hover {
+  background-color: rgba(63, 81, 181, 0.08);
+}
+
+.sidebar-expand-button {
+  position: absolute;
+  top: 15px;
+  right: -15px;
+  width: 30px;
+  height: 30px;
+  background-color: var(--accent-color);
+  color: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 10;
 }
 
 @media (max-width: 992px) {
@@ -89,14 +166,19 @@
     left: -250px;
     width: 250px;
     height: 100%;
-    transition: left 0.3s ease;
     z-index: 1000;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    box-shadow: 2px 0 5px var(--shadow-color);
+    transform: translateX(0);
+    transition: transform 0.3s ease, left 0.3s ease;
   }
   
   .sidebar-nav.mobile-visible {
-    background-color: var(--bg-color, #f8f9fa);
     left: 0;
+    transform: translateX(0);
+  }
+  
+  .sidebar-toggle {
+    display: block;
   }
 }
 
