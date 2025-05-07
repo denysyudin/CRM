@@ -35,7 +35,7 @@ export const notesApi = apiSlice.injectEndpoints({
       transformResponse: (response: Note) => {
         return response;
       },
-      providesTags: (result, error, id) => [{ type: 'Notes', id }],
+      providesTags: (id) => [{ type: 'Notes', id: id?.id || "LIST" }],
     }),
 
     getNoteByProjectId: builder.query<Note[], string>({
@@ -123,7 +123,7 @@ export const notesApi = apiSlice.injectEndpoints({
           formData: true,
         };
       },
-      invalidatesTags: (result, error, { id }) => [{ type: 'Notes', id }],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Notes', id: id?.toString() }],
     }),
     
     // Delete a note
@@ -132,7 +132,7 @@ export const notesApi = apiSlice.injectEndpoints({
         url: `/notes/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (result, error, id) => [{ type: 'Notes', id }],
+      invalidatesTags: (result, error, id) => [{ type: 'Notes', id: id?.toString() }],
     }),
   }),
 });

@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { Event } from '../services/api';
 
-import { useCreateEventMutation, useUpdateEventMutation, useDeleteEventMutation, useGetEventsQuery } from '../redux/api/eventsApi';
-
 interface EventModalProps {
   projectName: string;
   onClose: () => void;

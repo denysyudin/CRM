@@ -26,14 +26,6 @@ import {
   selectTasksByStatus,
   selectTasksByPriority
 } from '../redux/features/selectors';
-import {
-  selectAllNotes,
-  selectSelectedNote,
-  selectNotesLoading,
-  selectNotesError,
-  selectNotesByProject,
-  selectNotesByEmployee
-} from '../redux/features/selectors';
 
 // Use throughout your app instead of plain useDispatch and useSelector
 export const useAppDispatch = () => useDispatch<AppDispatch>();

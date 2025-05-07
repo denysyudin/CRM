@@ -14,8 +14,6 @@ import { useGetActiveProjectsQuery } from '../../redux/api/projectsApi';
 import { useGetRemindersQuery } from '../../redux/api/remindersApi';
 import { useGetEventsQuery } from '../../redux/api/eventsApi';
 
-import { Task, Project, Reminder, Events } from '../../types';
-
 interface MetricItemProps {
   icon: string;
   label: string;

@@ -14,7 +14,7 @@ import { useGetActiveProjectsQuery } from '../../redux/api/projectsApi';
 const ActiveProjects: React.FC = () => {
   const theme = useTheme();
   const [shouldFetch, setShouldFetch] = useState(false);
-  const { data = [], isLoading, isError } = useGetActiveProjectsQuery(undefined, {
+  const { data = [] } = useGetActiveProjectsQuery(undefined, {
     skip: !shouldFetch
   });
 

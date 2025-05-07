@@ -82,6 +82,8 @@ const Calendar: React.FC = () => {
   const { data: projects = [] } = useGetProjectsQuery();
 
   const [formError, setFormError] = useState<string | null>(null);
+
+  const localtimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   
   // Notification state
   const [notification, setNotification] = useState<{message: string; type: 'success' | 'error' | 'info'; open: boolean}>({
@@ -506,7 +508,12 @@ const Calendar: React.FC = () => {
                 <Chip
                   key={index}
                   size="small"
-                  label={`${event.due_date.slice(11, 16)} ${event.title}`}
+                  label={`${new Date(event.due_date).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    hour12: false, 
+                    timeZone: localtimeZone 
+                  })} ${event.title}`}
                   color={getEventColor(event.type) as any}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -686,7 +693,12 @@ const Calendar: React.FC = () => {
                       </Grid>
                       <Grid item xs={12} sm={6}>
                         <Typography variant="subtitle2" color="text.secondary">Time</Typography>
-                        <Typography variant="body1">{selectedEvent.due_date.slice(11, 16) || 'All Day'}</Typography>
+                        <Typography variant="body1">{`${new Date(selectedEvent.due_date).toLocaleTimeString('en-US', { 
+                          hour: '2-digit', 
+                          minute: '2-digit', 
+                          hour12: false, 
+                          timeZone: localtimeZone 
+                        })}` || 'All Day'}</Typography>
                       </Grid>
                       <Grid item xs={12}>
                         <Typography variant="subtitle2" color="text.secondary">Type</Typography>

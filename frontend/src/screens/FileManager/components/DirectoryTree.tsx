@@ -53,7 +53,7 @@ interface DirectoryTreeProps {
 }
 
 const DirectoryTree: React.FC<DirectoryTreeProps> = ({
-  files,
+  // files,
   currentFolder,
   onFolderSelect,
   loading

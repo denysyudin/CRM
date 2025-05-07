@@ -512,9 +512,6 @@ const EmployeePage: React.FC = () => {
     return projects.find((project: Project) => project.id === id);
   };
 
-  // Calculate drawer width
-  const drawerWidth = 240;
-
   // Check if data is loading
   const isLoading = employeesLoading || notesLoading || tasksLoading || remindersLoading || projectsLoading;
 
@@ -691,7 +688,8 @@ const EmployeePage: React.FC = () => {
           onConfirm={confirmDialog.confirmAction}
           onCancel={closeConfirmDialog}
           severity="error"
-          confirmText="Delete"
+          confirmText="Yes"
+          cancelText="No"
         />
 
         {/* Notification Snackbar */}

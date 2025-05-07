@@ -13,8 +13,8 @@ import {
   Paper,
   List,
   ListItem,
-  ListItemText,
-  ListItemIcon,
+  // ListItemText,
+  // ListItemIcon,
   Chip,
   IconButton,
   CircularProgress,
@@ -36,7 +36,7 @@ import {
   AlertColor
 } from '@mui/material';
 import {
-  FolderOutlined,
+  // FolderOutlined,
   AddCircleOutline,
   ListAlt,
   NoteAlt,
@@ -97,22 +97,22 @@ import {
 } from '../../redux/api/filesApi';
 
 // Import ReminderData interface 
-import { ReminderData } from '../../components/common';
+// import { ReminderData } from '../../components/common';
 
 // Dictionary type for collections of items by ID
 type ItemDict<T> = {
   [key: string]: T;
 };
 
-interface FilePayload {
-  id?: string;
-  title: string;
-  type: string;
-  project_id: string;
-  task_id?: string;
-  note_id?: string;
-  file_data?: FormData;
-}
+// interface FilePayload {
+//   id?: string;
+//   title: string;
+//   type: string;
+//   project_id: string;
+//   task_id?: string;
+//   note_id?: string;
+//   file_data?: FormData;
+// }
 
 interface EventPayload {
   id: string;
@@ -441,64 +441,64 @@ const LinkedItemsList = React.memo(({
 });
 
 // Project list item component
-const ProjectListItem = React.memo(({
-  project,
-  isActive,
-  onSelect
-}: {
-  project: Project,
-  isActive: boolean,
-  onSelect: (id: string) => void
-}) => {
-  const statusColors: Record<string, string> = {
-    'notstarted': 'default',
-    'inprogress': 'primary',
-    'onhold': 'warning',
-    'completed': 'success',
-    'canceled': 'error'
-  };
+// const ProjectListItem = React.memo(({
+//   project,
+//   isActive,
+//   onSelect
+// }: {
+//   project: Project,
+//   isActive: boolean,
+//   onSelect: (id: string) => void
+// }) => {
+//   const statusColors: Record<string, string> = {
+//     'notstarted': 'default',
+//     'inprogress': 'primary',
+//     'onhold': 'warning',
+//     'completed': 'success',
+//     'canceled': 'error'
+//   };
 
-  const statusKey = project.status.toLowerCase().replace(' ', '');
+//   const statusKey = project.status.toLowerCase().replace(' ', '');
 
-  return (
-    <ListItem
-      button
-      selected={isActive}
-      onClick={() => onSelect(project.id)}
-      sx={{
-        borderRadius: 1,
-        mb: 1,
-        '&.Mui-selected': {
-          backgroundColor: 'primary.light',
-          '&:hover': {
-            backgroundColor: 'primary.light',
-          }
-        }
-      }}
-    >
-      <ListItemIcon>
-        <FolderOutlined />
-      </ListItemIcon>
-      <ListItemText
-        primary={project.title}
-        secondary={
-          <Box display="flex" alignItems="center" flexWrap="wrap" gap={0.5}>
-            <Chip
-              size="small"
-              label={project.status}
-              color={statusColors[statusKey] as any || 'default'}
-            />
-            {project.start_date && (
-              <Typography variant="caption">
-                Started: {project.start_date}
-              </Typography>
-            )}
-          </Box>
-        }
-      />
-    </ListItem>
-  );
-});
+//   return (
+//     <ListItem
+//       button
+//       selected={isActive}
+//       onClick={() => onSelect(project.id)}
+//       sx={{
+//         borderRadius: 1,
+//         mb: 1,
+//         '&.Mui-selected': {
+//           backgroundColor: 'primary.light',
+//           '&:hover': {
+//             backgroundColor: 'primary.light',
+//           }
+//         }
+//       }}
+//     >
+//       <ListItemIcon>
+//         <FolderOutlined />
+//       </ListItemIcon>
+//       <ListItemText
+//         primary={project.title}
+//         secondary={
+//           <Box display="flex" alignItems="center" flexWrap="wrap" gap={0.5}>
+//             <Chip
+//               size="small"
+//               label={project.status}
+//               color={statusColors[statusKey] as any || 'default'}
+//             />
+//             {project.start_date && (
+//               <Typography variant="caption">
+//                 Started: {project.start_date}
+//               </Typography>
+//             )}
+//           </Box>
+//         }
+//       />
+//     </ListItem>
+//   );
+// });
 
 // Project details section component with corrected props
 const ProjectDetailSection = React.memo(({
@@ -591,7 +591,7 @@ const Projects: React.FC = () => {
   
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [isSubmittingProject, setIsSubmittingProject] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  // const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   // Form error state
   const [formError, setFormError] = useState<string | null>(null);
@@ -642,13 +642,13 @@ const Projects: React.FC = () => {
   const [createTask, { isLoading: isCreatingTask }] = useCreateTaskMutation();
   const [createNote, { isLoading: isCreatingNote }] = useCreateNoteMutation();
   const [createEvent, { isLoading: isCreatingEvent }] = useCreateEventMutation();
-  const [createReminder, { isLoading: isCreatingReminder }] = useCreateReminderMutation();
-  const [updateTask, { isLoading: isUpdatingTask }] = useUpdateTaskMutation();
-  const [deleteTask, { isLoading: isDeletingTask }] = useDeleteTaskMutation();
+  const [createReminder] = useCreateReminderMutation();
+  const [updateTask] = useUpdateTaskMutation();
+  const [deleteTask] = useDeleteTaskMutation();
 
   // Initialize empty states for modal forms
-  const [newTask, setNewTask] = useState<Partial<Task>>({});
-  const [newNote, setNewNote] = useState<Partial<Note>>({});
+  // const [newTask, setNewTask] = useState<Partial<Task>>({});
+  // const [newNote, setNewNote] = useState<Partial<Note>>({});
   const [newEvent, setNewEvent] = useState<EventFormData>({
     id: '',
     title: '',
@@ -694,19 +694,19 @@ const Projects: React.FC = () => {
   }, [selectedProjectId, projectsDict, projects]);
 
   // Set sidebar state based on screen size
-  useEffect(() => {
-    setSidebarOpen(!isMobile);
-  }, [isMobile]);
+  // useEffect(() => {
+  //   setSidebarOpen(!isMobile);
+  // }, [isMobile]);
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen(prev => !prev);
-  }, []);
+  // const toggleSidebar = useCallback(() => {
+  //   setSidebarOpen(prev => !prev);
+  // }, []);
 
   const selectProject = useCallback((projectId: string) => {
     setSelectedProjectId(projectId);
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
+      // if (isMobile) {
+      //   setSidebarOpen(false);
+      // }
   }, [isMobile]);
 
   // Generic form change handlers
@@ -741,9 +741,9 @@ const Projects: React.FC = () => {
   };
 
   // Task form handler
-  const handleTaskFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    handleInputChange(e, setNewTask);
-  };
+  // const handleTaskFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  //   handleInputChange(e, setNewTask);
+  // };
 
   // Modal handlers
   const handleAddLinkedItem = (type: string) => {
@@ -812,7 +812,7 @@ const Projects: React.FC = () => {
     if (!selectedProject) return;
 
     try {
-      const result = await createTask(taskData as FormData).unwrap();
+    await createTask(taskData as FormData).unwrap();
       showNotification('Task created successfully', 'success');
       setShowAddTaskModal(false);
     } catch (error) {
@@ -846,13 +846,13 @@ const Projects: React.FC = () => {
       if (fileData && newNote.id) {
         try {
           // Create a proper File object for the API
-          const filePayload: FilePayload = {
-            title: fileData.get('fileName') as string || 'Untitled File',
-            type: 'note-attachment',
-            project_id: selectedProject.id,
-            note_id: newNote.id,
-            file_data: fileData
-          };
+          // const filePayload: FilePayload = {
+          //   title: fileData.get('fileName') as string || 'Untitled File',
+          //   type: 'note-attachment',
+          //   project_id: selectedProject.id,
+          //   note_id: newNote.id,
+          //   file_data: fileData
+          // };
 
           // formData.append('file', fileData.)
           console.log('File uploaded successfully');
@@ -870,26 +870,26 @@ const Projects: React.FC = () => {
     }
   };
 
-  const handleEventSubmit = async (eventData: Omit<Events, 'id'>) => {
-    if (!selectedProject) return;
+  // const handleEventSubmit = async (eventData: Omit<Events, 'id'>) => {
+  //   if (!selectedProject) return;
 
-    try {
-      // Create event with required id field
-      const eventPayload: EventPayload = {
-        id: '',  // This will be assigned by the server
-        ...eventData as any,
-        project_id: selectedProject.id
-      };
+  //   try {
+  //     // Create event with required id field
+  //     const eventPayload: EventPayload = {
+  //       id: '',  // This will be assigned by the server
+  //       ...eventData as any,
+  //       project_id: selectedProject.id
+  //     };
 
-      // Use createEvent mutation from RTK Query
-      const result = await createEvent(eventPayload as any).unwrap();
-      showNotification(`Event "${result.title}" created successfully`, 'success');
-      setShowAddEventModal(false);
-    } catch (error) {
-      console.error('Failed to add event:', error);
-      showNotification('Failed to add event. Please try again.', 'error');
-    }
-  };
+  //     // Use createEvent mutation from RTK Query
+  //     const result = await createEvent(eventPayload as any).unwrap();
+  //     showNotification(`Event "${result.title}" created successfully`, 'success');
+  //     setShowAddEventModal(false);
+  //   } catch (error) {
+  //     console.error('Failed to add event:', error);
+  //     showNotification('Failed to add event. Please try again.', 'error');
+  //   }
+  // };
 
   const handleEventFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1017,7 +1017,7 @@ const Projects: React.FC = () => {
       async () => {
         try {
           // Call the deleteTask mutation
-          const result = await deleteTask(taskId).unwrap();
+          await deleteTask(taskId).unwrap();
           console.log(`Task ${taskId} deleted successfully`);
           showNotification('Task deleted successfully', 'success');
         } catch (error) {
@@ -1036,7 +1036,7 @@ const Projects: React.FC = () => {
       async () => {
         try {
           // Use deleteProject mutation from RTK Query
-          const result = await deleteProject(projectId).unwrap();
+          await deleteProject(projectId).unwrap();
           setSelectedProjectId(null);
           showNotification('Project deleted successfully', 'success');
         } catch (error) {
@@ -1057,7 +1057,7 @@ const Projects: React.FC = () => {
       };
 
       // Call the updateTask mutation
-      const result = await updateTask(updatePayload).unwrap();
+      await updateTask(updatePayload).unwrap();
       console.log(`Task ${taskId} status updated to ${newStatus}`);
       showNotification(`Task status updated to "${newStatus}"`, 'success');
     } catch (error) {
@@ -1122,7 +1122,7 @@ const Projects: React.FC = () => {
       }}>
         <Box
           sx={{
-            borderBottom: 1, borderColor: 'divider'
+            borderBottom: 1, borderColor: 'divider', padding: 2
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>

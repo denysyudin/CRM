@@ -11,11 +11,8 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  Close as CloseIcon,
   CalendarToday as CalendarIcon,
-  CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  Info as InfoIcon,
   Folder as FolderIcon,
   Person as PersonIcon,
   Menu as MenuIcon,
@@ -163,10 +160,10 @@ const Reminders: React.FC = () => {
   const toggleReminderStatus = async (id: string) => {
     console.log(`Reminders: Toggling status for reminder ${id}`);
     const reminder = reminders.find(r => r.id === id);
-    const newReminder = {
-      ...reminder,
-      status: !reminder?.status
-    };
+    // const newReminder = {
+    //   ...reminder,
+    //   status: !reminder?.status
+    // };
     if (reminder) {
       const status = !reminder.status;
       try {
@@ -222,8 +219,6 @@ const Reminders: React.FC = () => {
   const handleNewReminder = () => {
     // Get current date and time
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const timeStr = now.toTimeString().substring(0, 5);
     
     setEditingReminder(null);
     setNewReminder({
@@ -245,8 +240,7 @@ const Reminders: React.FC = () => {
     if (reminder) {
       // Parse date and time from due_date
       const dueDate = new Date(reminder.due_date);
-      const dateStr = dueDate.toISOString().split('T')[0];
-      const timeStr = dueDate.toTimeString().substring(0, 5);
+      // const dateStr = dueDate.toISOString().split('T')[0];
       console.log('Reminders: Editing reminder', reminder);
       setNewReminder({
         id: reminder.id,

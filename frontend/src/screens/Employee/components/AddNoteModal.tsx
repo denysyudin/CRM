@@ -1,20 +1,23 @@
-import React, { useState } from 'react';
-import { NoteModal, NoteData } from '../../../components';
+import React from 'react';
+import { NoteModal } from '../../../components';
 import { Employee } from '../../../types/employee.types';
-
+import { Note } from '../../../types/note.types';
 interface AddNoteModalProps {
   employee: Employee | null;
-  onSave: (noteData: any) => void;
+  onSave: (noteData: Note) => void;
   onClose: () => void;
 }
 
 const AddNoteModal: React.FC<AddNoteModalProps> = ({ employee, onSave, onClose }) => {
   // Default initial data for the note
-  const initialNoteData: NoteData = {
+  const initialNoteData: Note = {
+    id: '',
     title: '',
     description: '',
     project_id: '',
-    files: []
+    file: [],
+    employee_id: '',
+    created_at: ''
   };
 
   // Projects list will vary depending on your application
@@ -26,15 +29,8 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({ employee, onSave, onClose }
   ];
 
   // Wrapper function to adapt to the expected interface
-  const handleSaveNote = async (noteData: NoteData) => {
-    onSave({
-      title: noteData.title,
-      body: noteData.description, // Map description to body
-      category: 'General',
-      project: noteData.project_id,
-      employeeId: employee?.id,
-      date: new Date().toISOString()
-    });
+  const handleSaveNote = async (noteData: Note) => {
+    onSave(noteData);
   };
 
   return (
@@ -44,7 +40,7 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({ employee, onSave, onClose }
       onSave={handleSaveNote}
       editMode={false}
       initialData={initialNoteData}
-      projects={projects}
+      projects={projects as any}
     />
   );
 };

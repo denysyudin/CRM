@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../../components/Layout/Sidebar';
 import { useGetTasksQuery, useUpdateTaskMutation } from '../../redux/api/tasksApi';
 import { Task } from '../../types/task.types';
 import { 
@@ -21,12 +20,10 @@ import {
   CardContent,
   CircularProgress,
   Button,
-  useMediaQuery,
-  useTheme,
+  // useTheme,
   Divider
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
   FiberManualRecord as StatusIcon,
   ShoppingCart as ShoppingCartIcon,
   AttachMoney as MoneyIcon,
@@ -37,7 +34,7 @@ import {
 } from '@mui/icons-material';
 
 const TaskDashboard: React.FC = () => {
-  const theme = useTheme();
+  // const theme = useTheme();
   const [shouldFetch, setShouldFetch] = useState(true);
   const { data = [], isLoading, isError, refetch } = useGetTasksQuery(undefined, {
     skip: !shouldFetch
@@ -57,21 +54,17 @@ const TaskDashboard: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  // const [sidebarOpen, setSidebarOpen] = useState(true);
+  // const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Set sidebar state based on screen size
-  useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    } else {
-      setSidebarOpen(true);
-    }
-  }, [isMobile]);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  // useEffect(() => {
+  //   if (isMobile) {
+  //     setSidebarOpen(false);
+  //   } else {
+  //     setSidebarOpen(true);
+  //   }
+  // }, [isMobile]);
 
   // Handle status circle click
   const handleStatusChange = (taskId: string) => {

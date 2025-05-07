@@ -8,7 +8,7 @@ const TodaysTasks: React.FC = () => {
   const [shouldFetch, setShouldFetch] = useState(false);
   
   // Check if we have data in the cache first
-  const { data: tasks, isLoading, isError, error, refetch } = useGetTasksQuery({}, {
+  const { data: tasks, isLoading, isError, error } = useGetTasksQuery({}, {
     skip: !shouldFetch
   });
 

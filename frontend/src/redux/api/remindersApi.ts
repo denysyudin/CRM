@@ -21,7 +21,7 @@ export const remindersApi = apiSlice.injectEndpoints({
     // Get a single reminder by ID
     getReminderById: builder.query<Reminder, string>({
       query: (id) => `/reminders/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Reminders', id }],
+      providesTags: (result, error, id) => [{ type: 'Reminders', id: id?.toString() || "LIST" }],
     }),
     
     getReminderByProjectId: builder.query<Reminder[], string>({

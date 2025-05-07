@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import DirectoryTree, { FileTreeContext } from './components/DirectoryTree';
+import { FileTreeContext } from './components/DirectoryTree';
+// import DirectoryTree from './components/DirectoryTree';
 import {
   Box,
   Breadcrumbs,
-  Button,
   CircularProgress,
   IconButton,
   List,
@@ -13,7 +13,6 @@ import {
   ListItemText,
   Menu,
   MenuItem,
-  Modal,
   Paper,
   Typography,
   useTheme
@@ -28,12 +27,10 @@ import VideoFileIcon from '@mui/icons-material/VideoFile';
 import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import DeleteIcon from '@mui/icons-material/Delete';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+    import MoreVertIcon from '@mui/icons-material/MoreVert';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 
-import { useGetFilesQuery, useCreateFileMutation, useDeleteFileMutation } from '../../redux/api/filesApi';
+import { useGetFilesQuery, useDeleteFileMutation } from '../../redux/api/filesApi';
 import { File } from '../../types';
 
 const FileManager: React.FC = () => {
@@ -44,7 +41,6 @@ const FileManager: React.FC = () => {
   const [currentFolder, setCurrentFolder] = useState<string>('root');
   const [folderPath, setFolderPath] = useState<{id: string, name: string}[]>([{id: 'root', name: 'My Drive'}]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
   const [generalFolderId, setGeneralFolderId] = useState<string>('general');
@@ -53,7 +49,7 @@ const FileManager: React.FC = () => {
   // Use the API query hook
   const { data: filesData, isLoading, isError } = useGetFilesQuery();
   const [deleteFile] = useDeleteFileMutation();
-  const [createFile] = useCreateFileMutation();
+  // const [createFile] = useCreateFileMutation();
   
   // Load files when component mounts or when the query data changes
   useEffect(() => {
@@ -328,12 +324,12 @@ const FileManager: React.FC = () => {
             display: { xs: 'none', sm: 'block' },
             borderRadius: 1,
           }}>
-            <DirectoryTree 
+            {/* <DirectoryTree 
               files={allFiles}
               currentFolder={currentFolder}
               onFolderSelect={(folderId, folderName, context) => navigateToFolder(folderId, folderName, context)}
               loading={loading || isLoading}
-            />
+            /> */}
           </Paper>
           
           {/* Files List */}

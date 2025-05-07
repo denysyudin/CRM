@@ -35,7 +35,7 @@ export const eventsApi = apiSlice.injectEndpoints({
 
     getEventById: builder.query<Events, string>({
       query: (id) => `/events/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Events', id }],
+      providesTags: (id) => [{ type: 'Events', id: id?.id || "LIST" }],
     }),
     
     createEvent: builder.mutation<Events, Events>({
@@ -72,3 +72,4 @@ export const {
   useCreateEventMutation, 
   useUpdateEventMutation, 
   useDeleteEventMutation } = eventsApi;
+
