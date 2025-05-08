@@ -255,7 +255,10 @@ async def create_project(project: ProjectBase):
     
     now = get_current_timestamp()
     project_data["created_at"] = now
-    
+    if project_data.get("start_date") == "":
+        project_data["start_date"] = None
+    if project_data.get("end_date") == "":
+        project_data["end_date"] = None
     response = supabase.table("projects").insert(project_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create project")
