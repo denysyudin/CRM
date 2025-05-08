@@ -81,13 +81,13 @@ class FileBase(BaseModel):
     id: Optional[str] = None
     title: str
     file_type: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[str] = None
     project_id: Optional[str] = None
     employee_id: Optional[str] = None
     note_id: Optional[str] = None
-    event_id: Optional[str] = None
+    task_id: Optional[str] = None
     created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    file_size: Optional[str] = None
 
 class EmployeeBase(BaseModel):
     id: Optional[str] = None
@@ -635,19 +635,18 @@ async def delete_note(note_id: str):
     try:
         file_url = check_response.data[0]["file_url"]
         if file_url:
-            delete_file_from_drive(file_url)
-            response_file = supabase.table("files").delete().eq("file_url", file_url).execute()
+            file_id = supabase.table("files").select("*").eq("file_path", file_url).execute().data[0]["id"]
+            delete_file_from_drive(file_id)
+            response_file = supabase.table("files").delete().eq("id", file_id).execute()
             if not response_file.data:
                 raise HTTPException(status_code=400, detail="Failed to delete file")
+            response = supabase.table("notes").delete().eq("id", note_id).execute()
+            if not response.data:
+                raise HTTPException(status_code=400, detail="Failed to delete note")
+            return {"message": "Note deleted successfully"}
     except Exception as e:
         print(f"File deletion failed: {str(e)}")
     #delete the note from supabase
-    response = supabase.table("notes").delete().eq("id", note_id).execute()
-    print(response)
-    if not response.data:
-        raise HTTPException(status_code=400, detail="Failed to delete note")
-    return {"message": "Note deleted successfully"}
-
 # Events
 @app.get("/events")
 async def get_events(project_id: Optional[str] = None, employee_id: Optional[str] = None):
@@ -789,6 +788,7 @@ async def get_files(project_id: Optional[str] = None):
         query = query.eq("project_id", project_id)
     
     response = query.execute()
+    
     if response.data is None:
         return []
     return response.data

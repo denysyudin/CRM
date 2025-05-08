@@ -16,12 +16,10 @@ import {
   SelectChangeEvent,
   TextField,
   Typography,
-  CircularProgress,
-  FormHelperText
+  CircularProgress
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
-import { CloudUpload } from '@mui/icons-material';
 
 const modalStyle = {
   position: 'absolute',
@@ -45,6 +43,7 @@ interface NoteModalProps {
   projects: Project[];
   isUploading?: boolean;
   uploadProgress?: number;
+  attachedFiles: string;
 }
 
 const NoteModal: React.FC<NoteModalProps> = ({
@@ -54,7 +53,8 @@ const NoteModal: React.FC<NoteModalProps> = ({
   editMode,
   initialData,
   projects,
-  isUploading = false
+  isUploading = false,
+  attachedFiles
 }) => {
   const [noteData, setNoteData] = useState<Note>(initialData);
 
@@ -83,19 +83,19 @@ const NoteModal: React.FC<NoteModalProps> = ({
             <CloseIcon />
           </IconButton>
         </Box>
-
+        
         <Divider sx={{ mb: 3 }} />
 
         {isUploading && (
-          <Box sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            display: 'flex',
+          <Box sx={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            display: 'flex', 
             flexDirection: 'column',
-            alignItems: 'center',
+            alignItems: 'center', 
             justifyContent: 'center',
             backgroundColor: 'rgba(255, 255, 255, 0.8)',
             zIndex: 1
@@ -162,39 +162,7 @@ const NoteModal: React.FC<NoteModalProps> = ({
             </FormControl>
           </Grid>
           <Grid item xs={12}>
-            <Box
-              sx={{
-                border: '1px dashed', 
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  p: 2,
-                  mt: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: 'background.default'
-              }}>
-            <input
-              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-              id="file-upload"
-              type="file"
-              // onChange={handleFileChange}
-              style={{ display: 'none' }}
-              disabled={isUploading}
-            />
-            <label htmlFor="file-upload">
-              <Button
-                component="span"
-                variant="outlined"
-                startIcon={<CloudUpload />}
-                sx={{ mb: 1 }}
-                disabled={isUploading}
-              >
-                Upload File
-              </Button>
-            </label>
-            {/* <Button
+            <Button
               component="label"
               variant="outlined"
               startIcon={<AddIcon />}
@@ -217,31 +185,31 @@ const NoteModal: React.FC<NoteModalProps> = ({
                 }}
                 disabled={isUploading}
               />
-            </Button> */}
-
+            </Button>
+            
             {/* Display existing file if editing a note with an attached file */}
             {editMode && noteData.existingFile && (
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                 <Typography variant="body2">
-                  Currently attached:
-                  <a
-                    href={noteData.existingFile.url}
-                    target="_blank"
+                  Attached File: 
+                  <a 
+                    href={noteData.existingFile.url} 
+                    target="_blank" 
                     rel="noopener noreferrer"
                     style={{ marginLeft: '4px', textDecoration: 'underline' }}
                   >
-                    {noteData.existingFile.name}
+                    {attachedFiles}
                   </a>
                 </Typography>
               </Box>
             )}
-
+            
             {noteData.file && noteData.file.length > 0 && (
               <Box sx={{ display: 'flex', flexDirection: 'column', mt: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body2">{noteData.file.map(file => file.name).join(', ')}</Typography>
-                  <IconButton
-                    size="small"
+                  <IconButton 
+                    size="small" 
                     onClick={() => setNoteData(prev => ({ ...prev, file: [] }))}
                     disabled={isUploading}
                   >
@@ -250,10 +218,6 @@ const NoteModal: React.FC<NoteModalProps> = ({
                 </Box>
               </Box>
             )}
-            <FormHelperText>
-                  Supported formats: Images, PDF, Word, Excel, and Text files
-                </FormHelperText>
-            </Box>
           </Grid>
         </Grid>
 

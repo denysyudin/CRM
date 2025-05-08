@@ -3,7 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { useGetNotesQuery, useUpdateNoteMutation, useCreateNoteMutation, useDeleteNoteMutation } from '../../redux/api/notesApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
 import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
+import { useGetFilesQuery } from '../../redux/api/filesApi';
 import { Note } from '../../types/note.types';
+// import { File } from '../../types/file.types';
 import './styles.css';
 import {
   TextField,
@@ -49,12 +51,13 @@ const Notes: React.FC = () => {
   console.log('notes', notes);
   const { data: projects = [], isLoading: projectsLoading, isError: projectsError } = useGetProjectsQuery();
   const { data: employees = [], isLoading: employeesLoading, isError: employeesError } = useGetEmployeesQuery();
-
+  const { data: files = [] } = useGetFilesQuery();
   // RTK Query mutation hooks with loading states
   const [updateNoteMutation, { isLoading: isUpdating }] = useUpdateNoteMutation();
   const [createNoteMutation, { isLoading: isCreating }] = useCreateNoteMutation();
   const [deleteNoteMutation, { isLoading: isDeleting }] = useDeleteNoteMutation();
 
+  console.log('files', files);
   // Combined loading state for data fetching
   const isLoading = notesLoading || projectsLoading || employeesLoading;
   
@@ -226,6 +229,7 @@ const Notes: React.FC = () => {
         if (response) {
           if (selectedNote?.id === noteData.id) {
             setSelectedNote(response as Note);
+            console.log('selectedNote', selectedNote);
           }
           showNotification('Note updated successfully');
           handleCloseModal();
@@ -596,6 +600,7 @@ const Notes: React.FC = () => {
           projects={projects}
           isUploading={isCrudOperation}
           uploadProgress={uploadProgress}
+          attachedFiles={files.find(file => file.file_path === selectedNote?.file_url)?.title || ''}
         />
 
         {/* Note Detail View */}
@@ -658,7 +663,7 @@ const Notes: React.FC = () => {
                     rel="noopener noreferrer"
                     sx={{ textDecoration: 'underline' }}
                   >
-                    {selectedNote.file_url.split('/').pop() || 'Download File'}
+                    {files.find(file => file.file_path === selectedNote.file_url)?.title || 'DownloadFile'}
                   </Link>
                 </Box>
               </Box>

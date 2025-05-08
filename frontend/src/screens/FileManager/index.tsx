@@ -3,7 +3,6 @@ import { FileTreeContext } from './components/DirectoryTree';
 import DirectoryTree from './components/DirectoryTree';
 import {
   Box,
-  Breadcrumbs,
   CircularProgress,
   IconButton,
   List,
@@ -27,8 +26,7 @@ import VideoFileIcon from '@mui/icons-material/VideoFile';
 import AudioFileIcon from '@mui/icons-material/AudioFile';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import DeleteIcon from '@mui/icons-material/Delete';
-    import MoreVertIcon from '@mui/icons-material/MoreVert';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 
 import { useGetFilesQuery, useDeleteFileMutation } from '../../redux/api/filesApi';
 import { File } from '../../types';
@@ -64,9 +62,6 @@ const FileManager: React.FC = () => {
         }
         return file;
       });
-      // Make sure project directories exist
-      const projectFolders = new Set<string>();
-      
       // Collect all unique project IDs
       setAllFiles(processedFiles);
       
