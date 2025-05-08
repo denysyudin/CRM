@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useGetTasksQuery, useUpdateTaskMutation } from '../../redux/api/tasksApi';
+import { useGetTasksQuery, useUpdateTaskMutation, useCreateTaskMutation } from '../../redux/api/tasksApi';
 import { useGetFilesQuery } from '../../redux/api/filesApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
+import TaskModal from '../../components/forms/TaskModal';
 import { Task } from '../../types/task.types';
 import { 
   Box, 
@@ -22,8 +23,10 @@ import {
   CardContent,
   CircularProgress,
   Button,
-  // useTheme,
-  Divider
+  Divider,
+  AlertColor,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import {
   FiberManualRecord as StatusIcon,
@@ -35,13 +38,19 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material';
 
+import AddIcon from '@mui/icons-material/Add';
+
 const TaskDashboard: React.FC = () => {
   // const theme = useTheme();
 
   const { data: filesData = [], } = useGetFilesQuery();
   const { data: projectsData = [], } = useGetProjectsQuery();
 
+  const [createTask, { isLoading: isCreatingTask }] = useCreateTaskMutation();
+
   const [shouldFetch, setShouldFetch] = useState(true);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+
   const { data = [], isLoading, isError, refetch } = useGetTasksQuery(undefined, {
     skip: !shouldFetch
   });
@@ -51,8 +60,8 @@ const TaskDashboard: React.FC = () => {
       setShouldFetch(true);
     }
   }, [data]);
+  
   const [updateTask] = useUpdateTaskMutation();
-
   const tasks = data as unknown as Task[];
   
   const tasksLoading = isLoading;
@@ -61,6 +70,26 @@ const TaskDashboard: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
+
+    // Notification state
+  const [notification, setNotification] = useState<{
+      open: boolean;
+      message: string;
+      type: AlertColor;
+    }>({
+      open: false,
+      message: '',
+      type: 'success'
+    });
+
+  // Handle notification close
+  const handleCloseNotification = (_?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setNotification({ ...notification, open: false });
+  };
+
   // const [sidebarOpen, setSidebarOpen] = useState(true);
   // const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -120,7 +149,9 @@ const TaskDashboard: React.FC = () => {
       }
       
       setDraggedTask(null);
+      showNotification('Task status updated', 'success');
     }
+
   };
 
   const getTasksByCategory = () => {
@@ -179,6 +210,7 @@ const TaskDashboard: React.FC = () => {
           if (!disable) {
             e.stopPropagation();
             handleStatusChange(taskId);
+            showNotification('Task status updated', 'success');
           }
         }}
       >
@@ -259,6 +291,25 @@ const TaskDashboard: React.FC = () => {
       default:
         return <AssignmentIcon fontSize="small" />;
     }
+  };
+
+  const handleTaskSubmit = async (taskData: FormData) => {
+    try {
+      await createTask(taskData as FormData).unwrap();
+      showNotification('Task created successfully', 'success');
+      setShowTaskModal(false);
+    } catch (error) {
+      console.error('Failed to add task:', error);
+      showNotification('Failed to add task. Please try again.', 'error');
+    }
+  };
+
+  const showNotification = (message: string, type: AlertColor = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      type
+    });
   };
 
   return (
@@ -536,6 +587,56 @@ const TaskDashboard: React.FC = () => {
           )}
         </Box>
       </Modal>
+
+      {/* Add Task Modal */}
+      {
+        showTaskModal && (
+          <TaskModal
+            projectName=""
+            projectId=""
+            onClose={() => setShowTaskModal(false)}
+            onSubmit={handleTaskSubmit}
+            task={undefined}
+            isUploading={isCreatingTask}
+          />
+        )
+      }
+
+
+      {/* Add Task Button */}
+      <IconButton
+        onClick={() => setShowTaskModal(true)}
+        aria-label="Add Task"
+        sx={{
+            position: 'fixed',
+            bottom: 20,
+            right: 20,
+            bgcolor: 'primary.main',
+            color: 'white',
+            '&:hover': {
+                bgcolor: 'primary.dark',
+            },
+            zIndex: 1000
+        }}
+      >
+        <AddIcon />
+      </IconButton>
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={4000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseNotification} 
+          severity={notification.type} 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

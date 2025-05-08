@@ -43,14 +43,18 @@ const Dashboard: React.FC = () => {
     };
     
     // Scroll to top function
-    const scrollToTop = () => {
-        if (mainContentRef.current) {
-            mainContentRef.current.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        }
-    };
+    // const scrollToTop = () => {
+    //     // if (mainContentRef.current) {
+    //     //     mainContentRef.current.scrollTo({
+    //     //         top: 0,
+    //     //         behavior: 'smooth'
+    //     //     });
+    //     // }
+    //     window.scrollTo({
+    //         top: 0,
+    //         behavior: 'smooth'
+    //     });
+    // };
 
     return (
         <Container 
@@ -193,8 +197,8 @@ const Dashboard: React.FC = () => {
             </Grid>
             
             {/* Scroll to top button */}
-            <IconButton
-                onClick={scrollToTop}
+            {/* <IconButton
+                onClick={() => scrollToTop()}
                 aria-label="Scroll to top"
                 sx={{
                     position: 'fixed',
@@ -209,7 +213,7 @@ const Dashboard: React.FC = () => {
                 }}
             >
                 <KeyboardArrowUpIcon />
-            </IconButton>
+            </IconButton> */}
             </Box>
         </Container>
     );
