@@ -274,6 +274,10 @@ async def update_project(project_id: str, project: ProjectBase):
         raise HTTPException(status_code=404, detail="Project not found")
     
     project_data = project.dict(exclude_unset=True)
+    if project_data.get("start_date") == "":
+        project_data["start_date"] = None
+    if project_data.get("end_date") == "":
+        project_data["end_date"] = None
     
     response = supabase.table("projects").update(project_data).eq("id", project_id).execute()
     if not response.data:
