@@ -1321,6 +1321,7 @@ const Projects: React.FC = () => {
             projects={projects || []}
             isUploading={isCreatingNote}
             uploadProgress={0}
+            attachedFiles={''}
           />
         </Suspense>
       )}

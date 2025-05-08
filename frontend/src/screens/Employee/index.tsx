@@ -774,6 +774,7 @@ const EmployeePage: React.FC = () => {
             }}
             projects={projects}
             isUploading={false}
+            attachedFiles={''}
           />
         )}
       </Box>
