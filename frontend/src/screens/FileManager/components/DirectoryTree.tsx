@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactElement } from 'react';
+import React, { useState, useMemo, useEffect, ReactElement } from 'react';
 import {
   Box,
   Typography,
@@ -20,8 +20,6 @@ import { File } from '../../../types';
 
 import { useGetFilesQuery } from '../../../redux/api/filesApi';
 import { useGetProjectsQuery } from '../../../redux/api/projectsApi';
-import { useGetNotesQuery } from '../../../redux/api/notesApi';
-import { useGetTasksQuery } from '../../../redux/api/tasksApi';
 
 // File type icons
 import ImageIcon from '@mui/icons-material/Image';
@@ -34,7 +32,7 @@ export interface FileNode {
   name: string;
   children: FileNode[];
   parent?: string;
-  type?: 'project' | 'note' | 'task' | 'file' | 'folder';
+  type?: 'project' | 'file';
   fileType?: string;
 }
 
@@ -58,7 +56,6 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
   onFolderSelect,
   loading
 }): ReactElement => {
-  const [treeData, setTreeData] = useState<FileNode>(); // Root node
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({ root: true });
   const [currentNode, setCurrentNode] = useState<FileNode | null>(null);
   const [treeContext, setTreeContext] = useState<FileTreeContext>({
@@ -69,8 +66,6 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
 
   const { data: filesData, isLoading: filesLoading } = useGetFilesQuery();
   const { data: projectsData, isLoading: projectsLoading } = useGetProjectsQuery();
-  const { data: notesData, isLoading: notesLoading } = useGetNotesQuery();
-  const { data: tasksData, isLoading: tasksLoading } = useGetTasksQuery();
 
   // Get file icon based on file type
   const getFileIcon = (fileType: string | undefined, isSelected: boolean = false) => {
@@ -91,16 +86,14 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     return <InsertDriveFileIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
   };
 
-  // Recursively build file tree structure
-  useEffect(() => {
-    if (!filesData) return;
-
-    // Initialize the root node
+  // Build the tree using useMemo - only depend on API data, not component state
+  const { treeData, nodeMap } = useMemo(() => {
+    // Initialize data structure
     const root: FileNode = {
       id: 'root',
       name: 'Root',
       children: [],
-      type: 'folder'
+      type: 'project'
     };
 
     // Map to store all nodes by ID for quick reference
@@ -108,44 +101,61 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
       'root': root
     };
 
-    // First pass - create all nodes
-    filesData.forEach(file => {
+    // If data isn't loaded yet, return empty structure
+    if (!filesData || !projectsData) {
+      console.log('Data not loaded yet, returning empty structure');
+      return { treeData: root, nodeMap };
+    }
+
+    console.log('Building tree with projects:', projectsData.length, 'files:', filesData.length);
+
+    // First, add all projects as top-level directories under root
+    projectsData.forEach(project => {
+      const projectNode: FileNode = {
+        id: project.id,
+        name: project.title,
+        children: [],
+        parent: 'root',
+        type: 'project'
+      };
       
+      nodeMap[project.id] = projectNode;
+      root.children.push(projectNode);
+    });
+
+    // Then, add all files
+    filesData.forEach(file => {
       const node: FileNode = {
         id: file.id,
         name: file.title,
         children: [],
         parent: file.project_id || 'root',
-        type: file.file_type === 'application/vnd.google-apps.folder' ? 'folder' : 'file',
+        type: file.file_type === 'application/vnd.google-apps.folder' ? 'project' : 'file',
         fileType: file.file_type
       };
 
       nodeMap[file.id] = node;
     });
 
-    // Second pass - build the tree structure
-    filesData.forEach(file => {
-      const node = nodeMap[file.id];
-      const parentId = file.project_id || 'root';
-      
-      if (nodeMap[parentId]) {
-        nodeMap[parentId].children.push(node);
-      } else {
-        // If parent doesn't exist, add to root
-        root.children.push(node);
-      }
-    });
-
     // Sort all nodes
     const sortNodes = (node: FileNode) => {
-      // Sort folders first, then files alphabetically
+      // Sort by type first (project > folder > file), then alphabetically
       node.children.sort((a, b) => {
-        const aIsFolder = a.type === 'folder';
-        const bIsFolder = b.type === 'folder';
+        // Define type priority
+        const typePriority = {
+          'project': 1,
+          'file': 2
+        };
         
-        if (aIsFolder && !bIsFolder) return -1;
-        if (!aIsFolder && bIsFolder) return 1;
+        const aTypePriority = a.type ? typePriority[a.type] || 99 : 99;
+        const bTypePriority = b.type ? typePriority[b.type] || 99 : 99;
         
+        // Compare type priorities
+        if (aTypePriority !== bTypePriority) {
+          return aTypePriority - bTypePriority;
+        }
+        
+        // If same type, sort alphabetically
         return a.name.localeCompare(b.name);
       });
       
@@ -154,63 +164,11 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     };
     
     sortNodes(root);
-    setTreeData(root);
 
-    // Find the current node and its context (parent and children)
-    const findNodeById = (nodeId: string, node: FileNode): FileNode | null => {
-      if (node.id === nodeId) {
-        return node;
-      }
-      
-      for (const child of node.children) {
-        const found = findNodeById(nodeId, child);
-        if (found) return found;
-      }
-      
-      return null;
-    };
+    return { treeData: root, nodeMap };
+  }, [projectsData, filesData]);  // Only depend on the API data
 
-    // Find the parent node of a given node
-    const findParentNode = (node: FileNode | null): FileNode | null => {
-      if (!node || !node.parent) return null;
-      return nodeMap[node.parent] || null;
-    };
-
-    // Update the tree context with current, parent and children info
-    const updateTreeContext = (nodeId: string) => {
-      const current = findNodeById(nodeId, root);
-      const parent = current ? findParentNode(current) : null;
-      const children = current ? current.children : [];
-      
-      setTreeContext({
-        parent,
-        current,
-        children
-      });
-      
-      setCurrentNode(current);
-    };
-
-    // If currentFolder is set, find and set the current node
-    if (currentFolder) {
-      updateTreeContext(currentFolder);
-      
-      // Ensure the path to the current node is expanded
-      const node = findNodeById(currentFolder, root);
-      if (node) {
-        let parent = node.parent;
-        const newExpandedNodes = { ...expandedNodes };
-        
-        while (parent) {
-          newExpandedNodes[parent] = true;
-          parent = nodeMap[parent]?.parent;
-        }
-        
-        setExpandedNodes(newExpandedNodes);
-      }
-    }
-  }, [filesData, currentFolder]);
-
+  // Handle node toggling (expand/collapse)
   const handleNodeToggle = (nodeId: string) => {
     setExpandedNodes({
       ...expandedNodes,
@@ -218,38 +176,84 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     });
   };
 
+  // Find node by ID
+  const findNodeById = (nodeId: string, node: FileNode): FileNode | null => {
+    if (node.id === nodeId) {
+      return node;
+    }
+    
+    for (const child of node.children) {
+      const found = findNodeById(nodeId, child);
+      if (found) return found;
+    }
+    
+    return null;
+  };
+
+  // Find parent node
+  const findParentNode = (node: FileNode | null): FileNode | null => {
+    if (!node || !node.parent || !nodeMap?.[node.parent]) return null;
+    return nodeMap[node.parent];
+  };
+
+  // Handle initial expansion and selection based on currentFolder
+  useEffect(() => {
+    if (!treeData || !currentFolder || !nodeMap) return;
+    
+    // Find the current node
+    const current = findNodeById(currentFolder, treeData);
+    if (!current) return;
+    
+    // Set the currentNode
+    setCurrentNode(current);
+    
+    // Expand the path to the current node
+    let parentPath = [];
+    let parent = current.parent;
+    
+    while (parent) {
+      parentPath.push(parent);
+      parent = nodeMap[parent]?.parent;
+    }
+    
+    if (parentPath.length > 0) {
+      // Use functional update to avoid closure issues
+      setExpandedNodes(prev => {
+        const newExpandedNodes = { ...prev };
+        parentPath.forEach(p => {
+          newExpandedNodes[p] = true;
+        });
+        return newExpandedNodes;
+      });
+    }
+    
+    // Set the tree context
+    const parentNode = findParentNode(current);
+    setTreeContext({
+      parent: parentNode,
+      current,
+      children: current.children
+    });
+  }, [treeData, currentFolder, nodeMap]);
+
   // Handle node selection
   const handleNodeSelect = (node: FileNode) => {
     setCurrentNode(node);
     
     // Find the parent and children for the selected node
-    if (treeData) {
-      const findParentById = (parentId: string, tree: FileNode): FileNode | null => {
-        if (tree.id === parentId) return tree;
-        
-        for (const child of tree.children) {
-          const found = findParentById(parentId, child);
-          if (found) return found;
-        }
-        
-        return null;
-      };
-      
-      const parent = node.parent ? findParentById(node.parent, treeData) : null;
-      
-      const newContext = {
-        parent,
-        current: node,
-        children: node.children
-      };
-      
-      setTreeContext(newContext);
-      
-      // Pass the context to the parent component
-      onFolderSelect(node.id, node.name, newContext);
-    } else {
-      onFolderSelect(node.id, node.name);
-    }
+    const parent = findParentNode(node);
+    const children = node.children;
+    
+    const newContext = {
+      parent,
+      current: node,
+      children
+    };
+    
+    setTreeContext(newContext);
+    
+    // Pass the context to the parent component
+    onFolderSelect(node.id, node.name, newContext);
     
     // Auto-expand folder when clicked
     if (node.children.length > 0 && !expandedNodes[node.id]) {
@@ -262,17 +266,12 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     const isExpanded = !!expandedNodes[node.id];
     const isSelected = currentFolder === node.id;
     const hasChildren = node.children.length > 0;
-    
     // Select the appropriate icon
     let nodeIcon;
-    if (node.type === 'folder') {
+    if (node.type === 'project') {
       nodeIcon = isExpanded 
         ? <FolderOpenIcon fontSize="small" color="primary" /> 
         : <FolderIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    } else if (node.type === 'note') {
-      nodeIcon = <DescriptionIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    } else if (node.type === 'task') {
-      nodeIcon = <AssignmentIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
     } else {
       nodeIcon = getFileIcon(node.fileType, isSelected);
     }
@@ -297,7 +296,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
           }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            {hasChildren && (
+            {node.type == 'project' && (
               <Box 
                 component="span" 
                 onClick={(e) => {
@@ -350,7 +349,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     );
   };
 
-  const isLoading = loading || filesLoading || projectsLoading || notesLoading || tasksLoading;
+  const isLoading = loading || filesLoading || projectsLoading;
 
   if (isLoading) {
     return (
@@ -365,7 +364,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     );
   }
 
-  if (!treeData) {
+  if (!treeData || !nodeMap) {
     return (
       <Box sx={{ p: 2 }}>
         <Typography variant="subtitle2">No files found</Typography>

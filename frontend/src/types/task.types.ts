@@ -9,6 +9,7 @@ export interface Task {
   description?: string;
   project_id?: string;
   category?: string;
+  file_id?: string;
   files?: File[];
   next_checkin_date?: string | null;
 }

@@ -175,8 +175,10 @@ const formatTask = (task: Task, onStatusChange?: (taskId: string, newStatus: str
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -291,7 +293,7 @@ const formatNote = (note: Note) => (
       <NoteAlt fontSize="small" sx={{ mr: 1 }} />
       <Typography variant="body1">{note.title}</Typography>
     </Box>
-    <Typography variant="caption">{note.created_at}</Typography>
+    <Typography variant="caption">{new Date(note.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Typography>
   </Box>
 );
 
@@ -311,7 +313,7 @@ const formatEvent = (event: Events) => {
         <Typography variant="body1">{event.title}</Typography>
       </Box>
       <Box display="flex" alignItems="center">
-        <Typography variant="caption" sx={{ mr: 1 }}>{event.due_date}</Typography>
+        <Typography variant="caption" sx={{ mr: 1 }}>{new Date(event.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Typography>
         <Chip
           size="small"
           label={event.type}
@@ -339,7 +341,7 @@ const formatReminder = (reminder: Reminder) => {
         <Typography variant="body1">{reminder.title}</Typography>
       </Box>
       <Box display="flex" alignItems="center">
-        <Typography variant="caption" sx={{ mr: 1 }}>{reminder.due_date}</Typography>
+        <Typography variant="caption" sx={{ mr: 1 }}>{new Date(reminder.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Typography>
         {reminder.priority && (
           <Chip
             size="small"
@@ -693,15 +695,6 @@ const Projects: React.FC = () => {
     }
   }, [selectedProjectId, projectsDict, projects]);
 
-  // Set sidebar state based on screen size
-  // useEffect(() => {
-  //   setSidebarOpen(!isMobile);
-  // }, [isMobile]);
-
-  // const toggleSidebar = useCallback(() => {
-  //   setSidebarOpen(prev => !prev);
-  // }, []);
-
   const selectProject = useCallback((projectId: string) => {
     setSelectedProjectId(projectId);
       // if (isMobile) {
@@ -821,7 +814,7 @@ const Projects: React.FC = () => {
     }
   };
 
-  const handleNoteSubmit = async (noteData: Note, fileData?: FormData) => {
+  const handleNoteSubmit = async (noteData: Note) => {
     if (!selectedProject) return;
 
     try {
@@ -833,35 +826,16 @@ const Projects: React.FC = () => {
       formData.append('description', noteData.description || '');
       formData.append('project_id', selectedProject.id);
       formData.append('employee_id', noteData.employee_id || '');
-
+      
       if (noteData.category) {
         formData.append('category', noteData.category);
       }
-
-      // Use createNote mutation with FormData
-      const newNote = await createNote(formData).unwrap();
-      showNotification(`Note "${noteData.title}" created successfully`, 'success');
-
-      // If there's file data, handle file upload separately
-      if (fileData && newNote.id) {
-        try {
-          // Create a proper File object for the API
-          // const filePayload: FilePayload = {
-          //   title: fileData.get('fileName') as string || 'Untitled File',
-          //   type: 'note-attachment',
-          //   project_id: selectedProject.id,
-          //   note_id: newNote.id,
-          //   file_data: fileData
-          // };
-
-          // formData.append('file', fileData.)
-          console.log('File uploaded successfully');
-        } catch (fileError) {
-          console.error('Error uploading file:', fileError);
-          // The note was created, just the file upload failed
-          showNotification('Note created but file upload failed. Please try attaching the file again.', 'warning');
-        }
+      if (noteData.file) {
+        formData.append('file', noteData.file[0]);
       }
+      // Use createNote mutation with FormData
+      await createNote(formData).unwrap();
+      showNotification(`Note "${noteData.title}" created successfully`, 'success');
 
       setShowAddNoteModal(false);
     } catch (error) {

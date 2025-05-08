@@ -35,7 +35,7 @@ interface TaskModalProps {
 const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, task, projectId, isUploading = false }) => {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
-  const [status, setStatus] = useState(task?.status || 'To Do');
+  const [status, setStatus] = useState(task?.status || 'not-started');
   const [due_date, setDueDate] = useState(task?.due_date || '');
   const [priority, setPriority] = useState(task?.priority || 'Medium');
   const [category, setCategory] = useState(task?.category || 'General');
@@ -153,11 +153,9 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   onChange={(e) => setStatus(e.target.value)}
                   disabled={isUploading}
                 >
-                  <MenuItem value="To Do">To Do</MenuItem>
-                  <MenuItem value="In Progress">In Progress</MenuItem>
-                  <MenuItem value="On Hold">On Hold</MenuItem>
-                  <MenuItem value="Done">Done</MenuItem>
-                  <MenuItem value="Cancelled">Cancelled</MenuItem>
+                  <MenuItem value="not-started">Not Started</MenuItem>
+                  <MenuItem value="in-progress">In Progress</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

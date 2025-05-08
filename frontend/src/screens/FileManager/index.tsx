@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileTreeContext } from './components/DirectoryTree';
-// import DirectoryTree from './components/DirectoryTree';
+import DirectoryTree from './components/DirectoryTree';
 import {
   Box,
   Breadcrumbs,
@@ -43,7 +43,6 @@ const FileManager: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
-  const [generalFolderId, setGeneralFolderId] = useState<string>('general');
   const [treeContext, setTreeContext] = useState<FileTreeContext | null>(null);
 
   // Use the API query hook
@@ -56,93 +55,19 @@ const FileManager: React.FC = () => {
     if (filesData) {
       // Process the files data
       let processedFiles = [...filesData];
-      
-      // Check if General folder exists
-      const generalFolder = processedFiles.find(
-        file => file.project_id === 'root' && 
-               file.file_type === 'folder' && 
-               file.title === 'General'
-      );
-      
-      // Create General folder if it doesn't exist
-      if (generalFolder) {
-        setGeneralFolderId(generalFolder.id);
-      } else {
-        const newGeneralFolder: File = {
-          id: 'general',
-          title: 'General',
-          file_type: 'folder',
-          file_path: '/general',
-          file_size: 0,
-          project_id: 'root',
-          created_at: new Date().toISOString()
-        };
-        
-        processedFiles.push(newGeneralFolder);
-        setGeneralFolderId('general');
-      }
-      
+
       // Organize files in the proper directory structure
       processedFiles = processedFiles.map(file => {
         // If file has no parent_id, set it to 'root'
         if (!file.project_id) {
           return { ...file, project_id: 'root' };
         }
-        
-        // If file has no project_id and is not a folder and not already in the General folder,
-        // put it in the General folder
-        if (!file.project_id && 
-            file.file_type !== 'folder' && 
-            file.project_id === 'root') {
-          return { ...file, project_id: generalFolderId };
-        }
-        
         return file;
       });
-      
       // Make sure project directories exist
       const projectFolders = new Set<string>();
       
       // Collect all unique project IDs
-      processedFiles.forEach(file => {
-        if (file.project_id && !projectFolders.has(file.project_id)) {
-          projectFolders.add(file.project_id);
-        }
-      });
-      
-      // Create project folders if they don't exist
-      projectFolders.forEach(projectId => {
-        const projectFolder = processedFiles.find(
-          file => file.id === projectId && file.file_type === 'folder'
-        );
-        
-        if (!projectFolder) {
-          // Project folder doesn't exist, create it
-          const newProjectFolder: File = {
-            id: projectId,
-            title: `Project ${projectId}`, // Use proper project name if available
-            file_type: 'folder',
-            file_size: 0,
-            file_path: `/projects/${projectId}`,
-            project_id: projectId,
-            created_at: new Date().toISOString()
-          };
-          
-          processedFiles.push(newProjectFolder);
-        }
-        
-        // Make sure files with project_id are in their project folders
-        processedFiles = processedFiles.map(file => {
-          if (file.project_id === projectId && 
-              file.project_id === 'root' && 
-              file.id !== projectId && 
-              file.file_type !== 'folder') {
-            return { ...file, project_id: projectId };
-          }
-          return file;
-        });
-      });
-      
       setAllFiles(processedFiles);
       
       // Show files for the current folder
@@ -153,7 +78,7 @@ const FileManager: React.FC = () => {
     } else {
       setLoading(isLoading);
     }
-  }, [filesData, isLoading, isError, currentFolder, generalFolderId]);
+  }, [filesData, isLoading, isError, currentFolder]);
 
   // Update displayed files when the current folder changes
   const updateFilesForCurrentFolder = (allFilesData: File[], folderId: string) => {
@@ -291,30 +216,6 @@ const FileManager: React.FC = () => {
             File Explorer
           </Typography>
         </Paper>
-
-        {/* Breadcrumb Navigation */}
-        <Paper sx={{ p: 1, mb: 2, display: 'flex', alignItems: 'center' }}>
-          <Breadcrumbs 
-            separator={<NavigateNextIcon fontSize="small" />}
-            aria-label="folder-navigation"
-          >
-            {folderPath.map((folder, index) => (
-              <Typography 
-                key={folder.id}
-                variant="body2"
-                color={index === folderPath.length - 1 ? 'text.primary' : 'text.secondary'}
-                sx={{ 
-                  cursor: 'pointer',
-                  fontWeight: index === folderPath.length - 1 ? 'medium' : 'normal',
-                  '&:hover': { textDecoration: 'underline' }
-                }}
-                onClick={() => navigateToFolder(folder.id, folder.name)}
-              >
-                {folder.name}
-              </Typography>
-            ))}
-          </Breadcrumbs>
-        </Paper>
         
         <Box sx={{ display: 'flex', flexGrow: 1, gap: 2, overflow: 'hidden' }}>
           {/* Directory Tree Sidebar */}
@@ -324,12 +225,12 @@ const FileManager: React.FC = () => {
             display: { xs: 'none', sm: 'block' },
             borderRadius: 1,
           }}>
-            {/* <DirectoryTree 
+            <DirectoryTree 
               files={allFiles}
               currentFolder={currentFolder}
               onFolderSelect={(folderId, folderName, context) => navigateToFolder(folderId, folderName, context)}
               loading={loading || isLoading}
-            /> */}
+            />
           </Paper>
           
           {/* Files List */}
@@ -340,48 +241,6 @@ const FileManager: React.FC = () => {
               </Box>
             ) : (
               <>
-                <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                  {folderPath[folderPath.length - 1]?.name || 'Files'} 
-                  <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                    ({files.length} items)
-                  </Typography>
-                </Typography>
-                
-                {/* Tree Context Info (Parent, Current, Children) */}
-                {treeContext && (
-                  <Box sx={{ mb: 2, p: 1, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Directory Structure</Typography>
-                    
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      {/* Parent Column */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Parent</Typography>
-                        <Box sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, mt: 0.5 }}>
-                          <Typography noWrap variant="body2">{treeContext.parent?.name}</Typography>
-                        </Box>
-                      </Box>
-                      
-                      {/* Current Column */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Current</Typography>
-                        <Box sx={{ p: 1, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 1, mt: 0.5 }}>
-                          <Typography noWrap variant="body2">{treeContext.current?.name}</Typography>
-                        </Box>
-                      </Box>
-                      
-                      {/* Children Count */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>Children</Typography>
-                        <Box sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, mt: 0.5 }}>
-                          <Typography variant="body2">
-                            {treeContext.children.length} item{treeContext.children.length !== 1 ? 's' : ''}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Box>
-                )}
-                
                 {files.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
                     <Typography variant="body1" color="text.secondary">
@@ -432,7 +291,7 @@ const FileManager: React.FC = () => {
                             secondary={
                               <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                                 <Typography variant="body2" color="text.secondary" component="span">
-                                  {formatBytes(file.file_size.toString())}
+                                  {formatBytes(file.file_size)}
                                 </Typography>
                                 {file.created_at && (
                                   <Typography variant="body2" color="text.secondary" component="span">

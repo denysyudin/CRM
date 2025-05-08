@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGetTasksQuery, useUpdateTaskMutation } from '../../redux/api/tasksApi';
+import { useGetFilesQuery } from '../../redux/api/filesApi';
+import { useGetProjectsQuery } from '../../redux/api/projectsApi';
 import { Task } from '../../types/task.types';
 import { 
   Box, 
@@ -35,10 +37,15 @@ import {
 
 const TaskDashboard: React.FC = () => {
   // const theme = useTheme();
+
+  const { data: filesData = [], } = useGetFilesQuery();
+  const { data: projectsData = [], } = useGetProjectsQuery();
+
   const [shouldFetch, setShouldFetch] = useState(true);
   const { data = [], isLoading, isError, refetch } = useGetTasksQuery(undefined, {
     skip: !shouldFetch
   });
+
   useEffect(() => {
     if (data.length === 0) {
       setShouldFetch(true);
@@ -155,7 +162,7 @@ const TaskDashboard: React.FC = () => {
   };
 
   // Status circle component
-  const StatusCircle = ({ status, taskId }: { status: string, taskId: string }) => {
+  const StatusCircle = ({ status, taskId, disable }: { status: string, taskId: string, disable: boolean }) => {
     const getStatusColor = () => {
       switch(status) {
         case 'not-started': return 'default';
@@ -169,8 +176,10 @@ const TaskDashboard: React.FC = () => {
       <IconButton 
         size="small" 
         onClick={(e) => {
-          e.stopPropagation();
-          handleStatusChange(taskId);
+          if (!disable) {
+            e.stopPropagation();
+            handleStatusChange(taskId);
+          }
         }}
       >
         <StatusIcon color={getStatusColor() as any} fontSize="small" />
@@ -266,7 +275,7 @@ const TaskDashboard: React.FC = () => {
         </Typography>
       </Box>
       
-      <Box sx={{ p: 3, height: 'calc(100vh - 60px)', overflow: 'auto' }}>
+      <Box sx={{ p: 3, height: 'calc(100vh - 100px)', overflow: 'auto' }}>
         {/* Category View */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h6" gutterBottom>
@@ -297,7 +306,7 @@ const TaskDashboard: React.FC = () => {
                     >
                       <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <StatusCircle status={task.status} taskId={task.id} />
+                          <StatusCircle status={task.status} taskId={task.id} disable={false}/>
                           <Box sx={{ ml: 1, width: '100%' }}>
                             <Typography 
                               variant="body2"
@@ -424,7 +433,7 @@ const TaskDashboard: React.FC = () => {
                 {getTodaysTasks().map(task => (
                   <TableRow key={task.id} hover>
                     <TableCell>
-                      <StatusCircle status={task.status} taskId={task.id} />
+                      <StatusCircle status={task.status} taskId={task.id} disable={true} />
                     </TableCell>
                     <TableCell>{task.title}</TableCell>
                     <TableCell>
@@ -481,6 +490,48 @@ const TaskDashboard: React.FC = () => {
               <Typography variant="body1">
                 Description: {selectedTask.description || 'No description provided.'}
               </Typography>
+              
+              <Box sx={{ mt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Status</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                      <StatusCircle status={selectedTask.status} taskId={selectedTask.id} disable={true} />
+                      <Typography variant="body2" sx={{ ml: 1 }}>
+                        {selectedTask.status === 'not-started' && 'Not Started'}
+                        {selectedTask.status === 'in-progress' && 'In Progress'}
+                        {selectedTask.status === 'completed' && 'Completed'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Priority</Typography>
+                    <Box sx={{ mt: 0.5 }}>
+                      <PriorityTag priority={selectedTask.priority} />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Due Date</Typography>
+                    <Typography variant="body2">{selectedTask.due_date || 'Not set'}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Category</Typography>
+                    <Typography variant="body2">{selectedTask.category || 'General'}</Typography>
+                  </Grid>
+                  {selectedTask.project_id && (
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">Project</Typography>
+                      <Typography variant="body2">{projectsData.filter(project => project.id === selectedTask.project_id).map(project => project.title).join(', ')}</Typography>
+                    </Grid>
+                  )}
+                  {selectedTask.file_id && (
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">Files</Typography>
+                      <Typography variant="body2">{filesData.filter(file => file.id === selectedTask.file_id).map(file => file.title).join(', ')}</Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
             </>
           )}
         </Box>

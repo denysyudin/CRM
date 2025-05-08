@@ -80,14 +80,14 @@ class ReminderBase(BaseModel):
 class FileBase(BaseModel):
     id: Optional[str] = None
     title: str
-    type: Optional[str] = None
+    file_type: Optional[str] = None
     project_id: Optional[str] = None
     employee_id: Optional[str] = None
     note_id: Optional[str] = None
     event_id: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
-    size: Optional[str] = None
+    file_size: Optional[str] = None
 
 class EmployeeBase(BaseModel):
     id: Optional[str] = None
@@ -146,9 +146,6 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
             pickle.dump(creds, token)
     # Build the Drive API client
     drive_service = build('drive', 'v3', credentials=creds)
-    
-    # Get project information
-    project_name = "General"  # Default folder name if no project_id is found
 
     if project_id:
         project_query = supabase.table("projects").select("*").eq("id", project_id).execute()
@@ -157,28 +154,28 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
             project_name = project_data["title"]
     
     # Check if directory exists
-    folder_id = None
-    query = f"name='{project_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-    response = drive_service.files().list(q=query).execute()
+    # folder_id = None
+    # query = f"name='{project_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    # response = drive_service.files().list(q=query).execute()
     
-    if response.get('files'):
-        # Directory exists
-        folder_id = response['files'][0]['id']
-    else:
-        # Create directory
-        folder_metadata = {
-            'name': project_name,
-            'mimeType': 'application/vnd.google-apps.folder'
-        }
-        folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
-        folder_id = folder.get('id')
+    # if response.get('files'):
+    #     # Directory exists
+    #     folder_id = response['files'][0]['id']
+    # else:
+    #     # Create directory
+    #     folder_metadata = {
+    #         'name': project_name,
+    #         'mimeType': 'application/vnd.google-apps.folder'
+    #     }
+    #     folder = drive_service.files().create(body=folder_metadata, fields='id').execute()
+    #     folder_id = folder.get('id')
     # Upload file to the directory
     file_content = io.BytesIO(file.file.read())
     
     # Create file metadata
     file_metadata = {
         'name': file.filename,
-        'parents': [folder_id]
+        'parents': ['root']
     }
     # Upload the file
     media = MediaIoBaseUpload(file_content, mimetype=file.content_type, resumable=True)
@@ -187,15 +184,15 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
         media_body=media,
         fields='id'
     ).execute()
-    print('uploaded_file')
     file_id = uploaded_file.get('id')
     file_url = f"https://drive.google.com/file/d/{file_id}/view"
     
     return {
-        "message": "File uploaded successfully", 
         "file_id": file_id,
         "file_url": file_url,
-        "project_name": project_name
+        "project_name": project_name,
+        "file_size": file.size,
+        "file_type": file.content_type
     }
 
 def delete_file_from_drive(file_id: str):
@@ -221,6 +218,7 @@ def delete_file_from_drive(file_id: str):
             pickle.dump(creds, token)
     drive_service = build('drive', 'v3', credentials=creds)
     drive_service.files().delete(fileId=file_id).execute()
+    print("File deleted successfully")
     return {"message": "File deleted successfully"}
 
 # API Routes
@@ -358,11 +356,15 @@ async def create_task(
                 "id": upload_result['file_id'],
                 "title": file.filename,
                 "file_path": upload_result['file_url'],
-                "file_type": file.content_type,
-                "file_size": file.size,
+                "file_type": upload_result['file_type'],
+                "file_size": upload_result['file_size'],
+                "project_id": project_id,
                 "task_id": created_task["id"],
                 "created_at": get_current_timestamp()
             }
+            response = supabase.table("files").insert(file_data).execute()
+            if not response.data:
+                raise HTTPException(status_code=400, detail="Failed to create file")
         except Exception as e:
             # Log the error but don't fail the request
             print(f"File upload failed: {str(e)}")
@@ -799,12 +801,11 @@ async def get_file(file_id: str):
     file_data = response.data[0]
     return file_data
 
-@app.post("/files")
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: str):
     # Get file info
     delete_file_from_drive(file_id)
-    check_response = supabase.table("files").delete("*").eq("id", file_id).execute()
+    check_response = supabase.table("files").delete().eq("id", file_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="File not found")
     return {"message": "File deleted successfully"}

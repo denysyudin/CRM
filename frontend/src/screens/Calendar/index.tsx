@@ -494,7 +494,7 @@ const Calendar: React.FC = () => {
             }
           }}
         >
-          <Box>
+          <Box display="flex" flexDirection="column" gap={0.5} width="150px">
             <Typography
               variant="body2"
               fontWeight={isToday ? 'bold' : 'normal'}
@@ -503,7 +503,7 @@ const Calendar: React.FC = () => {
               {day}
             </Typography>
 
-            <Box mt={1} display="flex" flexDirection="column" gap={0.5}>
+            <Box mt={1} display="flex" flexDirection="column" gap={0.5} width="150px">
               {dayEvents.map((event, index) => (
                 <Chip
                   key={index}
@@ -631,7 +631,7 @@ const Calendar: React.FC = () => {
               </Typography>
             </Box>
 
-            <Container maxWidth="xl" sx={{ mt: 3, mb: 4, height: 'calc(100vh - 60px)', overflow: 'auto' }}>
+            <Container maxWidth="xl" sx={{ mt: 3, mb: 4, height: 'calc(100vh - 150px)', overflow: 'auto' }}>
               <Paper sx={{ p: 2, mb: 3 }} elevation={1}>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Typography variant="h5" component="h2">

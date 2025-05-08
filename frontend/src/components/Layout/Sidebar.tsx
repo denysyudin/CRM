@@ -77,12 +77,12 @@ const Sidebar: React.FC<Props> = () => {
             <span className="nav-icon">👥</span> Employees
           </Link>
         </li>
-        {/* <li>
+         <li>
           <Link to="/files" className={path === '/files' ? 'active' : ''}  >
             <span className="nav-icon">📎</span> Files
           </Link>
         </li>
-        <li>
+        {/*<li>
           <Link to="/settings" className={path === '/settings' ? 'active' : ''}  >
             <span className="nav-icon">⚙️</span> Settings
           </Link>

@@ -4,7 +4,7 @@ export interface File {
   title: string;
   file_type: string;
   file_path: string;
-  file_size: number;
+  file_size: string;
   project_id?: string;
   employee_id?: string;
   note_id?: string;

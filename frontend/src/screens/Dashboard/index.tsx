@@ -69,7 +69,7 @@ const Dashboard: React.FC = () => {
                 <Typography variant="h5" component="h1">Main Dashboard</Typography>
                 <Typography variant="subtitle1">{formatDateTime(currentTime)}</Typography>
             </Box>
-            <Box sx={{ p: 2, overflow: 'auto', height: 'calc(100vh - 20px)' }}>
+            <Box sx={{ p: 2, overflow: 'auto', height: 'calc(100vh - 100px)' }}>
             
             <Grid container spacing={2}>
                 <Grid item xs={12} md={isMobile ? 12 : 6}>
