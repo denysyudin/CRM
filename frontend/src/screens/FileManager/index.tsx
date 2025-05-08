@@ -51,21 +51,14 @@ const FileManager: React.FC = () => {
   // Load files when component mounts or when the query data changes
   useEffect(() => {
     if (filesData) {
-      // Process the files data
       let processedFiles = [...filesData];
-
-      // Organize files in the proper directory structure
       processedFiles = processedFiles.map(file => {
-        // If file has no parent_id, set it to 'root'
         if (!file.project_id) {
           return { ...file, project_id: 'root' };
         }
         return file;
       });
-      // Collect all unique project IDs
       setAllFiles(processedFiles);
-      
-      // Show files for the current folder
       updateFilesForCurrentFolder(processedFiles, currentFolder);
       setLoading(false);
     } else if (isError) {
@@ -307,7 +300,7 @@ const FileManager: React.FC = () => {
         </Box>
 
         {/* Context Menu */}
-        <Menu
+        {/* <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={closeContextMenu}
@@ -318,7 +311,7 @@ const FileManager: React.FC = () => {
             </ListItemIcon>
             <ListItemText>Delete</ListItemText>
           </MenuItem>
-        </Menu>
+        </Menu> */}
       </Box>
     </Box>
   );
