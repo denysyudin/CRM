@@ -41,6 +41,7 @@ const AddNoteModal: React.FC<AddNoteModalProps> = ({ employee, onSave, onClose }
       editMode={false}
       initialData={initialNoteData}
       projects={projects as any}
+      attachedFiles={''}
     />
   );
 };
