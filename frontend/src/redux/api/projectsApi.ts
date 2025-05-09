@@ -11,6 +11,7 @@ export const projectsApi = apiSlice.injectEndpoints({
           ? [
               ...result.map(({ id }) => ({ type: 'Projects' as const, id })),
               { type: 'Projects', id: 'LIST' },
+              { type: 'Tasks', id: 'LIST' },
             ]
           : [{ type: 'Projects', id: 'LIST' }],
     }),

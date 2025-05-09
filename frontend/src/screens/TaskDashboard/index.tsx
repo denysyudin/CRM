@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGetTasksQuery, useUpdateTaskMutation, useCreateTaskMutation } from '../../redux/api/tasksApi';
 import { useGetFilesQuery } from '../../redux/api/filesApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
+import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
 import TaskModal from '../../components/forms/TaskModal';
 import { Task } from '../../types/task.types';
 import { 
@@ -26,7 +27,10 @@ import {
   Divider,
   AlertColor,
   Snackbar,
-  Alert
+  Alert,
+  Tooltip,
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   FiberManualRecord as StatusIcon,
@@ -39,19 +43,36 @@ import {
 } from '@mui/icons-material';
 
 import AddIcon from '@mui/icons-material/Add';
+import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 
 const TaskDashboard: React.FC = () => {
   // const theme = useTheme();
 
-  const { data: filesData = [], } = useGetFilesQuery();
+  const { data: filesData = [], refetch: refetchFiles } = useGetFilesQuery();
   const { data: projectsData = [], } = useGetProjectsQuery();
+  const { data: employeesData = [], } = useGetEmployeesQuery();
 
   const [createTask, { isLoading: isCreatingTask }] = useCreateTaskMutation();
 
+  // Define all useState hooks at the top level of the component
   const [shouldFetch, setShouldFetch] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [refresh, setRefresh] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [draggedTask, setDraggedTask] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    type: AlertColor;
+  }>({
+    open: false,
+    message: '',
+    type: 'success'
+  });
+  const [tabValue, setTabValue] = useState(0);
 
-  const { data = [], isLoading, isError, refetch } = useGetTasksQuery(undefined, {
+  const { data = [], isLoading, isError, refetch: refetchTasks } = useGetTasksQuery(undefined, {
     skip: !shouldFetch
   });
 
@@ -67,29 +88,6 @@ const TaskDashboard: React.FC = () => {
   const tasksLoading = isLoading;
   const tasksError = isError;
   
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [draggedTask, setDraggedTask] = useState<string | null>(null);
-
-    // Notification state
-  const [notification, setNotification] = useState<{
-      open: boolean;
-      message: string;
-      type: AlertColor;
-    }>({
-      open: false,
-      message: '',
-      type: 'success'
-    });
-
-  // Handle notification close
-  const handleCloseNotification = (_?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setNotification({ ...notification, open: false });
-  };
-
   // const [sidebarOpen, setSidebarOpen] = useState(true);
   // const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -269,7 +267,7 @@ const TaskDashboard: React.FC = () => {
         <Button 
           variant="contained" 
           color="primary"
-          onClick={() => refetch()}
+          onClick={() => refetchTasks()}
         >
           Retry
         </Button>
@@ -297,6 +295,8 @@ const TaskDashboard: React.FC = () => {
     try {
       await createTask(taskData as FormData).unwrap();
       showNotification('Task created successfully', 'success');
+      refetchTasks();
+      refetchFiles();
       setShowTaskModal(false);
     } catch (error) {
       console.error('Failed to add task:', error);
@@ -312,6 +312,18 @@ const TaskDashboard: React.FC = () => {
     });
   };
 
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  // Handle notification close
+  const handleCloseNotification = (_?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setNotification({ ...notification, open: false });
+  };
+
   return (
     <Container maxWidth={false} disableGutters sx={{ height: '100vh', overflow: 'hidden' }}>
       <Box sx={{ 
@@ -322,192 +334,430 @@ const TaskDashboard: React.FC = () => {
         borderColor: 'divider'
       }}>
         <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
-           My Tasks
+          All Tasks
         </Typography>
+        {/* Add Task Button */}
+        <Button
+          onClick={() => setShowTaskModal(true)}
+          aria-label="Add Task"
+          sx={{
+              position: 'flex',
+              bgcolor: 'primary.main',
+              color: 'white',
+              marginLeft: 'auto',
+              '&:hover': {
+                  bgcolor: 'primary.dark',
+              },
+              padding: '0.5rem'
+          }}
+        >
+          <AddIcon sx={{ fontSize: '1rem', marginRight: '0.5rem' }} /> New Task
+        </Button>
       </Box>
       
-      <Box sx={{ p: 3, height: 'calc(100vh - 100px)', overflow: 'auto' }}>
-        {/* Category View */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Tasks by Category
-          </Typography>
-          <Grid container spacing={3}>
-            {Object.entries(getTasksByCategory()).map(([category, categoryTasks]) => (
-              <Grid item xs={12} sm={6} md={4} key={category}>
-                <Paper elevation={1} sx={{ height: '100%', p: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    {getCategoryIcon(category)}
-                    <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 'medium' }}>
-                      {category}
-                    </Typography>
-                  </Box>
-                  <Divider sx={{ mb: 2 }} />
-                  
-                  {categoryTasks.map(task => (
-                    <Card 
-                      key={task.id} 
-                      variant="outlined" 
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={tabValue} onChange={handleTabChange} aria-label="task dashboard tabs">
+          <Tab label="Overview" />
+          <Tab label="Category" />
+          <Tab label="Status" />
+          <Tab label="List" />
+        </Tabs>
+      </Box>
+      
+      <Box sx={{ p: 3, height: 'calc(100vh - 140px)', overflow: 'auto' }}>
+        {/* Tab 0: Overview */}
+        {tabValue === 0 && (
+          <>
+            {/* Today's Tasks (Grid Table View) */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                Today's Tasks ({formatDate(new Date())})
+              </Typography>
+              <TableContainer component={Paper} variant="outlined" sx={{ p: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell width="5%">Status</TableCell>
+                      <TableCell>Task Name</TableCell>
+                      <TableCell width="10%">Category</TableCell>
+                      <TableCell width="10%">Priority</TableCell>
+                      <TableCell width="15%">Project</TableCell>
+                      <TableCell width="15%">Assigned To</TableCell>
+                      <TableCell width="10%">Files</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {getTodaysTasks().map(task => (
+                      <TableRow key={task.id} hover>
+                        <TableCell>
+                          <StatusCircle status={task.status} taskId={task.id} disable={true} />
+                        </TableCell>
+                        <TableCell>{task.title}</TableCell>
+                        <TableCell>{task.category}</TableCell>
+                        <TableCell>
+                          <PriorityTag priority={task.priority} />
+                        </TableCell>
+                        <TableCell>{projectsData.filter(project => project.id === task.project_id).map(project => project.title).join(', ')}</TableCell>
+                        <TableCell>{employeesData.filter(employee => employee.id === task.employee_id).map(employee => employee.name).join(', ')}</TableCell>
+                        <TableCell>{filesData.filter(file => file.id === task.file_id).map(file => file.title).join(', ')}</TableCell>
+                      </TableRow>
+                    ))}
+                    {getTodaysTasks().length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No tasks due today
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+
+            {/* Tasks by Category */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                Tasks by Category
+              </Typography>
+              <Grid container spacing={3}>
+                {Object.entries(getTasksByCategory()).map(([category, categoryTasks]) => (
+                  <Grid item xs={12} sm={6} md={4} key={category}>
+                    <Paper elevation={1} sx={{ height: '100%', p: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        {getCategoryIcon(category)}
+                        <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 'medium' }}>
+                          {category}
+                        </Typography>
+                      </Box>
+                      <Divider sx={{ mb: 2 }} />
+                      
+                      {categoryTasks.map(task => (
+                        <Card 
+                          key={task.id} 
+                          variant="outlined" 
+                          sx={{ 
+                            mb: 1,
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: 'action.hover' }
+                          }}
+                          onClick={() => openModal(task)}
+                        >
+                          <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <StatusCircle status={task.status} taskId={task.id} disable={false}/>
+                              <Box sx={{ ml: 1, width: '100%' }}>
+                                <Typography 
+                                  variant="body2"
+                                  sx={{
+                                    textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+                                    color: task.status === 'completed' ? 'text.disabled' : 'text.primary'
+                                  }}
+                                >
+                                  {task.title}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
+                                  <PriorityTag priority={task.priority} />
+                                  <Typography variant="caption" color="text.secondary">
+                                    {task.due_date}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      
+                      {categoryTasks.length === 0 && (
+                        <Typography variant="body2" color="text.secondary" align="center">
+                          No tasks in this category
+                        </Typography>
+                      )}
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+
+            {/* Tasks by Status (Kanban) */}
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Tasks by Status (Kanban)
+              </Typography>
+              <Grid container spacing={2}>
+                {Object.entries(getTasksByStatus()).map(([status, statusTasks]) => (
+                  <Grid item xs={12} sm={4} key={status}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, status as 'not-started' | 'in-progress' | 'completed')}
+                  >
+                    <Paper 
+                      elevation={1} 
                       sx={{ 
-                        mb: 1,
-                        cursor: 'pointer',
-                        '&:hover': { bgcolor: 'action.hover' }
+                        p: 2, 
+                        height: '400px',
+                        bgcolor: 'grey.100',
+                        display: 'flex',
+                        flexDirection: 'column'
                       }}
-                      onClick={() => openModal(task)}
                     >
-                      <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <StatusCircle status={task.status} taskId={task.id} disable={false}/>
-                          <Box sx={{ ml: 1, width: '100%' }}>
+                      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>
+                        {status === 'not-started' && '⚪ Not Started'}
+                        {status === 'in-progress' && '🟡 In Progress'}
+                        {status === 'completed' && '🔵 Completed'}
+                      </Typography>
+                      
+                      <Box sx={{ overflowY: 'auto', flex: 1 }}>
+                        {statusTasks.map(task => (
+                          <Card 
+                            key={task.id}
+                            draggable
+                            onDragStart={() => handleDragStart(task.id)}
+                            variant="outlined"
+                            sx={{ 
+                              mb: 1,
+                              opacity: task.status === 'completed' ? 0.7 : 1,
+                              cursor: 'grab'
+                            }}
+                          >
+                            <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
+                              <Typography 
+                                variant="body2"
+                                sx={{
+                                  textDecoration: task.status === 'completed' ? 'line-through' : 'none'
+                                }}
+                              >
+                                {task.title}
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
+                                <PriorityTag priority={task.priority} />
+                                <Chip 
+                                  label={task.category || 'General'} 
+                                  size="small" 
+                                  variant="outlined"
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                  {task.due_date}
+                                </Typography>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        
+                        {statusTasks.length === 0 && (
+                          <Typography variant="body2" color="text.secondary" align="center">
+                            No tasks in this status
+                          </Typography>
+                        )}
+                      </Box>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          </>
+        )}
+
+        {/* Tab 1: Category View */}
+        {tabValue === 1 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Tasks by Category
+            </Typography>
+            <Grid container spacing={3}>
+              {Object.entries(getTasksByCategory()).map(([category, categoryTasks]) => (
+                <Grid item xs={12} sm={6} md={4} key={category}>
+                  <Paper elevation={1} sx={{ height: '100%', p: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      {getCategoryIcon(category)}
+                      <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 'medium' }}>
+                        {category}
+                      </Typography>
+                    </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    
+                    {categoryTasks.map(task => (
+                      <Card 
+                        key={task.id} 
+                        variant="outlined" 
+                        sx={{ 
+                          mb: 1,
+                          cursor: 'pointer',
+                          '&:hover': { bgcolor: 'action.hover' }
+                        }}
+                        onClick={() => openModal(task)}
+                      >
+                        <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <StatusCircle status={task.status} taskId={task.id} disable={false}/>
+                            <Box sx={{ ml: 1, width: '100%' }}>
+                              <Typography 
+                                variant="body2"
+                                sx={{
+                                  textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+                                  color: task.status === 'completed' ? 'text.disabled' : 'text.primary'
+                                }}
+                              >
+                                {task.title}
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
+                                <PriorityTag priority={task.priority} />
+                                <Typography variant="caption" color="text.secondary">
+                                  {task.due_date}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                    {categoryTasks.length === 0 && (
+                      <Typography variant="body2" color="text.secondary" align="center">
+                        No tasks in this category
+                      </Typography>
+                    )}
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
+
+        {/* Tab 2: Status (Kanban) View */}
+        {tabValue === 2 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Tasks by Status (Kanban)
+            </Typography>
+            <Grid container spacing={2}>
+              {Object.entries(getTasksByStatus()).map(([status, statusTasks]) => (
+                <Grid item xs={12} sm={4} key={status}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, status as 'not-started' | 'in-progress' | 'completed')}
+                >
+                  <Paper 
+                    elevation={1} 
+                    sx={{ 
+                      p: 2, 
+                      height: '400px',
+                      bgcolor: 'grey.100',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>
+                      {status === 'not-started' && '⚪ Not Started'}
+                      {status === 'in-progress' && '🟡 In Progress'}
+                      {status === 'completed' && '🔵 Completed'}
+                    </Typography>
+                    
+                    <Box sx={{ overflowY: 'auto', flex: 1 }}>
+                      {statusTasks.map(task => (
+                        <Card 
+                          key={task.id}
+                          draggable
+                          onDragStart={() => handleDragStart(task.id)}
+                          variant="outlined"
+                          sx={{ 
+                            mb: 1,
+                            opacity: task.status === 'completed' ? 0.7 : 1,
+                            cursor: 'grab'
+                          }}
+                        >
+                          <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
                             <Typography 
                               variant="body2"
                               sx={{
-                                textDecoration: task.status === 'completed' ? 'line-through' : 'none',
-                                color: task.status === 'completed' ? 'text.disabled' : 'text.primary'
+                                textDecoration: task.status === 'completed' ? 'line-through' : 'none'
                               }}
                             >
                               {task.title}
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
                               <PriorityTag priority={task.priority} />
+                              <Chip 
+                                label={task.category || 'General'} 
+                                size="small" 
+                                variant="outlined"
+                              />
                               <Typography variant="caption" color="text.secondary">
                                 {task.due_date}
                               </Typography>
                             </Box>
-                          </Box>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  
-                  {categoryTasks.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      No tasks in this category
-                    </Typography>
-                  )}
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-
-        {/* Status (Kanban) View */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            Tasks by Status (Kanban)
-          </Typography>
-          <Grid container spacing={2}>
-            {Object.entries(getTasksByStatus()).map(([status, statusTasks]) => (
-              <Grid item xs={12} sm={4} key={status}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, status as 'not-started' | 'in-progress' | 'completed')}
-              >
-                <Paper 
-                  elevation={1} 
-                  sx={{ 
-                    p: 2, 
-                    minHeight: '400px',
-                    bgcolor: 'grey.100'
-                  }}
-                >
-                  <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'medium' }}>
-                    {status === 'not-started' && '⚪ Not Started'}
-                    {status === 'in-progress' && '🟡 In Progress'}
-                    {status === 'completed' && '🔵 Completed'}
-                  </Typography>
-                  
-                  {statusTasks.map(task => (
-                    <Card 
-                      key={task.id}
-                      draggable
-                      onDragStart={() => handleDragStart(task.id)}
-                      variant="outlined"
-                      sx={{ 
-                        mb: 1,
-                        opacity: task.status === 'completed' ? 0.7 : 1,
-                        cursor: 'grab'
-                      }}
-                    >
-                      <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-                        <Typography 
-                          variant="body2"
-                          sx={{
-                            textDecoration: task.status === 'completed' ? 'line-through' : 'none'
-                          }}
-                        >
-                          {task.title}
+                          </CardContent>
+                        </Card>
+                      ))}
+                      
+                      {statusTasks.length === 0 && (
+                        <Typography variant="body2" color="text.secondary" align="center">
+                          No tasks in this status
                         </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
-                          <PriorityTag priority={task.priority} />
-                          <Chip 
-                            label={task.category || 'General'} 
-                            size="small" 
-                            variant="outlined"
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            {task.due_date}
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  
-                  {statusTasks.length === 0 && (
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      No tasks in this status
-                    </Typography>
-                  )}
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+                      )}
+                    </Box>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        )}
 
-        {/* Today's Tasks (Grid Table View) */}
-        <Box>
-          <Typography variant="h6" gutterBottom>
-            Today's Tasks ({formatDate(new Date())}) - Grid Table
-          </Typography>
-          <TableContainer component={Paper} variant="outlined" sx={{ p: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell width="5%">Status</TableCell>
-                  <TableCell>Task Name</TableCell>
-                  <TableCell width="10%">Priority</TableCell>
-                  <TableCell width="15%">Project</TableCell>
-                  <TableCell width="15%">Assigned To</TableCell>
-                  <TableCell width="5%">Files</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {getTodaysTasks().map(task => (
-                  <TableRow key={task.id} hover>
-                    <TableCell>
-                      <StatusCircle status={task.status} taskId={task.id} disable={true} />
-                    </TableCell>
-                    <TableCell>{task.title}</TableCell>
-                    <TableCell>
-                      <PriorityTag priority={task.priority} />
-                    </TableCell>
-                    <TableCell>{task.project_id}</TableCell>
-                    <TableCell>{/* {task.employee_id} */}</TableCell>
-                    <TableCell>{/* {task.files && <AttachmentIcon />} */}</TableCell>
-                  </TableRow>
-                ))}
-                {getTodaysTasks().length === 0 && (
+        {/* Tab 3: List View */}
+        {tabValue === 3 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              All Tasks (List View)
+            </Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        No tasks due today
-                      </Typography>
-                    </TableCell>
+                    <TableCell width="5%">Status</TableCell>
+                    <TableCell>Task Name</TableCell>
+                    <TableCell width="10%">Priority</TableCell>
+                    <TableCell width="10%">Category</TableCell>
+                    <TableCell width="10%">Due Date</TableCell>
+                    <TableCell width="15%">Project</TableCell>
+                    <TableCell width="10%">Assigned To</TableCell>
+                    <TableCell width="10%">Files</TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
+                </TableHead>
+                <TableBody>
+                  {getTodaysTasks().map(task => (
+                    <TableRow 
+                      key={task.id} 
+                      hover 
+                      sx={{ cursor: 'pointer' }}
+                      onClick={() => openModal(task)}
+                    >
+                      <TableCell>
+                        <StatusCircle status={task.status} taskId={task.id} disable={false} />
+                      </TableCell>
+                      <TableCell>{task.title}</TableCell>
+                      <TableCell>
+                        <PriorityTag priority={task.priority} />
+                      </TableCell>
+                      <TableCell>{task.category || 'General'}</TableCell>
+                      <TableCell>{task.due_date}</TableCell>
+                      <TableCell>{projectsData.filter(project => project.id === task.project_id).map(project => project.title).join(', ')}</TableCell>
+                      <TableCell>{employeesData.filter(employee => employee.id === task.employee_id).map(employee => employee.name).join(', ')}</TableCell>
+                      <TableCell>{filesData.filter(file => file.id === task.file_id).map(file => file.title).join(', ')}</TableCell>
+                    </TableRow>
+                  ))}
+                  {tasks.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No tasks available
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        )}
       </Box>
 
       {/* Task Description Modal */}
@@ -601,26 +851,6 @@ const TaskDashboard: React.FC = () => {
           />
         )
       }
-
-
-      {/* Add Task Button */}
-      <IconButton
-        onClick={() => setShowTaskModal(true)}
-        aria-label="Add Task"
-        sx={{
-            position: 'fixed',
-            bottom: 20,
-            right: 20,
-            bgcolor: 'primary.main',
-            color: 'white',
-            '&:hover': {
-                bgcolor: 'primary.dark',
-            },
-            zIndex: 1000
-        }}
-      >
-        <AddIcon />
-      </IconButton>
       {/* Notification Snackbar */}
       <Snackbar
         open={notification.open}

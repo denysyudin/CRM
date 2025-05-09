@@ -43,10 +43,17 @@ const FileManager: React.FC = () => {
   const [contextMenuFile, setContextMenuFile] = useState<File | null>(null);
   const [treeContext, setTreeContext] = useState<FileTreeContext | null>(null);
 
-  // Use the API query hook
-  const { data: filesData, isLoading, isError } = useGetFilesQuery();
+  // Use the API query hook with skipCaching option
+  const { data: filesData, isLoading, isError, refetch } = useGetFilesQuery(undefined, {
+    refetchOnMountOrArgChange: true // Force refetch when component mounts
+  });
   const [deleteFile] = useDeleteFileMutation();
-  // const [createFile] = useCreateFileMutation();
+  
+  // Force refetch on mount
+  useEffect(() => {
+    // Force refetch when component mounts
+    refetch();
+  }, [refetch]);
   
   // Load files when component mounts or when the query data changes
   useEffect(() => {
@@ -187,6 +194,8 @@ const FileManager: React.FC = () => {
     if (contextMenuFile) {
       try {
         await deleteFile(contextMenuFile);
+        // Refresh the file list after deletion
+        refetch();
         closeContextMenu();
       } catch (error) {
         console.error('Error deleting file:', error);
@@ -300,7 +309,7 @@ const FileManager: React.FC = () => {
         </Box>
 
         {/* Context Menu */}
-        {/* <Menu
+        <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
           onClose={closeContextMenu}
@@ -311,7 +320,7 @@ const FileManager: React.FC = () => {
             </ListItemIcon>
             <ListItemText>Delete</ListItemText>
           </MenuItem>
-        </Menu> */}
+        </Menu>
       </Box>
     </Box>
   );

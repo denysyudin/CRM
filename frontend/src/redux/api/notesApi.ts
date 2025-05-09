@@ -25,8 +25,12 @@ export const notesApi = apiSlice.injectEndpoints({
           ? [
               ...result.map(({ id }) => ({ type: 'Notes' as const, id })),
               { type: 'Notes', id: 'LIST' },
+              { type: 'Tasks', id: 'LIST' },
             ]
-          : [{ type: 'Notes', id: 'LIST' }],
+          : [{ type: 'Notes', id: 'LIST' },
+            { type: 'Tasks', id: 'LIST' },
+          ],
+
     }),
     
     // Get a single note by ID

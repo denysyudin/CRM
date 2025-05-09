@@ -36,6 +36,7 @@ import { useGetNotesQuery, useCreateNoteMutation } from '../../redux/api/notesAp
 import { useGetRemindersQuery, useCreateReminderMutation } from '../../redux/api/remindersApi';
 import { useGetTasksQuery, useCreateTaskMutation, useUpdateTaskMutation } from '../../redux/api/tasksApi';
 import { useGetProjectsQuery } from '../../redux/api/projectsApi';
+import { useGetFilesQuery } from '../../redux/api/filesApi';
 import ReminderModal from '../../components/forms/ReminderModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
@@ -102,6 +103,9 @@ const EmployeePage: React.FC = () => {
     data: projects = [],
     isLoading: projectsLoading
   } = useGetProjectsQuery();
+
+  // Add files query with refetch function
+  const { refetch: refetchFiles } = useGetFilesQuery();
 
   // Create employee mutation hook
   const [createEmployee] = useCreateEmployeeMutation();
@@ -340,6 +344,8 @@ const EmployeePage: React.FC = () => {
       .then((response: ApiResponse) => {
         setAssignTaskModalOpen(false);
         showNotification(response.message || 'Task assigned successfully', 'success');
+        // Refetch files data to ensure it's updated with any files attached to the task
+        refetchFiles();
       })
       .catch((error) => {
         console.error('Failed to create task:', error);

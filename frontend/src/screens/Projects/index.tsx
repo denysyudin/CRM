@@ -635,7 +635,8 @@ const Projects: React.FC = () => {
   });
 
   const {
-    data: files = []
+    data: files = [],
+    refetch: refetchFiles
   } = useGetFileByProjectIdQuery(selectedProjectId as string, {
     skip: !selectedProjectId
   });
@@ -805,9 +806,11 @@ const Projects: React.FC = () => {
     if (!selectedProject) return;
 
     try {
-    await createTask(taskData as FormData).unwrap();
+      await createTask(taskData as FormData).unwrap();
       showNotification('Task created successfully', 'success');
       setShowAddTaskModal(false);
+      // Refetch files data to update the files list
+      refetchFiles();
     } catch (error) {
       console.error('Failed to add task:', error);
       showNotification('Failed to add task. Please try again.', 'error');

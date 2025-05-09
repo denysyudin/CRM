@@ -54,7 +54,10 @@ export const tasksApi = apiSlice.injectEndpoints({
         body: formData,
         formData: true,
       }),
-      invalidatesTags: [{ type: 'Tasks', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'Tasks', id: 'LIST' },
+        { type: 'Files', id: 'LIST' }
+      ],
     }),
     
     // Update an existing task
