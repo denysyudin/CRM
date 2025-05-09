@@ -259,7 +259,6 @@ const FileManager: React.FC = () => {
                             aria-label="more options"
                             onClick={(e) => handleContextMenu(e, file)}
                           >
-                            <MoreVertIcon />
                           </IconButton>
                         }
                         sx={{ 
@@ -307,20 +306,6 @@ const FileManager: React.FC = () => {
             )}
           </Paper>
         </Box>
-
-        {/* Context Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={closeContextMenu}
-        >
-          <MenuItem onClick={handleDeleteFile}>
-            <ListItemIcon>
-              <DeleteIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Delete</ListItemText>
-          </MenuItem>
-        </Menu>
       </Box>
     </Box>
   );
