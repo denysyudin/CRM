@@ -377,13 +377,13 @@ const TaskDashboard: React.FC = () => {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell width="5%">Status</TableCell>
-                      <TableCell>Task Name</TableCell>
-                      <TableCell width="10%">Category</TableCell>
-                      <TableCell width="10%">Priority</TableCell>
-                      <TableCell width="15%">Project</TableCell>
-                      <TableCell width="15%">Assigned To</TableCell>
-                      <TableCell width="10%">Files</TableCell>
+                      <TableCell width="5%" align="center">Status</TableCell>
+                      <TableCell align="center">Task Name</TableCell>
+                      <TableCell width="15%" align="center">Priority</TableCell>
+                      <TableCell width="15%" align="center">Category</TableCell>
+                      <TableCell width="15%" align="center">Project</TableCell>
+                      <TableCell width="15%" align="center">Assigned To</TableCell>
+                      <TableCell width="10%" align="center">Files</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -705,21 +705,20 @@ const TaskDashboard: React.FC = () => {
         {/* Tab 3: List View */}
         {tabValue === 3 && (
           <Box>
-            <Typography variant="h6" gutterBottom>
-              All Tasks (List View)
+            <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+              Today's Tasks
             </Typography>
-            <TableContainer component={Paper} variant="outlined">
+            <TableContainer component={Paper} variant="outlined" sx={{ p: 2 }}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell width="5%">Status</TableCell>
-                    <TableCell>Task Name</TableCell>
-                    <TableCell width="10%">Priority</TableCell>
-                    <TableCell width="10%">Category</TableCell>
-                    <TableCell width="10%">Due Date</TableCell>
-                    <TableCell width="15%">Project</TableCell>
-                    <TableCell width="10%">Assigned To</TableCell>
-                    <TableCell width="10%">Files</TableCell>
+                    <TableCell width="5%" align="center">Status</TableCell>
+                    <TableCell align="center">Task Name</TableCell>
+                    <TableCell width="15%" align="center">Priority</TableCell>
+                    <TableCell width="15%" align="center">Category</TableCell>
+                    <TableCell width="15%" align="center">Project</TableCell>
+                    <TableCell width="15%" align="center">Assigned To</TableCell>
+                    <TableCell width="10%" align="center">Files</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -738,17 +737,16 @@ const TaskDashboard: React.FC = () => {
                         <PriorityTag priority={task.priority} />
                       </TableCell>
                       <TableCell>{task.category || 'General'}</TableCell>
-                      <TableCell>{task.due_date}</TableCell>
                       <TableCell>{projectsData.filter(project => project.id === task.project_id).map(project => project.title).join(', ')}</TableCell>
                       <TableCell>{employeesData.filter(employee => employee.id === task.employee_id).map(employee => employee.name).join(', ')}</TableCell>
                       <TableCell>{filesData.filter(file => file.id === task.file_id).map(file => file.title).join(', ')}</TableCell>
                     </TableRow>
                   ))}
-                  {tasks.length === 0 && (
+                  {getTodaysTasks().length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                      <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
                         <Typography variant="body2" color="text.secondary">
-                          No tasks available
+                          No tasks due today
                         </Typography>
                       </TableCell>
                     </TableRow>
