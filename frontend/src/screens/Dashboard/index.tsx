@@ -15,10 +15,10 @@ const Dashboard: React.FC = () => {
     const mainContentRef = useRef<HTMLDivElement>(null);
     
     // Use a more specific approach with theme.breakpoints.down for consistency
-    const isSmall = useMediaQuery('(max-width:600px)');
+    // const isSmall = useMediaQuery('(max-width:600px)');
     const isMobile = useMediaQuery('(max-width:768px)');
-    const isMedium = useMediaQuery('(max-width:960px)');
-    const isLarge = useMediaQuery('(max-width:1280px)');
+    // const isMedium = useMediaQuery('(max-width:960px)');
+    // const isLarge = useMediaQuery('(max-width:1280px)');
 
     // Update the clock every minute
     useEffect(() => {

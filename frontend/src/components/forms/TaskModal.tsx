@@ -218,7 +218,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   label="Project"
                   onChange={(e) => setSelectedProjectId(e.target.value)}
                   disabled={isUploading}
-                  required
                 >
                   {projectsLoading ? (
                     <MenuItem disabled>Loading projects...</MenuItem>
@@ -242,7 +241,6 @@ const TaskModal: React.FC<TaskModalProps> = ({ projectName, onClose, onSubmit, t
                   label="Employee"
                   onChange={(e) => setEmployeeId(e.target.value)}
                   disabled={isUploading}
-                  required
                 >
                   <MenuItem value="">None</MenuItem>
                   {employeesLoading ? (

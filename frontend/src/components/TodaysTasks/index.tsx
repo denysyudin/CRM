@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGetTasksQuery } from '../../redux/api/tasksApi';
+import { useGetEmployeesQuery } from '../../redux/api/employeesApi';
 import { CircularProgress, Typography, Table, TableBody, TableRow, TableCell, TableHead, TableContainer, Divider, Paper } from '@mui/material';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import './styles.css';
@@ -11,6 +12,8 @@ const TodaysTasks: React.FC = () => {
   const { data: tasks, isLoading, isError, error } = useGetTasksQuery({}, {
     skip: !shouldFetch
   });
+
+  const { data: employees } = useGetEmployeesQuery();
 
   useEffect(() => {
     // If tasks are not in the store, fetch them
@@ -138,7 +141,7 @@ const TodaysTasks: React.FC = () => {
               <TableCell>{task.title}</TableCell>
               <TableCell>{task.status}</TableCell>
               <TableCell>{task.priority}</TableCell>
-              <TableCell>{task.employee_id}</TableCell>
+              <TableCell>{employees?.find(employee => employee.id === task.employee_id)?.name}</TableCell>
             </TableRow>
           ))}
         </TableBody>

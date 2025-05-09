@@ -392,14 +392,14 @@ const TaskDashboard: React.FC = () => {
                         <TableCell>
                           <StatusCircle status={task.status} taskId={task.id} disable={true} />
                         </TableCell>
-                        <TableCell>{task.title}</TableCell>
-                        <TableCell>{task.category}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>{task.title}</TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>{task.category}</TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>
                           <PriorityTag priority={task.priority} />
                         </TableCell>
-                        <TableCell>{projectsData.filter(project => project.id === task.project_id).map(project => project.title).join(', ')}</TableCell>
-                        <TableCell>{employeesData.filter(employee => employee.id === task.employee_id).map(employee => employee.name).join(', ')}</TableCell>
-                        <TableCell>{filesData.filter(file => file.id === task.file_id).map(file => file.title).join(', ')}</TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>{projectsData.filter(project => project.id === task.project_id).map(project => project.title).join(', ')}</TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>{employeesData.filter(employee => employee.id === task.employee_id).map(employee => employee.name).join(', ')}</TableCell>
+                        <TableCell sx={{ textAlign: 'center' }}>{filesData.filter(file => file.id === task.file_id).map(file => file.title).join(', ')}</TableCell>
                       </TableRow>
                     ))}
                     {getTodaysTasks().length === 0 && (
