@@ -826,7 +826,7 @@ const TaskDashboard: React.FC = () => {
                   {selectedTask.file_id && (
                     <Grid item xs={6}>
                       <Typography variant="body2" color="text.secondary">Files</Typography>
-                      <Typography variant="body2">{filesData.filter(file => file.id === selectedTask.file_id).map(file => file.title).join(', ')}</Typography>
+                      <Typography variant="body2">{filesData.filter(file => file.id === selectedTask.file_id).map(file => file.title).join(', ').slice(0, 10).concat('...')}</Typography>
                     </Grid>
                   )}
                 </Grid>

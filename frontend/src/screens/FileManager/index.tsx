@@ -283,7 +283,7 @@ const FileManager: React.FC = () => {
                             {getFileIcon(file.file_type)}
                           </ListItemIcon>
                           <ListItemText 
-                            primary={file.title} 
+                            primary={file.title.slice(0, 10).concat('...')} 
                             secondary={
                               <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                                 <Typography variant="body2" color="text.secondary" component="span">
