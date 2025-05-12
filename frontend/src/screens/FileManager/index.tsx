@@ -187,6 +187,10 @@ const FileManager: React.FC = () => {
       navigateToFolder(file.id, file.title);
     } else {
       setSelectedFile(file);
+      // Open the file in a new window/tab if file_path exists
+      if (file.file_path) {
+        window.open(file.file_path, '_blank');
+      }
     }
   };
 

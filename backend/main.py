@@ -346,6 +346,7 @@ async def create_task(
     employee_id: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None)
 ):
+    print(f"Creating task: {title}")
     task_data = {
         "id": generate_id(),
         "title": title,
@@ -366,7 +367,6 @@ async def create_task(
         raise HTTPException(status_code=400, detail="Failed to create task")
     
     created_task = response.data[0]
-    
     # Handle file upload if provided
     if file and file.filename:
         try:
