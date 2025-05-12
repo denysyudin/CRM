@@ -39,7 +39,7 @@ const UpcomingEvents: React.FC = () => {
         <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={2} gutterBottom>
           <EventIcon color="primary" /> Upcoming Events
         </Typography>
-        <Divider />
+        <Divider sx={{ mb: 2 }} />
         
         {isLoading ? (
           <Box display="flex" justifyContent="center" >

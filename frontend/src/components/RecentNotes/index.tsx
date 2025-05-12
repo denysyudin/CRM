@@ -44,7 +44,7 @@ const RecentNotes: React.FC = () => {
         <Typography variant="h6" component="h2" display="flex" alignItems="center" gap={2} gutterBottom>
           <FormatListBulletedRoundedIcon color="primary" /> Recent Notes
         </Typography>
-        <Divider />
+        <Divider sx={{ mb: 2 }} />
 
         {isLoading ? (
           <Box display="flex" justifyContent="center" >

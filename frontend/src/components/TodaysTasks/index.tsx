@@ -115,16 +115,17 @@ const TodaysTasks: React.FC = () => {
       <Typography 
         variant="h6" 
         sx={{ 
-          mb: 2,
+          mb: 1,
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 1,
+          padding: 1
         }}
       >
         <AssignmentTurnedInIcon color="primary" />
         Today's Tasks  {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
       </Typography>
-      <Divider sx={{ mb: 2 }} />
+      <Divider />
       <TableContainer className='tasks-container'>
         <Table>
         <TableHead>

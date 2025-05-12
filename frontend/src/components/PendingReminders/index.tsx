@@ -56,18 +56,18 @@ const PendingReminders: React.FC = () => {
         <NotificationsIcon color="primary" />
         Pending Reminders
       </Typography>
-      <Divider />
+      <Divider sx={{ mb: 2 }} />
       
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress size={24} />
+          <CircularProgress />
         </Box>
       ) : isError ? (
         <Typography variant="body2" color="error" sx={{ textAlign: 'center' }}>
           Failed to load reminders
         </Typography>
       ) : data.length === 0 ? (
-        <Typography variant="body2" sx={{ p: 2, textAlign: 'center' }}>
+        <Typography sx={{ textAlign: 'center' }}>
           No pending reminders found
         </Typography>
       ) : (
