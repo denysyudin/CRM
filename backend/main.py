@@ -133,6 +133,7 @@ def convert_datetime_to_string(data: dict) -> dict:
     return data
 
 def upload_file(file: UploadFile, project_id: Optional[str] = None):
+    print(f"Uploading file to project: {project_id}")
     # Setup Google Drive API
     SCOPES = ['https://www.googleapis.com/auth/drive']
     creds = None
@@ -154,6 +155,7 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
             pickle.dump(creds, token)
     # Build the Drive API client
     drive_service = build('drive', 'v3', credentials=creds)
+    print(f"Drive service: {drive_service}")
 
     if project_id and project_id != "":
         project_query = supabase.table("projects").select("*").eq("id", project_id).execute()
@@ -181,7 +183,7 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
     #     folder_id = folder.get('id')
     # Upload file to the directory
     file_content = io.BytesIO(file.file.read())
-    
+    print(f" read file content")
     # Create file metadata
     file_metadata = {
         'name': file.filename,
@@ -189,14 +191,16 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
     }
     # Upload the file
     media = MediaIoBaseUpload(file_content, mimetype=file.content_type, resumable=True)
+    print(f" upload the file")
     uploaded_file = drive_service.files().create(
         body=file_metadata,
         media_body=media,
         fields='id'
     ).execute()
+    print(f" uploaded the file")
     file_id = uploaded_file.get('id')
     file_url = f"https://drive.google.com/file/d/{file_id}/view"
-    
+    print(f" file_id: {file_id}")
     return {
         "file_id": file_id,
         "file_url": file_url,
@@ -480,8 +484,10 @@ async def delete_task(task_id: str):
     check_response = supabase.table("tasks").select("*").eq("id", task_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+    delete_file_from_drive(check_response.data[0]["file_id"])
     response = supabase.table("tasks").delete().eq("id", task_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=400, detail="Failed to delete task")
     return {"message": "Task deleted successfully"}
 
 # Notes
