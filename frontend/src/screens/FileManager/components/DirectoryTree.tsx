@@ -14,12 +14,9 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import DescriptionIcon from '@mui/icons-material/Description';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import { File } from '../../../types';
-
-import { useGetFilesQuery } from '../../../redux/api/filesApi';
-import { useGetProjectsQuery } from '../../../redux/api/projectsApi';
+import { useGetFoldersQuery } from '../../../redux/api/foldersApi';
+import { File } from '../../../types/file.types';
+import { Folder } from '../../../types/folder.types';
 
 // File type icons
 import ImageIcon from '@mui/icons-material/Image';
@@ -32,7 +29,7 @@ export interface FileNode {
   name: string;
   children: FileNode[];
   parent?: string;
-  type?: 'project' | 'file';
+  type?: 'folder' | 'file';
   fileType?: string;
 }
 
@@ -64,27 +61,8 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     children: []
   });
 
-  const { data: filesData, isLoading: filesLoading } = useGetFilesQuery();
-  const { data: projectsData, isLoading: projectsLoading } = useGetProjectsQuery();
-
-  // Get file icon based on file type
-  const getFileIcon = (fileType: string | undefined, isSelected: boolean = false) => {
-    if (!fileType) return <InsertDriveFileIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    
-    const fileTypeLower = fileType.toLowerCase();
-    
-    if (fileTypeLower.match(/jpe?g|png|gif|bmp|svg/)) {
-      return <ImageIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    } else if (fileTypeLower === 'pdf') {
-      return <PictureAsPdfIcon fontSize="small" color={isSelected ? "primary" : "error"} />;
-    } else if (fileTypeLower.match(/js|jsx|ts|tsx|html|css|java|py|c|cpp/)) {
-      return <CodeIcon fontSize="small" color={isSelected ? "primary" : "info"} />;
-    } else if (fileTypeLower.match(/txt|md|rtf/)) {
-      return <TextSnippetIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-    }
-    
-    return <InsertDriveFileIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
-  };
+  // const { data: filesData, isLoading: filesLoading } = useGetFilesQuery();
+  const { data: foldersData, isLoading: foldersLoading } = useGetFoldersQuery();
 
   // Build the tree using useMemo - only depend on API data, not component state
   const { treeData, nodeMap } = useMemo(() => {
@@ -93,7 +71,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
       id: 'root',
       name: 'Root',
       children: [],
-      type: 'project'
+      type: 'folder'
     };
 
     // Map to store all nodes by ID for quick reference
@@ -102,48 +80,46 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     };
 
     // If data isn't loaded yet, return empty structure
-    if (!filesData || !projectsData) {
+    if (!foldersData) {
       console.log('Data not loaded yet, returning empty structure');
       return { treeData: root, nodeMap };
     }
 
-    console.log('Building tree with projects:', projectsData.length, 'files:', filesData.length);
-
-    // First, add all projects as top-level directories under root
-    projectsData.forEach(project => {
-      const projectNode: FileNode = {
-        id: project.id,
-        name: project.title,
-        children: [],
-        parent: 'root',
-        type: 'project'
-      };
-      
-      nodeMap[project.id] = projectNode;
-      root.children.push(projectNode);
+    // First, add all folders to the node map
+    foldersData.forEach((folder: Folder) => {
+      if (folder.id) {
+        const folderNode: FileNode = {
+          id: folder.id,
+          name: folder.title,
+          children: [],
+          parent: folder.parent || 'root',
+          type: 'folder'
+        };
+        
+        nodeMap[folder.id] = folderNode;
+      }
     });
-
-    // Then, add all files
-    filesData.forEach(file => {
-      const node: FileNode = {
-        id: file.id,
-        name: file.title,
-        children: [],
-        parent: file.project_id || 'root',
-        type: file.file_type === 'application/vnd.google-apps.folder' ? 'project' : 'file',
-        fileType: file.file_type
-      };
-
-      nodeMap[file.id] = node;
+    
+    // Build the folder hierarchy
+    foldersData.forEach((folder: Folder) => {
+      if (folder.id) {
+        if (folder.parent && folder.parent !== 'root' && nodeMap[folder.parent]) {
+          // Add as child to parent
+          nodeMap[folder.parent].children.push(nodeMap[folder.id]);
+        } else {
+          // Add to root if parent is 'root' or parent doesn't exist
+          root.children.push(nodeMap[folder.id]);
+        }
+      }
     });
 
     // Sort all nodes
     const sortNodes = (node: FileNode) => {
-      // Sort by type first (project > folder > file), then alphabetically
+      // Sort by type first (folder > file), then alphabetically
       node.children.sort((a, b) => {
         // Define type priority
         const typePriority = {
-          'project': 1,
+          'folder': 1,
           'file': 2
         };
         
@@ -166,7 +142,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     sortNodes(root);
 
     return { treeData: root, nodeMap };
-  }, [projectsData, filesData]);  // Only depend on the API data
+  }, [foldersData]);  // Only depend on the API data
 
   // Handle node toggling (expand/collapse)
   const handleNodeToggle = (nodeId: string) => {
@@ -268,12 +244,12 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     const hasChildren = node.children.length > 0;
     // Select the appropriate icon
     let nodeIcon;
-    if (node.type === 'project') {
+    if (node.type === 'folder') {
       nodeIcon = isExpanded 
         ? <FolderOpenIcon fontSize="small" color="primary" /> 
         : <FolderIcon fontSize="small" color={isSelected ? "primary" : "action"} />;
     } else {
-      nodeIcon = getFileIcon(node.fileType, isSelected);
+      // nodeIcon = getFileIcon(node.fileType, isSelected);
     }
     
     return (
@@ -296,7 +272,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
           }}
         >
           <ListItemIcon sx={{ minWidth: 30 }}>
-            {node.type == 'project' && (
+            {node.type === 'folder' && (
               <Box 
                 component="span" 
                 onClick={(e) => {
@@ -334,7 +310,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
           />
         </ListItemButton>
         
-        {hasChildren && (
+        {hasChildren && node.type === 'folder' && (
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <List component="div" disablePadding sx={{ m: 0, p: 0 }}>
               {node.children.map((child, index) => renderNode(
@@ -349,7 +325,7 @@ const DirectoryTree: React.FC<DirectoryTreeProps> = ({
     );
   };
 
-  const isLoading = loading || filesLoading || projectsLoading;
+  const isLoading = loading || foldersLoading;
 
   if (isLoading) {
     return (

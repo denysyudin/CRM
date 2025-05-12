@@ -10,6 +10,7 @@ export interface File {
   note_id?: string;
   task_id?: string;
   created_at?: string;
+  folder_id: string;
 }
 
 // File creation/update payload types

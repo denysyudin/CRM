@@ -6,7 +6,6 @@ export const employeesApi = apiSlice.injectEndpoints({
     getEmployees: builder.query<Employee[], void>({
       query: () => '/employees',
       transformResponse: (response: Employee[]) => {
-        // Take first 5 events
         return response;
       },
       providesTags: [{ type: 'Employees', id: 'LIST' }],

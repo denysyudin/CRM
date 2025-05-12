@@ -19,7 +19,7 @@ export const filesApi = apiSlice.injectEndpoints({
           : [{ type: 'Files', id: 'LIST' }],
     }),
     
-    createFile: builder.mutation<File, File>({
+    createFile: builder.mutation<File, FormData>({
       query: (file) => ({
         url: '/files',
         method: 'POST',

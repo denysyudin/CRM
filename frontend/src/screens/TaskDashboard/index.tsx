@@ -43,7 +43,6 @@ import {
 } from '@mui/icons-material';
 
 import AddIcon from '@mui/icons-material/Add';
-import TaskOutlinedIcon from '@mui/icons-material/TaskOutlined';
 
 const TaskDashboard: React.FC = () => {
   // const theme = useTheme();

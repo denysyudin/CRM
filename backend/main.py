@@ -48,6 +48,7 @@ class TaskBase(BaseModel):
     created_at: Optional[str] = None
     file_name: Optional[str] = None
     file: Optional[str] = None
+    folder_id: Optional[str] = None
 
 class NoteBase(BaseModel):
     id: Optional[str] = None
@@ -87,7 +88,9 @@ class FileBase(BaseModel):
     employee_id: Optional[str] = None
     note_id: Optional[str] = None
     task_id: Optional[str] = None
+    parent_folder_id: Optional[str] = None
     created_at: Optional[str] = None
+    folder_id: str
 
 class EmployeeBase(BaseModel):
     id: Optional[str] = None
@@ -95,6 +98,11 @@ class EmployeeBase(BaseModel):
     project_id: Optional[str] = None
     role: Optional[str] = None
     status: bool
+
+class FolderBase(BaseModel):
+    id: Optional[str] = None
+    title: str
+    parent: str
 
 class TaskStatusUpdate(BaseModel):
     status: str
@@ -147,11 +155,13 @@ def upload_file(file: UploadFile, project_id: Optional[str] = None):
     # Build the Drive API client
     drive_service = build('drive', 'v3', credentials=creds)
 
-    if project_id:
+    if project_id and project_id != "":
         project_query = supabase.table("projects").select("*").eq("id", project_id).execute()
         if project_query.data:
             project_data = project_query.data[0]
             project_name = project_data["title"]
+    else:
+        project_name = ""
     
     # Check if directory exists
     # folder_id = None
@@ -367,11 +377,21 @@ async def create_task(
                 "file_size": upload_result['file_size'],
                 "project_id": project_id,
                 "task_id": created_task["id"],
+                "folder_id": project_id,
                 "created_at": get_current_timestamp()
             }
             response = supabase.table("files").insert(file_data).execute()
             if not response.data:
                 raise HTTPException(status_code=400, detail="Failed to create file")
+            projects = supabase.table("projects").select("*").eq("id", project_id).execute()
+            folder_data = {
+                "id": project_id,
+                "title": projects.data[0]["title"],
+                "parent": "root",
+            }
+            check_folder = supabase.table("folders").select("*").eq("title", projects.data[0]["title"]).execute()
+            if not check_folder.data:
+                response = supabase.table("folders").insert(folder_data).execute()
         except Exception as e:
             # Log the error but don't fail the request
             print(f"File upload failed: {str(e)}")
@@ -520,6 +540,7 @@ async def create_note(
                 "task_id": None,
                 "note_id": note_data["id"],
                 "project_id": project_id if project_id else None,
+                "folder_id": project_id,
                 "created_at": get_current_timestamp()
             }
             
@@ -533,6 +554,16 @@ async def create_note(
                 response_file = supabase.table("files").insert(file_data).execute()
                 if not response_file.data:
                     raise HTTPException(status_code=400, detail="Failed to create file")
+                
+                projects = supabase.table("projects").select("*").eq("id", project_id).execute()
+                folder_data = {
+                    "id": project_id,
+                    "title": projects.data[0]["title"],
+                    "parent": "root",
+                }
+                check_folder = supabase.table("folders").select("*").eq("title", projects.data[0]["title"]).execute()
+                if not check_folder.data:
+                    response = supabase.table("folders").insert(folder_data).execute()
         except Exception as e:
             # Log the error but don't fail the request
             print(f"File upload failed: {str(e)}")
@@ -654,6 +685,7 @@ async def delete_note(note_id: str):
     except Exception as e:
         print(f"File deletion failed: {str(e)}")
     #delete the note from supabase
+
 # Events
 @app.get("/events")
 async def get_events(project_id: Optional[str] = None, employee_id: Optional[str] = None):
@@ -808,6 +840,43 @@ async def get_file(file_id: str):
     file_data = response.data[0]
     return file_data
 
+@app.post("/files", response_model=FileBase)
+async def create_file(folder_id: str = Form(...),
+    project_id: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    employee_id: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    category: Optional[str] = Form(None),
+):
+    upload_result = upload_file(file, project_id=project_id)
+    file_data = {
+        "id": upload_result['file_id'],
+        "title": file.filename,
+        "file_path": upload_result['file_url'],
+        "file_type": file.content_type,
+        "file_size": file.size,
+        "folder_id": folder_id,
+        "project_id": project_id,
+        # "employee_id": employee_id,
+        # "description": description,
+        # "category": category,
+    }
+    if not file_data.get("id"):
+        file_data["id"] = generate_id()
+    
+    file_data["created_at"] = get_current_timestamp()
+    
+    # Set default values if not provided
+    if file_data.get("file_size") is None:
+        file_data["file_size"] = "0"
+    
+    response = supabase.table("files").insert(file_data).execute()
+    if not response.data:
+        raise HTTPException(status_code=400, detail="Failed to create file")
+    
+    created_file = response.data[0]
+    return created_file
+
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: str):
     # Get file info
@@ -854,6 +923,18 @@ async def update_employee(employee_id: str, employee: EmployeeBase):
 async def delete_employee(employee_id: str):
     response = supabase.table("employees").delete().eq("id", employee_id).execute()
     return {"message": "Employee deleted successfully"}
+
+# Folders
+@app.get("/folders", response_model=List[FolderBase])
+async def get_folders():
+    response = supabase.table("folders").select("*").execute()
+    return response.data
+
+@app.post("/folders", response_model=FolderBase)
+async def create_folder(folder: FolderBase):
+    folder.id = generate_id()
+    response = supabase.table("folders").insert(folder.dict()).execute()
+    return response.data[0]
 
 # Run the application with uvicorn
 if __name__ == "__main__":
