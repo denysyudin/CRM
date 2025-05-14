@@ -484,7 +484,12 @@ async def delete_task(task_id: str):
     check_response = supabase.table("tasks").select("*").eq("id", task_id).execute()
     if not check_response.data:
         raise HTTPException(status_code=404, detail="Task not found")
-    delete_file_from_drive(check_response.data[0]["file_id"])
+    #delete the file from drive
+    file_id = check_response.data[0]["file_id"]
+    if file_id and file_id != "":
+        delete_file_from_drive(file_id)
+        supabase.table("files").delete().eq("id", file_id).execute()
+    #delete the file from supabase
     response = supabase.table("tasks").delete().eq("id", task_id).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to delete task")
@@ -680,10 +685,11 @@ async def delete_note(note_id: str):
         file_url = check_response.data[0]["file_url"]
         if file_url:
             file_id = supabase.table("files").select("*").eq("file_path", file_url).execute().data[0]["id"]
-            delete_file_from_drive(file_id)
-            response_file = supabase.table("files").delete().eq("id", file_id).execute()
-            if not response_file.data:
-                raise HTTPException(status_code=400, detail="Failed to delete file")
+            if file_id and file_id != "":
+                delete_file_from_drive(file_id)
+                response_file = supabase.table("files").delete().eq("id", file_id).execute()
+                if not response_file.data:
+                    raise HTTPException(status_code=400, detail="Failed to delete file")
             response = supabase.table("notes").delete().eq("id", note_id).execute()
             if not response.data:
                 raise HTTPException(status_code=400, detail="Failed to delete note")
